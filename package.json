@@ -1,0 +1,32 @@
+{
+  "name": "agent-playground",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Interactive playground for agentfootprint — run samples, see conversations, inspect metrics",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint 'src/**/*.{ts,tsx}'"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.1",
+    "@monaco-editor/react": "^4.7.0",
+    "agent-explainable-ui": "file:../agent-explainable-ui",
+    "footprint-explainable-ui": "file:../explainable-ui",
+    "footprintjs": "file:../footPrint",
+    "@xyflow/react": "^12.10.1",
+    "agentfootprint": "file:../agentfootprint",
+    "sucrase": "^3.35.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.5.2",
+    "typescript": "~5.4.5",
+    "vite": "^6.0.0"
+  }
+}
