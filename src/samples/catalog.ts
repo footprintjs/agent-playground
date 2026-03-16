@@ -24,20 +24,26 @@ export interface SampleCategory {
 // ── Sample Code ──────────────────────────────────────────────
 
 const s01 = `
-import { LLMCall, mock } from 'agentfootprint';
+import { LLMCall, mock, TokenRecorder } from 'agentfootprint';
 
-// Builder pattern: LLMCall.create() → .system() → .build() → runner
+const tokens = new TokenRecorder();
+
+// Builder pattern: LLMCall.create() → .system() → .recorder() → .build()
 const runner = LLMCall
   .create({ provider: mock([{ content: 'This text discusses AI safety and alignment challenges.' }]) })
   .system('Summarize the following text concisely:')
+  .recorder(tokens)
   .build();
 
 const result = await runner.run(input);
-return { content: result.content };
+return { content: result.content, tokenStats: tokens.getStats() };
 `;
 
 const s02 = `
-import { Agent, mock, defineTool } from 'agentfootprint';
+import { Agent, mock, defineTool, TokenRecorder, ToolUsageRecorder } from 'agentfootprint';
+
+const tokens = new TokenRecorder();
+const toolUsage = new ToolUsageRecorder();
 
 const searchTool = defineTool({
   name: 'search',
@@ -46,7 +52,7 @@ const searchTool = defineTool({
   handler: async ({ query }) => ({ results: ['Result 1: AI is transformative', 'Result 2: ML powers modern apps'] }),
 });
 
-// Agent builder: create → system → tool → build
+// Agent builder: create → system → tool → recorder → build
 const runner = Agent
   .create({ provider: mock([
     { content: 'Let me search for that.', toolCalls: [{ id: '1', name: 'search', arguments: { query: 'artificial intelligence' } }] },
@@ -54,16 +60,20 @@ const runner = Agent
   ]) })
   .system('You are a research assistant. Use the search tool to find information.')
   .tool(searchTool)
+  .recorder(tokens)
+  .recorder(toolUsage)
   .build();
 
 const result = await runner.run(input);
-return { content: result.content };
+return { content: result.content, tokenStats: tokens.getStats(), toolStats: toolUsage.getStats() };
 `;
 
 const s03 = `
-import { RAG, mock, mockRetriever } from 'agentfootprint';
+import { RAG, mock, mockRetriever, TokenRecorder } from 'agentfootprint';
 
-// RAG builder: create with provider + retriever → system → build
+const tokens = new TokenRecorder();
+
+// RAG builder: create with provider + retriever → system → recorder → build
 const runner = RAG
   .create({
     provider: mock([{ content: 'According to the documentation, the answer is 42.' }]),
@@ -76,10 +86,11 @@ const runner = RAG
   })
   .system('Answer the question using only the provided context.')
   .topK(3)
+  .recorder(tokens)
   .build();
 
 const result = await runner.run(input);
-return { content: result.content };
+return { content: result.content, tokenStats: tokens.getStats() };
 `;
 
 const s04 = `
@@ -155,7 +166,10 @@ return {
 `;
 
 const s07 = `
-import { FlowChart, LLMCall, mock } from 'agentfootprint';
+import { FlowChart, LLMCall, mock, TokenRecorder, TurnRecorder } from 'agentfootprint';
+
+const tokens = new TokenRecorder();
+const turns = new TurnRecorder();
 
 // Build individual stage runners
 const classify = LLMCall
@@ -173,19 +187,24 @@ const respond = LLMCall
   .system('Generate a customer response:')
   .build();
 
-// FlowChart composes runners into a sequential pipeline
+// FlowChart composes runners — recorders observe the whole pipeline
 const runner = FlowChart.create()
   .agent('classify', 'Classify Request', classify)
   .agent('analyze', 'Analyze Request', analyze)
   .agent('respond', 'Generate Response', respond)
+  .recorder(tokens)
+  .recorder(turns)
   .build();
 
 const result = await runner.run(input);
-return { content: result.content };
+return { content: result.content, tokenStats: tokens.getStats(), turnStats: turns.getEntries() };
 `;
 
 const s08 = `
-import { Swarm, LLMCall, mock } from 'agentfootprint';
+import { Swarm, LLMCall, mock, TokenRecorder, ToolUsageRecorder } from 'agentfootprint';
+
+const tokens = new TokenRecorder();
+const toolUsage = new ToolUsageRecorder();
 
 // Build specialist runners
 const billing = LLMCall
@@ -198,7 +217,7 @@ const technical = LLMCall
   .system('Handle technical issues:')
   .build();
 
-// Swarm: orchestrator routes to specialists via tool calls
+// Swarm: orchestrator routes to specialists — recorders track delegation
 const runner = Swarm
   .create({
     provider: mock([
@@ -211,10 +230,12 @@ const runner = Swarm
   .system('Route customer requests to the appropriate specialist.')
   .specialist('billing', 'Handles billing and payment issues', billing)
   .specialist('technical', 'Handles technical support', technical)
+  .recorder(tokens)
+  .recorder(toolUsage)
   .build();
 
 const result = await runner.run(input);
-return { content: result.content };
+return { content: result.content, tokenStats: tokens.getStats(), toolStats: toolUsage.getStats() };
 `;
 
 const s09 = `
@@ -237,10 +258,10 @@ return { content: result.content, attempts: attempt };
 `;
 
 const s10 = `
-import { LLMCall, mock, TokenRecorder, CostRecorderV2, ToolUsageRecorder, CompositeRecorder } from 'agentfootprint';
+import { LLMCall, mock, TokenRecorder, CostRecorder, ToolUsageRecorder, CompositeRecorder } from 'agentfootprint';
 
 const tokens = new TokenRecorder();
-const costs = new CostRecorderV2();
+const costs = new CostRecorder();
 const tools = new ToolUsageRecorder();
 
 // Note: CompositeRecorder wraps multiple recorders
@@ -427,14 +448,14 @@ return {
 // ── Catalog ──────────────────────────────────────────────────
 
 export const samples: Sample[] = [
-  { id: 'simple-llm-call', number: 1, title: 'Simple LLM Call', description: 'LLMCall.create() builder pattern', category: 'Basics', code: s01 },
-  { id: 'agent-with-tools', number: 2, title: 'Agent with Tools', description: 'Agent builder + defineTool', category: 'Basics', code: s02 },
-  { id: 'rag-retrieval', number: 3, title: 'RAG Retrieval', description: 'RAG builder + mockRetriever', category: 'Basics', code: s03 },
+  { id: 'simple-llm-call', number: 1, title: 'Simple LLM Call', description: 'LLMCall builder + TokenRecorder', category: 'Basics', code: s01 },
+  { id: 'agent-with-tools', number: 2, title: 'Agent with Tools', description: 'Agent builder + tools + recorders', category: 'Basics', code: s02 },
+  { id: 'rag-retrieval', number: 3, title: 'RAG Retrieval', description: 'RAG builder + retriever + recorder', category: 'Basics', code: s03 },
   { id: 'prompt-strategies', number: 4, title: 'Prompt Strategies', description: 'Different system prompts per runner', category: 'Providers', code: s04 },
   { id: 'message-strategies', number: 5, title: 'Message Strategies', description: 'Sliding window, truncation', category: 'Providers', code: s05 },
   { id: 'tool-strategies', number: 6, title: 'Tool Strategies', description: 'ToolRegistry, defineTool', category: 'Providers', code: s06 },
-  { id: 'flowchart-sequential', number: 7, title: 'FlowChart Pipeline', description: 'Sequential pipeline with stages', category: 'Orchestration', code: s07 },
-  { id: 'swarm-delegation', number: 8, title: 'Swarm Delegation', description: 'Orchestrator routes to specialists', category: 'Orchestration', code: s08 },
+  { id: 'flowchart-sequential', number: 7, title: 'FlowChart Pipeline', description: 'Sequential pipeline + token/turn recorders', category: 'Orchestration', code: s07 },
+  { id: 'swarm-delegation', number: 8, title: 'Swarm Delegation', description: 'Specialist routing + token/tool recorders', category: 'Orchestration', code: s08 },
   { id: 'orchestration', number: 9, title: 'Resilience', description: 'withRetry, withFallback', category: 'Orchestration', code: s09 },
   { id: 'recorders', number: 10, title: 'Recorders', description: 'Token, Cost, Tool usage tracking', category: 'Observability', code: s10 },
   { id: 'protocol-adapters', number: 11, title: 'Protocol Adapters', description: 'MCP tool provider', category: 'Adapters', code: s11 },
