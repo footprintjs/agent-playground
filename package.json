@@ -14,7 +14,7 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.1",
-    "agent-explainable-ui": "file:../agent-explainable-ui",
+    "agent-explainable-ui": "github:footprintjs/agent-explainable-ui",
     "agentfootprint": "file:../agentfootprint",
     "footprint-explainable-ui": "file:../explainable-ui",
     "footprintjs": "file:../footPrint",
