@@ -6,6 +6,7 @@ import { ResultPanel } from './ResultPanel';
 import { BehindTheScenes } from './BehindTheScenes';
 import { executeCode } from '../runner/executeCode';
 import type { ExecuteResult } from '../runner/executeCode';
+import { loadApiKeys } from './SettingsPanel';
 
 type View = 'code' | 'result' | 'bts';
 
@@ -36,7 +37,11 @@ export function SamplePage() {
     if (!sample || running) return;
     setRunning(true);
     try {
-      const res = await executeCode(sample.code, input);
+      const keys = loadApiKeys();
+      const res = await executeCode(sample.code, input, {
+        anthropic: keys.anthropic || undefined,
+        openai: keys.openai || undefined,
+      });
       setResult(res);
       setMobileView('result'); // auto-switch to result on mobile
     } finally {

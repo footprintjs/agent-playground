@@ -445,6 +445,48 @@ return {
 };
 `;
 
+const s17 = `
+import { LLMCall, BrowserAnthropicAdapter, BrowserOpenAIAdapter, mock, TokenRecorder } from 'agentfootprint';
+
+// Live Chat — uses your real API key (set via Settings gear icon)
+// Falls back to mock if no key is configured.
+
+const tokens = new TokenRecorder();
+
+let provider;
+if (__apiKeys.anthropic) {
+  provider = new BrowserAnthropicAdapter({
+    apiKey: __apiKeys.anthropic,
+    model: 'claude-sonnet-4-20250514',
+  });
+  console.log('Using Anthropic API (claude-sonnet-4-20250514)');
+} else if (__apiKeys.openai) {
+  provider = new BrowserOpenAIAdapter({
+    apiKey: __apiKeys.openai,
+    model: 'gpt-4o-mini',
+  });
+  console.log('Using OpenAI API (gpt-4o-mini)');
+} else {
+  provider = mock([{
+    content: 'This is a mock response. To use a real LLM, click the gear icon in the header and add your API key.',
+  }]);
+  console.log('No API key set — using mock. Click the gear icon to add your key.');
+}
+
+const runner = LLMCall
+  .create({ provider })
+  .system('You are a helpful, concise assistant.')
+  .recorder(tokens)
+  .build();
+
+const result = await runner.run(input);
+return {
+  content: result.content,
+  tokenStats: tokens.getStats(),
+  provider: __apiKeys.anthropic ? 'anthropic' : __apiKeys.openai ? 'openai' : 'mock',
+};
+`;
+
 // ── Catalog ──────────────────────────────────────────────────
 
 export const samples: Sample[] = [
@@ -464,6 +506,7 @@ export const samples: Sample[] = [
   { id: 'real-adapters', number: 14, title: 'Real Adapters', description: 'Anthropic, OpenAI, createProvider', category: 'Adapters', code: s14 },
   { id: 'error-handling', number: 15, title: 'Error Handling', description: 'LLMError, classification, retry', category: 'Integration', code: s15 },
   { id: 'multimodal', number: 16, title: 'Multi-modal', description: 'Image content blocks', category: 'Integration', code: s16 },
+  { id: 'live-chat', number: 17, title: 'Live Chat', description: 'Real API call with your key (Anthropic/OpenAI)', category: 'Integration', code: s17 },
 ];
 
 export function getCategorizedSamples(): SampleCategory[] {

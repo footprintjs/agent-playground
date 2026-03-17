@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { SamplePage } from './components/SamplePage';
 import { Welcome } from './components/Welcome';
 import { Sidebar } from './components/Sidebar';
+import { SettingsPanel, loadApiKeys } from './components/SettingsPanel';
 import '@xyflow/react/dist/style.css';
 import './styles/global.css';
 
@@ -14,12 +15,23 @@ function useThemeToggle() {
   return [light, () => setLight((v) => !v)] as const;
 }
 
-function AppHeader() {
+function AppHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
   const [light, toggle] = useThemeToggle();
+  const keys = loadApiKeys();
+  const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
+
   return (
     <header className="app-header">
       <span className="app-header-title">Agent Playground</span>
       <div className="app-header-links">
+        <button
+          onClick={onOpenSettings}
+          title="API key settings"
+          className={`settings-btn ${hasKeys ? 'has-keys' : ''}`}
+        >
+          {hasKeys ? '\u26A1' : '\u2699'}
+        </button>
+        <span className="app-header-sep">&middot;</span>
         <button
           onClick={toggle}
           title={light ? 'Switch to dark mode' : 'Switch to light mode'}
@@ -36,9 +48,9 @@ function AppHeader() {
         >
           {light ? '\u263D' : '\u2600'}
         </button>
-        <span className="app-header-sep">·</span>
+        <span className="app-header-sep">&middot;</span>
         <a href="https://github.com/footprintjs/footPrint" target="_blank" rel="noopener noreferrer">footprintjs</a>
-        <span className="app-header-sep">·</span>
+        <span className="app-header-sep">&middot;</span>
         <a href="https://github.com/footprintjs/agentfootprint" target="_blank" rel="noopener noreferrer">agentfootprint</a>
       </div>
     </header>
@@ -46,11 +58,13 @@ function AppHeader() {
 }
 
 export function App() {
+  const [showSettings, setShowSettings] = useState(false);
+
   return (
     <div className="app">
       <Sidebar />
       <div className="main">
-        <AppHeader />
+        <AppHeader onOpenSettings={() => setShowSettings(true)} />
         <div className="main-content">
           <Routes>
             <Route path="/" element={<Welcome />} />
@@ -58,6 +72,7 @@ export function App() {
           </Routes>
         </div>
       </div>
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

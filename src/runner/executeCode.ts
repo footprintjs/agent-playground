@@ -26,7 +26,12 @@ export interface CapturedExecution {
   spec?: unknown;
 }
 
-export async function executeCode(code: string, input: string): Promise<ExecuteResult> {
+export interface ApiKeys {
+  anthropic?: string;
+  openai?: string;
+}
+
+export async function executeCode(code: string, input: string, apiKeys?: ApiKeys): Promise<ExecuteResult> {
   const logs: string[] = [];
   const start = performance.now();
 
@@ -48,7 +53,7 @@ export async function executeCode(code: string, input: string): Promise<ExecuteR
 
     // Wrap in async function
     const wrapped = `
-      return (async function(__agentfootprint, input, console, __captured) {
+      return (async function(__agentfootprint, input, console, __captured, __apiKeys) {
         const {
           LLMCall, LLMCallRunner, Agent, AgentRunner, RAG, RAGRunner,
           FlowChart, FlowChartRunner, Swarm, SwarmRunner,
@@ -58,6 +63,7 @@ export async function executeCode(code: string, input: string): Promise<ExecuteR
           userMessage, assistantMessage, systemMessage, toolResultMessage,
           textBlock, base64Image, urlImage, imageBlock,
           AnthropicAdapter, OpenAIAdapter, BedrockAdapter, createProvider,
+          BrowserAnthropicAdapter, BrowserOpenAIAdapter,
           anthropic, openai, ollama, bedrock,
           mcpToolProvider, a2aRunner, agentAsTool, compositeTools,
           agentLoop,
@@ -107,7 +113,7 @@ export async function executeCode(code: string, input: string): Promise<ExecuteR
             Cls.prototype.run = orig;
           }
         }
-      })(__agentfootprint, __input, __console, __captured);
+      })(__agentfootprint, __input, __console, __captured, __apiKeys);
     `;
 
     const mockConsole = {
@@ -117,8 +123,8 @@ export async function executeCode(code: string, input: string): Promise<ExecuteR
     };
 
     // Execute
-    const fn = new Function('__agentfootprint', '__input', '__console', '__captured', wrapped);
-    const output = await fn(agentfootprint, input, mockConsole, captured);
+    const fn = new Function('__agentfootprint', '__input', '__console', '__captured', '__apiKeys', wrapped);
+    const output = await fn(agentfootprint, input, mockConsole, captured, apiKeys ?? {});
 
     return {
       output,
