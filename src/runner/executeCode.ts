@@ -9,6 +9,7 @@
  */
 import { transform } from 'sucrase';
 import * as agentfootprint from 'agentfootprint';
+import * as footprintjs from 'footprintjs';
 
 export interface ExecuteResult {
   output: unknown;
@@ -53,7 +54,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
 
     // Wrap in async function
     const wrapped = `
-      return (async function(__agentfootprint, input, console, __captured, __apiKeys) {
+      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs) {
         const {
           LLMCall, LLMCallRunner, Agent, AgentRunner, RAG, RAGRunner,
           FlowChart, FlowChartRunner, Swarm, SwarmRunner,
@@ -75,6 +76,12 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
           hasToolCalls,
         } = __agentfootprint;
 
+        // footprintjs core — flowChart builder, executor, subflow utilities
+        const {
+          flowChart, FlowChartBuilder, FlowChartExecutor,
+          getSubtreeSnapshot, listSubflowPaths,
+        } = __footprintjs;
+
         // ── Monkey-patch runners to capture execution data ──
         function captureFromRunner(runner) {
           try {
@@ -92,7 +99,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
         }
 
         // Wrap .run() on common runner classes
-        const runnerClasses = [LLMCallRunner, AgentRunner, RAGRunner, FlowChartRunner, SwarmRunner];
+        const runnerClasses = [LLMCallRunner, AgentRunner, RAGRunner, FlowChartRunner, SwarmRunner, __footprintjs.FlowChartExecutor];
         const origRuns = new Map();
         for (const Cls of runnerClasses) {
           if (Cls && Cls.prototype && Cls.prototype.run) {
@@ -113,7 +120,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
             Cls.prototype.run = orig;
           }
         }
-      })(__agentfootprint, __input, __console, __captured, __apiKeys);
+      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs);
     `;
 
     const mockConsole = {
@@ -123,8 +130,8 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
     };
 
     // Execute
-    const fn = new Function('__agentfootprint', '__input', '__console', '__captured', '__apiKeys', wrapped);
-    const output = await fn(agentfootprint, input, mockConsole, captured, apiKeys ?? {});
+    const fn = new Function('__agentfootprint', '__input', '__console', '__captured', '__apiKeys', '__footprintjs', wrapped);
+    const output = await fn(agentfootprint, input, mockConsole, captured, apiKeys ?? {}, footprintjs);
 
     return {
       output,

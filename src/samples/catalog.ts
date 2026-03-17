@@ -487,6 +487,100 @@ return {
 };
 `;
 
+const s18 = `
+import { flowChart, FlowChartExecutor } from 'footprintjs';
+
+// Dynamic Tool Subflow — a stage attaches a pre-executed inner flow
+// for visualization drill-down without re-executing it.
+//
+// Use case: an agent tool internally runs a pipeline (e.g., RAG, validation).
+// The tool already executed — we just attach its shape so Trace Studio
+// can show what happened inside.
+
+// Step 1: Define the inner flow's structure (what the tool did internally)
+const innerFlowStructure = {
+  name: 'Validate-Input',
+  id: 'validate',
+  type: 'stage',
+  next: {
+    name: 'Fetch-Data',
+    id: 'fetch',
+    type: 'stage',
+    next: {
+      name: 'Format-Response',
+      id: 'format',
+      type: 'stage',
+    },
+  },
+};
+
+// Step 2: Build a flowchart where one stage dynamically attaches the inner trace
+const chart = flowChart(
+  'Receive Request',
+  async (scope) => {
+    scope.setValue('request', scope.getArgs());
+    console.log('Stage 1: Received request');
+  },
+  'receive',
+  undefined,
+  'Accept incoming request',
+)
+  .addFunction(
+    'Process with Tool',
+    async (scope) => {
+      // Simulate tool execution that internally ran a 3-step pipeline
+      const toolResult = { status: 'ok', data: 'processed: ' + scope.getValue('request') };
+      scope.setValue('toolResult', toolResult);
+      console.log('Stage 2: Tool executed (inner pipeline already ran)');
+
+      // Return a structural-only subflow node —
+      // attaches the inner flow shape for visualization WITHOUT re-executing
+      return {
+        name: 'TOOL_TRACE',
+        id: 'tool-trace',
+        isSubflowRoot: true,
+        subflowId: 'inner-pipeline',
+        subflowName: 'Tool Internal Pipeline',
+        description: 'Validate → Fetch → Format (pre-executed)',
+        subflowDef: {
+          // No root = structural-only (engine skips execution)
+          buildTimeStructure: innerFlowStructure,
+        },
+      };
+    },
+    'process',
+    undefined,
+    'Execute tool with structural trace',
+  )
+  .addFunction(
+    'Return Response',
+    async (scope) => {
+      const result = scope.getValue('toolResult');
+      scope.setValue('response', { ...result, timestamp: Date.now() });
+      console.log('Stage 3: Response ready');
+    },
+    'respond',
+    undefined,
+    'Format and return response',
+  )
+  .setEnableNarrative()
+  .build();
+
+// Step 3: Execute
+const executor = new FlowChartExecutor(chart);
+await executor.run({ input });
+
+const snapshot = executor.getSnapshot();
+const narrative = executor.getNarrative();
+
+return {
+  response: snapshot.sharedState?.response,
+  narrative,
+  stages: snapshot.executionTree?.name,
+  hasSubflowTrace: !!snapshot.executionTree?.children?.[0]?.children?.[0]?.subflowStructure,
+};
+`;
+
 // ── Catalog ──────────────────────────────────────────────────
 
 export const samples: Sample[] = [
@@ -507,6 +601,7 @@ export const samples: Sample[] = [
   { id: 'error-handling', number: 15, title: 'Error Handling', description: 'LLMError, classification, retry', category: 'Integration', code: s15 },
   { id: 'multimodal', number: 16, title: 'Multi-modal', description: 'Image content blocks', category: 'Integration', code: s16 },
   { id: 'live-chat', number: 17, title: 'Live Chat', description: 'Real API call with your key (Anthropic/OpenAI)', category: 'Integration', code: s17 },
+  { id: 'dynamic-tool-subflow', number: 18, title: 'Dynamic Tool Subflow', description: 'Pre-executed inner flow attached for drill-down', category: 'Orchestration', code: s18 },
 ];
 
 export function getCategorizedSamples(): SampleCategory[] {
