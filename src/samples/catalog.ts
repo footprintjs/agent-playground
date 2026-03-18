@@ -581,6 +581,130 @@ return {
 };
 `;
 
+const s19 = `
+import { flowChart, FlowChartExecutor } from 'footprintjs';
+import { LLMCall, mock, TokenRecorder } from 'agentfootprint';
+
+// Lazy Subflow — Graph-of-Services Pattern
+//
+// Each "service" is its own flowchart. The orchestrator uses
+// addLazySubFlowChartBranch() so services are only resolved
+// when the selector picks them. Unselected services pay zero cost.
+
+// ── Define services as standalone flowcharts ─────────────────
+
+const authService = flowChart(
+  'Validate Token',
+  async (scope) => {
+    scope.setValue('tokenValid', true);
+    console.log('Auth: token validated');
+  },
+  'validate-token',
+  undefined,
+  'Validate JWT and extract claims',
+)
+  .addFunction('Check Permissions', async (scope) => {
+    scope.setValue('authorized', true);
+    console.log('Auth: permissions checked');
+  }, 'check-perms', 'Verify user permissions')
+  .build();
+
+const paymentService = flowChart(
+  'Create Charge',
+  async (scope) => {
+    scope.setValue('chargeId', 'ch_' + Date.now());
+    console.log('Payment: charge created');
+  },
+  'create-charge',
+  undefined,
+  'Create payment charge',
+)
+  .addFunction('Confirm Payment', async (scope) => {
+    scope.setValue('paymentStatus', 'confirmed');
+    console.log('Payment: confirmed');
+  }, 'confirm-payment', 'Wait for confirmation')
+  .build();
+
+const notificationService = flowChart(
+  'Send Email',
+  async (scope) => {
+    scope.setValue('emailSent', true);
+    console.log('Notification: email sent');
+  },
+  'send-email',
+  undefined,
+  'Send transactional email',
+).build();
+
+// ── Track which resolvers are called ─────────────────────────
+
+const resolved = [];
+
+// ── Orchestrator with lazy selector branches ─────────────────
+
+const chart = flowChart(
+  'Parse Request',
+  async (scope) => {
+    const services = scope.getArgs()?.requiredServices ?? ['auth', 'payment'];
+    scope.setValue('requiredServices', services);
+    console.log('Required services:', services);
+  },
+  'parse-request',
+  undefined,
+  'Determine required services',
+)
+  .addSelectorFunction(
+    'Route Services',
+    async (scope) => scope.getValue('requiredServices'),
+    'route-services',
+    'Select which services to invoke',
+  )
+    .addLazySubFlowChartBranch('auth', () => {
+      resolved.push('auth');
+      return authService;
+    }, 'Auth Service')
+    .addLazySubFlowChartBranch('payment', () => {
+      resolved.push('payment');
+      return paymentService;
+    }, 'Payment Service')
+    .addLazySubFlowChartBranch('notification', () => {
+      resolved.push('notification');
+      return notificationService;
+    }, 'Notification Service')
+    .end()
+  .addFunction('Build Response', async (scope) => {
+    scope.setValue('status', 200);
+    console.log('Response: OK');
+  }, 'build-response', 'Aggregate results')
+  .setEnableNarrative()
+  .build();
+
+// ── Inspect build-time spec (lazy = stubs only) ─────────────
+
+const spec = chart.buildTimeStructure;
+const routeChildren = spec.next?.children ?? [];
+console.log('\\nBuild-time branches:');
+for (const child of routeChildren) {
+  console.log('  ' + child.name + ': isLazy=' + child.isLazy);
+}
+console.log('Subflows at build: ' + (chart.subflows ? Object.keys(chart.subflows).length : 0));
+
+// ── Execute ──────────────────────────────────────────────────
+
+const executor = new FlowChartExecutor(chart);
+await executor.run({ input });
+
+console.log('\\nResolvers called:', resolved.join(', '));
+console.log('Subflow results:', executor.getSubflowResults().size);
+
+return {
+  resolved,
+  subflowCount: executor.getSubflowResults().size,
+  narrative: executor.getNarrative(),
+  snapshot: executor.getSnapshot(),
+};
+`;
+
 // ── Catalog ──────────────────────────────────────────────────
 
 export const samples: Sample[] = [
@@ -602,6 +726,7 @@ export const samples: Sample[] = [
   { id: 'multimodal', number: 16, title: 'Multi-modal', description: 'Image content blocks', category: 'Integration', code: s16 },
   { id: 'live-chat', number: 17, title: 'Live Chat', description: 'Real API call with your key (Anthropic/OpenAI)', category: 'Integration', code: s17 },
   { id: 'dynamic-tool-subflow', number: 18, title: 'Dynamic Tool Subflow', description: 'Pre-executed inner flow attached for drill-down', category: 'Orchestration', code: s18 },
+  { id: 'lazy-subflow', number: 19, title: 'Lazy Subflow', description: 'Graph-of-services — lazy branches resolve only when selected', category: 'Orchestration', code: s19 },
 ];
 
 export function getCategorizedSamples(): SampleCategory[] {
