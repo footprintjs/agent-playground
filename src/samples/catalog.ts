@@ -705,6 +705,167 @@ return {
 };
 `;
 
+const s20 = `
+import { Agent, mock, defineTool, gatedTools, staticTools } from 'agentfootprint';
+
+// Permission-Gated Tools — defense-in-depth tool filtering.
+//
+// gatedTools() wraps any ToolProvider to enforce per-turn permissions:
+//   1. resolve(): blocked tools are hidden from the LLM (never sees them)
+//   2. execute(): rejects hallucinated calls to blocked tools
+//
+// The LLM only sees tools the user has access to. If it somehow
+// tries to call a blocked tool, the error goes into conversation
+// history — recorders capture it via onToolCall.
+
+const searchTool = defineTool({
+  name: 'search',
+  description: 'Search the web',
+  parameters: { type: 'object', properties: { query: { type: 'string' } } },
+  handler: async (args) => ({ content: 'Results for: ' + args.query }),
+});
+
+const adminTool = defineTool({
+  name: 'delete-user',
+  description: 'Delete a user account (admin only)',
+  parameters: { type: 'object', properties: { userId: { type: 'string' } } },
+  handler: async (args) => ({ content: 'Deleted user: ' + args.userId }),
+});
+
+const codeTool = defineTool({
+  name: 'run-code',
+  description: 'Execute code in sandbox',
+  parameters: { type: 'object', properties: { code: { type: 'string' } } },
+  handler: async (args) => ({ content: 'Output: 42' }),
+});
+
+// Simulate user permissions (in production: from auth token, DB, etc.)
+const userPermissions = new Set(['search', 'run-code']);  // No admin!
+
+// Wrap with permission gating
+const blocked = [];
+const gated = gatedTools(
+  staticTools([searchTool, adminTool, codeTool]),
+  (toolId) => userPermissions.has(toolId),
+  { onBlocked: (id, phase) => blocked.push({ id, phase }) },
+);
+
+console.log('=== Permission-Gated Tools ===');
+console.log('User permissions:', [...userPermissions]);
+
+// Build agent with gated tools
+const runner = Agent
+  .create({
+    provider: mock([
+      // LLM tries to call search (allowed)
+      { content: '', toolCalls: [{ id: 'c1', name: 'search', arguments: { query: 'AI news' } }] },
+      // LLM tries to call delete-user (BLOCKED — it shouldn't even see this tool)
+      { content: '', toolCalls: [{ id: 'c2', name: 'delete-user', arguments: { userId: '123' } }] },
+      // LLM gets the denial and responds
+      { content: 'I searched for AI news. I cannot delete users as I do not have admin access.' },
+    ]),
+  })
+  .system('You are a helpful assistant.')
+  .toolProvider(gated)
+  .maxIterations(5)
+  .build();
+
+const result = await runner.run(input);
+
+console.log('\\nResult:', result.content);
+console.log('\\nBlocked events:');
+for (const b of blocked) {
+  console.log('  ' + b.id + ' blocked at ' + b.phase);
+}
+
+return { content: result.content, blocked, permissions: [...userPermissions] };
+`;
+
+const s21 = `
+import { Agent, mock, fallbackProvider } from 'agentfootprint';
+
+// Multi-Provider Fallback — automatic failover across LLM providers.
+//
+// fallbackProvider() wraps multiple LLMProviders into one:
+//   - Tries providers in order
+//   - Falls back on failure (rate limit, timeout, network error)
+//   - response.model reflects which provider answered (narrative-aware)
+//   - shouldFallback predicate for error-type-specific decisions
+//
+// The recorder's onLLMCall.model tells you which provider was used.
+// onFallback fires during traversal — not post-processing.
+
+// Simulate providers (in production: real Anthropic, OpenAI, Ollama adapters)
+const fallbacks = [];
+
+const primaryProvider = {
+  chat: async (messages, options) => {
+    // Simulate rate limit
+    console.log('Primary (Claude): attempting...');
+    throw new Error('429 Rate Limited');
+  },
+};
+
+const backupProvider = {
+  chat: async (messages, options) => {
+    console.log('Backup (GPT-4o): attempting...');
+    return {
+      content: 'Hello! I am the backup provider (GPT-4o). The primary was rate limited.',
+      model: 'gpt-4o',
+      finishReason: 'stop',
+    };
+  },
+};
+
+const localProvider = {
+  chat: async (messages, options) => {
+    console.log('Local (Ollama): attempting...');
+    return {
+      content: 'Hello from local Ollama.',
+      model: 'llama3-local',
+      finishReason: 'stop',
+    };
+  },
+};
+
+// Create fallback chain
+const provider = fallbackProvider(
+  [primaryProvider, backupProvider, localProvider],
+  {
+    onFallback: (from, to, error) => {
+      const msg = 'Falling back from provider ' + from + ' to ' + to + ': ' + error.message;
+      console.log(msg);
+      fallbacks.push(msg);
+    },
+    // Only fall back on rate limits and server errors, not auth errors
+    shouldFallback: (error) => {
+      const msg = error.message || '';
+      return msg.includes('429') || msg.includes('500') || msg.includes('timeout');
+    },
+  },
+);
+
+console.log('=== Multi-Provider Fallback ===');
+console.log('Chain: Claude → GPT-4o → Ollama\\n');
+
+// Use with Agent
+const runner = Agent.create({ provider })
+  .system('You are helpful.')
+  .build();
+
+const result = await runner.run(input);
+
+console.log('\\nFinal response from:', result.model || 'unknown');
+console.log('Content:', result.content);
+console.log('\\nFallback events:', fallbacks.length);
+
+return {
+  content: result.content,
+  model: result.model,
+  fallbacks,
+};
+`;
+
 // ── Catalog ──────────────────────────────────────────────────
 
 export const samples: Sample[] = [
@@ -727,10 +888,12 @@ export const samples: Sample[] = [
   { id: 'live-chat', number: 17, title: 'Live Chat', description: 'Real API call with your key (Anthropic/OpenAI)', category: 'Integration', code: s17 },
   { id: 'dynamic-tool-subflow', number: 18, title: 'Dynamic Tool Subflow', description: 'Pre-executed inner flow attached for drill-down', category: 'Orchestration', code: s18 },
   { id: 'lazy-subflow', number: 19, title: 'Lazy Subflow', description: 'Graph-of-services — lazy branches resolve only when selected', category: 'Orchestration', code: s19 },
+  { id: 'gated-tools', number: 20, title: 'Permission-Gated Tools', description: 'Defense-in-depth tool filtering — LLM never sees blocked tools', category: 'Security', code: s20 },
+  { id: 'fallback-provider', number: 21, title: 'Provider Fallback', description: 'Multi-provider failover chain with narrative-aware model tracking', category: 'Resilience', code: s21 },
 ];
 
 export function getCategorizedSamples(): SampleCategory[] {
-  const categoryOrder = ['Basics', 'Providers', 'Orchestration', 'Observability', 'Adapters', 'Integration'];
+  const categoryOrder = ['Basics', 'Providers', 'Orchestration', 'Security', 'Resilience', 'Observability', 'Adapters', 'Integration'];
   const map = new Map<string, Sample[]>();
 
   for (const sample of samples) {
