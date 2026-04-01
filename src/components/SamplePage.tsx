@@ -5,8 +5,8 @@ import { CodePanel } from './CodePanel';
 import { ResultPanel } from './ResultPanel';
 import { BehindTheScenes } from './BehindTheScenes';
 import { executeCode } from '../runner/executeCode';
-import type { ExecuteResult } from '../runner/executeCode';
 import { loadApiKeys } from './SettingsPanel';
+import type { ChatTurn } from './ResultPanel';
 
 type View = 'code' | 'result' | 'bts';
 
@@ -14,40 +14,36 @@ export function SamplePage() {
   const { sampleId } = useParams<{ sampleId: string }>();
   const sample = samples.find((s) => s.id === sampleId);
 
-  const [result, setResult] = useState<ExecuteResult | null>(null);
+  const [code, setCode] = useState(sample?.code ?? '');
+  const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
   const [running, setRunning] = useState(false);
   const [input, setInput] = useState('Hello, how can you help me?');
   const [mobileView, setMobileView] = useState<View>('code');
 
-  // Track the last valid execution so it survives re-runs
-  const lastExecution = useRef(result?.execution ?? null);
-  if (result?.execution) {
-    lastExecution.current = result.execution;
-  }
-
   // Reset all state when switching samples
   useEffect(() => {
-    setResult(null);
+    setCode(sample?.code ?? '');
+    setChatHistory([]);
     setRunning(false);
     setMobileView('code');
-    lastExecution.current = null;
   }, [sampleId]);
 
   const handleRun = useCallback(async () => {
     if (!sample || running) return;
+    const capturedInput = input;
     setRunning(true);
     try {
       const keys = loadApiKeys();
-      const res = await executeCode(sample.code, input, {
+      const res = await executeCode(code, capturedInput, {
         anthropic: keys.anthropic || undefined,
         openai: keys.openai || undefined,
       });
-      setResult(res);
+      setChatHistory((prev) => [...prev, { input: capturedInput, result: res }]);
       setMobileView('result'); // auto-switch to result on mobile
     } finally {
       setRunning(false);
     }
-  }, [sample, input, running]);
+  }, [sample, code, input, running]);
 
   if (!sample) {
     return (
@@ -58,7 +54,8 @@ export function SamplePage() {
     );
   }
 
-  const execution = result?.execution ?? lastExecution.current;
+  const lastTurn = chatHistory[chatHistory.length - 1];
+  const execution = lastTurn?.result?.execution ?? null;
   const hasExecution = !!execution;
 
   // Behind the Scenes full-screen view
@@ -109,13 +106,14 @@ export function SamplePage() {
 
       {/* Desktop: side-by-side code + result */}
       <div className="main-body desktop-panels">
-        <CodePanel code={sample.code} />
+        <CodePanel code={code} onChange={setCode} />
         <ResultPanel
-          result={result}
+          history={chatHistory}
           running={running}
+          pendingInput={input}
           onRun={handleRun}
-          input={input}
           onInputChange={setInput}
+          onClear={() => setChatHistory([])}
         />
       </div>
 
@@ -133,20 +131,21 @@ export function SamplePage() {
             className={`mobile-tab ${mobileView === 'result' ? 'active' : ''}`}
             onClick={() => setMobileView('result')}
           >
-            Result
+            Chat
           </button>
         </div>
 
         {/* Panel content */}
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          {mobileView === 'code' && <CodePanel code={sample.code} />}
+          {mobileView === 'code' && <CodePanel code={code} onChange={setCode} />}
           {mobileView === 'result' && (
             <ResultPanel
-              result={result}
+              history={chatHistory}
               running={running}
+              pendingInput={input}
               onRun={handleRun}
-              input={input}
               onInputChange={setInput}
+              onClear={() => setChatHistory([])}
             />
           )}
         </div>

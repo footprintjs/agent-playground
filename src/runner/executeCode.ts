@@ -68,6 +68,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
           anthropic, openai, ollama, bedrock,
           mcpToolProvider, a2aRunner, agentAsTool, compositeTools, gatedTools,
           fallbackProvider,
+          InMemoryStore,
           agentLoop,
           TokenRecorder, TurnRecorder, ToolUsageRecorder, QualityRecorder,
           GuardrailRecorder, CompositeRecorder, CostRecorder,
@@ -106,6 +107,11 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
           if (Cls && Cls.prototype && Cls.prototype.run) {
             origRuns.set(Cls, Cls.prototype.run);
             Cls.prototype.run = async function(...args) {
+              // Attach MetricRecorder so timing ends up in snapshot.recorders
+              const MetricRecorder = __footprintjs.MetricRecorder;
+              if (MetricRecorder && typeof this.attachRecorder === 'function') {
+                this.attachRecorder(new MetricRecorder('__timing'));
+              }
               const result = await origRuns.get(Cls).apply(this, args);
               captureFromRunner(this);
               return result;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { SamplePage } from './components/SamplePage';
 import { Welcome } from './components/Welcome';
 import { Sidebar } from './components/Sidebar';
@@ -57,11 +57,24 @@ function AppHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
   );
 }
 
+function AutoOpenSettings({ onOpen }: { onOpen: () => void }) {
+  const location = useLocation();
+  useEffect(() => {
+    if (location.pathname.includes('live-chat')) {
+      const keys = loadApiKeys();
+      const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
+      if (!hasKeys) onOpen();
+    }
+  }, [location.pathname]);
+  return null;
+}
+
 export function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   return (
     <div className="app">
+      <AutoOpenSettings onOpen={() => setShowSettings(true)} />
       <Sidebar />
       <div className="main">
         <AppHeader onOpenSettings={() => setShowSettings(true)} />

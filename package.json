@@ -15,6 +15,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.1",
     "agent-explainable-ui": "github:footprintjs/agent-explainable-ui",
+    "agent-samples": "file:../agent-samples",
     "agentfootprint": "file:../agentfootprint",
     "footprint-explainable-ui": "file:../explainable-ui",
     "footprintjs": "file:../footPrint",
@@ -24,6 +25,7 @@
     "sucrase": "^3.35.1"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.5.2",

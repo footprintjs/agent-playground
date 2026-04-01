@@ -1,11 +1,30 @@
 /**
- * Sample catalog — 16 runnable examples organized by category.
+ * Sample catalog — sources code from agent-samples repo.
  *
- * Each sample uses agentfootprint's builder pattern API:
- *   Concept.create({ provider }).system('...').build() → Runner
+ * Each sample is imported as a raw string via Vite's ?raw suffix,
+ * then transformed to extract the run() body for the playground sandbox.
  *
- * All samples use mock() adapter for $0 deterministic execution.
+ * Samples not yet in agent-samples remain inline (s11–s19).
  */
+
+// ── Raw imports from agent-samples ───────────────────────────
+import s01Raw from '@samples/basics/01-simple-llm-call.ts?raw';
+import s02Raw from '@samples/basics/02-agent-with-tools.ts?raw';
+import s03Raw from '@samples/basics/03-rag-retrieval.ts?raw';
+import s04Raw from '@samples/providers/04-prompt-strategies.ts?raw';
+import s05Raw from '@samples/providers/05-message-strategies.ts?raw';
+import s06Raw from '@samples/providers/06-tool-strategies.ts?raw';
+import s07Raw from '@samples/orchestration/07-flowchart-pipeline.ts?raw';
+import s08Raw from '@samples/orchestration/08-swarm-delegation.ts?raw';
+import s09Raw from '@samples/orchestration/09-resilience.ts?raw';
+import s10Raw from '@samples/observability/10-recorders.ts?raw';
+import s13Raw from '@samples/integration/13-full-integration.ts?raw';
+import s15Raw from '@samples/integration/15-error-handling.ts?raw';
+import s20Raw from '@samples/security/20-permission-gated-tools.ts?raw';
+import s21Raw from '@samples/resilience/21-provider-fallback.ts?raw';
+import s22Raw from '@samples/memory/22-persistent-memory.ts?raw';
+
+// ── Types ────────────────────────────────────────────────────
 
 export interface Sample {
   id: string;
@@ -21,266 +40,56 @@ export interface SampleCategory {
   samples: Sample[];
 }
 
-// ── Sample Code ──────────────────────────────────────────────
+// ── Transform: extract run() body for playground sandbox ─────
 
-const s01 = `
-import { LLMCall, mock, TokenRecorder } from 'agentfootprint';
+function fromSample(raw: string): string {
+  const lines = raw.split('\n');
 
-const tokens = new TokenRecorder();
+  // 1. Collect import lines
+  const importLines = lines.filter(l => l.startsWith('import '));
 
-// Builder pattern: LLMCall.create() → .system() → .recorder() → .build()
-const runner = LLMCall
-  .create({ provider: mock([{ content: 'This text discusses AI safety and alignment challenges.' }]) })
-  .system('Summarize the following text concisely:')
-  .recorder(tokens)
-  .build();
+  // 2. Find the run() function body
+  const fnIdx = lines.findIndex(l => l.includes('export async function run'));
+  if (fnIdx < 0) return raw; // fallback: return as-is
 
-const result = await runner.run(input);
-return { content: result.content, tokenStats: tokens.getStats() };
-`;
+  // Find body start (opening brace)
+  const bodyStartIdx = fnIdx + 1;
 
-const s02 = `
-import { Agent, mock, defineTool, TokenRecorder, ToolUsageRecorder } from 'agentfootprint';
+  // Find body end: the closing brace before CLI guard or EOF
+  const cliIdx = lines.findIndex((l, i) => i > fnIdx && l.startsWith('if (process.argv'));
+  const searchEnd = cliIdx > 0 ? cliIdx : lines.length;
 
-const tokens = new TokenRecorder();
-const toolUsage = new ToolUsageRecorder();
+  // Walk backwards from searchEnd to find the closing '}'
+  let bodyEndIdx = searchEnd - 1;
+  while (bodyEndIdx > fnIdx && lines[bodyEndIdx].trim() === '') bodyEndIdx--;
+  if (lines[bodyEndIdx].trim() === '}') bodyEndIdx--; // skip closing brace
 
-const searchTool = defineTool({
-  name: 'search',
-  description: 'Search the web for information',
-  parameters: { type: 'object', properties: { query: { type: 'string' } } },
-  handler: async ({ query }) => ({ results: ['Result 1: AI is transformative', 'Result 2: ML powers modern apps'] }),
-});
+  // 3. Extract and dedent body by 2 spaces
+  const bodyLines = lines.slice(bodyStartIdx, bodyEndIdx + 1)
+    .map(l => l.startsWith('  ') ? l.slice(2) : l);
 
-// Agent builder: create → system → tool → recorder → build
-const runner = Agent
-  .create({ provider: mock([
-    { content: 'Let me search for that.', toolCalls: [{ id: '1', name: 'search', arguments: { query: 'artificial intelligence' } }] },
-    { content: 'Based on my research: AI is transformative technology that powers modern applications.' },
-  ]) })
-  .system('You are a research assistant. Use the search tool to find information.')
-  .tool(searchTool)
-  .recorder(tokens)
-  .recorder(toolUsage)
-  .build();
+  return importLines.join('\n') + '\n\n' + bodyLines.join('\n').trim() + '\n';
+}
 
-const result = await runner.run(input);
-return { content: result.content, tokenStats: tokens.getStats(), toolStats: toolUsage.getStats() };
-`;
+// ── Transform agent-samples ─────────────────────────────────
 
-const s03 = `
-import { RAG, mock, mockRetriever, TokenRecorder } from 'agentfootprint';
+const s01 = fromSample(s01Raw);
+const s02 = fromSample(s02Raw);
+const s03 = fromSample(s03Raw);
+const s04 = fromSample(s04Raw);
+const s05 = fromSample(s05Raw);
+const s06 = fromSample(s06Raw);
+const s07 = fromSample(s07Raw);
+const s08 = fromSample(s08Raw);
+const s09 = fromSample(s09Raw);
+const s10 = fromSample(s10Raw);
+const s13 = fromSample(s13Raw);
+const s15 = fromSample(s15Raw);
+const s20 = fromSample(s20Raw);
+const s21 = fromSample(s21Raw);
+const s22 = fromSample(s22Raw);
 
-const tokens = new TokenRecorder();
-
-// RAG builder: create with provider + retriever → system → recorder → build
-const runner = RAG
-  .create({
-    provider: mock([{ content: 'According to the documentation, the answer is 42.' }]),
-    retriever: mockRetriever([{
-      chunks: [
-        { content: 'The ultimate answer to life, the universe, and everything is 42.', score: 0.95, metadata: { source: 'guide.pdf' } },
-        { content: 'This was computed by Deep Thought over 7.5 million years.', score: 0.82, metadata: { source: 'guide.pdf' } },
-      ],
-    }]),
-  })
-  .system('Answer the question using only the provided context.')
-  .topK(3)
-  .recorder(tokens)
-  .build();
-
-const result = await runner.run(input);
-return { content: result.content, tokenStats: tokens.getStats() };
-`;
-
-const s04 = `
-import { LLMCall, mock } from 'agentfootprint';
-
-// Two LLMCall runners with different system prompts
-const summarizer = LLMCall
-  .create({ provider: mock([{ content: 'This is a concise summary of the input.' }]) })
-  .system('You are a summarizer. Be concise.')
-  .build();
-
-const translator = LLMCall
-  .create({ provider: mock([{ content: 'Ceci est une traduction en francais.' }]) })
-  .system('You are a translator. Translate to French.')
-  .build();
-
-const r1 = await summarizer.run(input);
-const r2 = await translator.run(input);
-
-return { summary: r1.content, translation: r2.content };
-`;
-
-const s05 = `
-import { slidingWindow, truncateToCharBudget, userMessage, assistantMessage } from 'agentfootprint';
-
-const messages = [
-  userMessage('First question'),
-  assistantMessage('First answer'),
-  userMessage('Second question'),
-  assistantMessage('Second answer'),
-  userMessage('Third question'),
-  assistantMessage('Third answer'),
-  userMessage('Fourth question'),
-];
-
-// Keep only last 4 messages
-const windowed = slidingWindow(messages, 4);
-
-// Or truncate to character budget
-const truncated = truncateToCharBudget(messages, 100);
-
-return {
-  original: messages.length + ' messages',
-  windowed: windowed.length + ' messages (last 4)',
-  truncated: truncated.length + ' messages (100 char budget)',
-};
-`;
-
-const s06 = `
-import { defineTool, ToolRegistry } from 'agentfootprint';
-
-const registry = new ToolRegistry();
-
-registry.register(defineTool({
-  name: 'calculator',
-  description: 'Evaluate math expressions',
-  parameters: { type: 'object', properties: { expr: { type: 'string' } } },
-  handler: async ({ expr }) => ({ result: 'calculated' }),
-}));
-
-registry.register(defineTool({
-  name: 'weather',
-  description: 'Get current weather',
-  parameters: { type: 'object', properties: { city: { type: 'string' } } },
-  handler: async ({ city }) => ({ temp: 72, condition: 'sunny', city }),
-}));
-
-return {
-  tools: registry.list().map(t => t.name),
-  count: registry.list().length,
-  hasCalculator: registry.get('calculator') !== undefined,
-};
-`;
-
-const s07 = `
-import { FlowChart, LLMCall, mock, TokenRecorder, TurnRecorder } from 'agentfootprint';
-
-const tokens = new TokenRecorder();
-const turns = new TurnRecorder();
-
-// Build individual stage runners
-const classify = LLMCall
-  .create({ provider: mock([{ content: 'Category: billing' }]) })
-  .system('Classify this request:')
-  .build();
-
-const analyze = LLMCall
-  .create({ provider: mock([{ content: 'Analysis: Customer needs refund for overcharge.' }]) })
-  .system('Analyze the classified request:')
-  .build();
-
-const respond = LLMCall
-  .create({ provider: mock([{ content: 'Dear customer, we have processed your refund of $50.' }]) })
-  .system('Generate a customer response:')
-  .build();
-
-// FlowChart composes runners — recorders observe the whole pipeline
-const runner = FlowChart.create()
-  .agent('classify', 'Classify Request', classify)
-  .agent('analyze', 'Analyze Request', analyze)
-  .agent('respond', 'Generate Response', respond)
-  .recorder(tokens)
-  .recorder(turns)
-  .build();
-
-const result = await runner.run(input);
-return { content: result.content, tokenStats: tokens.getStats(), turnStats: turns.getEntries() };
-`;
-
-const s08 = `
-import { Swarm, LLMCall, mock, TokenRecorder, ToolUsageRecorder } from 'agentfootprint';
-
-const tokens = new TokenRecorder();
-const toolUsage = new ToolUsageRecorder();
-
-// Build specialist runners
-const billing = LLMCall
-  .create({ provider: mock([{ content: 'Your refund of $50 has been processed. It will appear in 3-5 business days.' }]) })
-  .system('Handle billing inquiries:')
-  .build();
-
-const technical = LLMCall
-  .create({ provider: mock([{ content: 'Please try restarting your router.' }]) })
-  .system('Handle technical issues:')
-  .build();
-
-// Swarm: orchestrator routes to specialists — recorders track delegation
-const runner = Swarm
-  .create({
-    provider: mock([
-      // Orchestrator delegates to billing
-      { content: 'Routing to billing.', toolCalls: [{ id: '1', name: 'delegate_billing', arguments: { task: 'Process refund request' } }] },
-      { content: 'The billing team has processed your refund.' },
-    ]),
-    name: 'support-swarm',
-  })
-  .system('Route customer requests to the appropriate specialist.')
-  .specialist('billing', 'Handles billing and payment issues', billing)
-  .specialist('technical', 'Handles technical support', technical)
-  .recorder(tokens)
-  .recorder(toolUsage)
-  .build();
-
-const result = await runner.run(input);
-return { content: result.content, tokenStats: tokens.getStats(), toolStats: toolUsage.getStats() };
-`;
-
-const s09 = `
-import { withRetry, withFallback } from 'agentfootprint';
-
-// withRetry wraps a RunnerLike
-let attempt = 0;
-const flakyRunner = {
-  run: async (msg) => {
-    attempt++;
-    if (attempt < 3) throw new Error('Server overloaded (attempt ' + attempt + ')');
-    return { content: 'Success on attempt ' + attempt };
-  },
-};
-
-const resilient = withRetry(flakyRunner, { maxRetries: 5, backoffMs: 0 });
-const result = await resilient.run(input);
-
-return { content: result.content, attempts: attempt };
-`;
-
-const s10 = `
-import { LLMCall, mock, TokenRecorder, CostRecorder, ToolUsageRecorder, CompositeRecorder } from 'agentfootprint';
-
-const tokens = new TokenRecorder();
-const costs = new CostRecorder();
-const tools = new ToolUsageRecorder();
-
-// Note: CompositeRecorder wraps multiple recorders
-const composite = new CompositeRecorder([tokens, costs, tools]);
-
-const runner = LLMCall
-  .create({ provider: mock([{ content: 'Hello! How can I help?' }]) })
-  .system('You are a helpful assistant.')
-  .build();
-
-// Run with recorder (recorder hooks into the execution)
-await runner.run(input);
-
-return {
-  tokenStats: tokens.stats(),
-  totalCost: costs.totalCost(),
-  toolStats: tools.stats(),
-};
-`;
+// ── Inline samples (not yet in agent-samples) ────────────────
 
 const s11 = `
 import { mcpToolProvider } from 'agentfootprint';
@@ -322,41 +131,6 @@ return {
 };
 `;
 
-const s13 = `
-import { Agent, RAG, mock, mockRetriever, defineTool, TokenRecorder } from 'agentfootprint';
-
-// Build a RAG runner for document lookup
-const ragRunner = RAG
-  .create({
-    provider: mock([{ content: 'The return policy allows refunds within 30 days.' }]),
-    retriever: mockRetriever([{
-      chunks: [{ content: 'Return policy: 30-day refund window for all purchases.', score: 0.9, metadata: {} }],
-    }]),
-  })
-  .system('Answer from docs:')
-  .build();
-
-// Build an agent with a tool
-const lookupTool = defineTool({
-  name: 'lookup_order',
-  description: 'Look up order details',
-  parameters: { type: 'object', properties: { orderId: { type: 'string' } } },
-  handler: async ({ orderId }) => ({ orderId, status: 'shipped', total: '$49.99' }),
-});
-
-const agentRunner = Agent
-  .create({ provider: mock([
-    { content: 'Let me look that up.', toolCalls: [{ id: '1', name: 'lookup_order', arguments: { orderId: 'ORD-123' } }] },
-    { content: 'Your order ORD-123 has been shipped. Total was $49.99.' },
-  ]) })
-  .system('You are a support agent.')
-  .tool(lookupTool)
-  .build();
-
-const result = await agentRunner.run(input);
-return { content: result.content };
-`;
-
 const s14 = `
 import { AnthropicAdapter, OpenAIAdapter, createProvider } from 'agentfootprint';
 import { anthropic, openai } from 'agentfootprint';
@@ -382,11 +156,9 @@ const mockOpenAIClient = {
   }) } },
 };
 
-// Direct adapter usage with _client injection for testing
 const r1 = await new AnthropicAdapter({ model: 'claude-sonnet-4-20250514', _client: mockAnthropicClient }).chat([userMessage(input)]);
 const r2 = await new OpenAIAdapter({ model: 'gpt-4o', _client: mockOpenAIClient }).chat([userMessage(input)]);
 
-// createProvider bridges config factories → adapters
 const provider = createProvider({ ...anthropic('claude-sonnet-4-20250514'), _client: mockAnthropicClient });
 const r3 = await provider.chat([userMessage(input)]);
 
@@ -397,43 +169,13 @@ return {
 };
 `;
 
-const s15 = `
-import { LLMError, wrapSDKError, classifyStatusCode } from 'agentfootprint';
-
-// Classify HTTP status codes
-const classifications = {
-  '401': classifyStatusCode(401),
-  '429': classifyStatusCode(429),
-  '500': classifyStatusCode(500),
-  '413': classifyStatusCode(413),
-};
-
-// Create and inspect LLMErrors
-const rateLimitError = new LLMError({ message: 'Too many requests', code: 'rate_limit', provider: 'openai', statusCode: 429 });
-const authError = new LLMError({ message: 'Invalid API key', code: 'auth', provider: 'anthropic', statusCode: 401 });
-
-// Wrap unknown SDK errors automatically
-const sdkError = Object.assign(new Error('fetch failed: ECONNREFUSED'));
-const wrapped = wrapSDKError(sdkError, 'openai');
-
-return {
-  classifications,
-  rateLimitError: { code: rateLimitError.code, retryable: rateLimitError.retryable },
-  authError: { code: authError.code, retryable: authError.retryable },
-  wrappedNetworkError: { code: wrapped.code, retryable: wrapped.retryable },
-  allCodes: ['auth', 'rate_limit', 'context_length', 'invalid_request', 'server', 'timeout', 'aborted', 'network', 'unknown'],
-};
-`;
-
 const s16 = `
 import { textBlock, base64Image, urlImage, userMessage } from 'agentfootprint';
 
-// Content block factories for multi-modal messages
 const text = textBlock('Describe this image:');
 const b64img = base64Image('image/png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
 const urlImg = urlImage('https://example.com/photo.jpg');
 
-// Compose into a multi-modal message (ContentBlock[])
 const msg = userMessage([text, b64img]);
 
 return {
@@ -447,9 +189,6 @@ return {
 
 const s17 = `
 import { LLMCall, BrowserAnthropicAdapter, BrowserOpenAIAdapter, mock, TokenRecorder } from 'agentfootprint';
-
-// Live Chat — uses your real API key (set via Settings gear icon)
-// Falls back to mock if no key is configured.
 
 const tokens = new TokenRecorder();
 
@@ -490,83 +229,39 @@ return {
 const s18 = `
 import { flowChart, FlowChartExecutor } from 'footprintjs';
 
-// Dynamic Tool Subflow — a stage attaches a pre-executed inner flow
-// for visualization drill-down without re-executing it.
-//
-// Use case: an agent tool internally runs a pipeline (e.g., RAG, validation).
-// The tool already executed — we just attach its shape so Trace Studio
-// can show what happened inside.
-
-// Step 1: Define the inner flow's structure (what the tool did internally)
 const innerFlowStructure = {
-  name: 'Validate-Input',
-  id: 'validate',
-  type: 'stage',
-  next: {
-    name: 'Fetch-Data',
-    id: 'fetch',
-    type: 'stage',
-    next: {
-      name: 'Format-Response',
-      id: 'format',
-      type: 'stage',
-    },
-  },
+  name: 'Validate-Input', id: 'validate', type: 'stage',
+  next: { name: 'Fetch-Data', id: 'fetch', type: 'stage',
+    next: { name: 'Format-Response', id: 'format', type: 'stage' } },
 };
 
-// Step 2: Build a flowchart where one stage dynamically attaches the inner trace
 const chart = flowChart(
   'Receive Request',
   async (scope) => {
     scope.setValue('request', scope.getArgs());
     console.log('Stage 1: Received request');
   },
-  'receive',
-  undefined,
-  'Accept incoming request',
+  'receive', undefined, 'Accept incoming request',
 )
-  .addFunction(
-    'Process with Tool',
-    async (scope) => {
-      // Simulate tool execution that internally ran a 3-step pipeline
-      const toolResult = { status: 'ok', data: 'processed: ' + scope.getValue('request') };
-      scope.setValue('toolResult', toolResult);
-      console.log('Stage 2: Tool executed (inner pipeline already ran)');
-
-      // Return a structural-only subflow node —
-      // attaches the inner flow shape for visualization WITHOUT re-executing
-      return {
-        name: 'TOOL_TRACE',
-        id: 'tool-trace',
-        isSubflowRoot: true,
-        subflowId: 'inner-pipeline',
-        subflowName: 'Tool Internal Pipeline',
-        description: 'Validate → Fetch → Format (pre-executed)',
-        subflowDef: {
-          // No root = structural-only (engine skips execution)
-          buildTimeStructure: innerFlowStructure,
-        },
-      };
-    },
-    'process',
-    undefined,
-    'Execute tool with structural trace',
-  )
-  .addFunction(
-    'Return Response',
-    async (scope) => {
-      const result = scope.getValue('toolResult');
-      scope.setValue('response', { ...result, timestamp: Date.now() });
-      console.log('Stage 3: Response ready');
-    },
-    'respond',
-    undefined,
-    'Format and return response',
-  )
+  .addFunction('Process with Tool', async (scope) => {
+    const toolResult = { status: 'ok', data: 'processed: ' + scope.getValue('request') };
+    scope.setValue('toolResult', toolResult);
+    console.log('Stage 2: Tool executed (inner pipeline already ran)');
+    return {
+      name: 'TOOL_TRACE', id: 'tool-trace', isSubflowRoot: true,
+      subflowId: 'inner-pipeline', subflowName: 'Tool Internal Pipeline',
+      description: 'Validate → Fetch → Format (pre-executed)',
+      subflowDef: { buildTimeStructure: innerFlowStructure },
+    };
+  }, 'process', undefined, 'Execute tool with structural trace')
+  .addFunction('Return Response', async (scope) => {
+    const result = scope.getValue('toolResult');
+    scope.setValue('response', { ...result, timestamp: Date.now() });
+    console.log('Stage 3: Response ready');
+  }, 'respond', undefined, 'Format and return response')
   .setEnableNarrative()
   .build();
 
-// Step 3: Execute
 const executor = new FlowChartExecutor(chart);
 await executor.run({ input });
 
@@ -585,284 +280,51 @@ const s19 = `
 import { flowChart, FlowChartExecutor } from 'footprintjs';
 import { LLMCall, mock, TokenRecorder } from 'agentfootprint';
 
-// Lazy Subflow — Graph-of-Services Pattern
-//
-// Each "service" is its own flowchart. The orchestrator uses
-// addLazySubFlowChartBranch() so services are only resolved
-// when the selector picks them. Unselected services pay zero cost.
-
-// ── Define services as standalone flowcharts ─────────────────
-
 const authService = flowChart(
-  'Validate Token',
-  async (scope) => {
-    scope.setValue('tokenValid', true);
-    console.log('Auth: token validated');
-  },
-  'validate-token',
-  undefined,
-  'Validate JWT and extract claims',
-)
-  .addFunction('Check Permissions', async (scope) => {
-    scope.setValue('authorized', true);
-    console.log('Auth: permissions checked');
-  }, 'check-perms', 'Verify user permissions')
-  .build();
+  'Validate Token', async (scope) => { scope.setValue('tokenValid', true); console.log('Auth: token validated'); },
+  'validate-token', undefined, 'Validate JWT and extract claims',
+).addFunction('Check Permissions', async (scope) => {
+  scope.setValue('authorized', true); console.log('Auth: permissions checked');
+}, 'check-perms', 'Verify user permissions').build();
 
 const paymentService = flowChart(
-  'Create Charge',
-  async (scope) => {
-    scope.setValue('chargeId', 'ch_' + Date.now());
-    console.log('Payment: charge created');
-  },
-  'create-charge',
-  undefined,
-  'Create payment charge',
-)
-  .addFunction('Confirm Payment', async (scope) => {
-    scope.setValue('paymentStatus', 'confirmed');
-    console.log('Payment: confirmed');
-  }, 'confirm-payment', 'Wait for confirmation')
-  .build();
+  'Create Charge', async (scope) => { scope.setValue('chargeId', 'ch_' + Date.now()); console.log('Payment: charge created'); },
+  'create-charge', undefined, 'Create payment charge',
+).addFunction('Confirm Payment', async (scope) => {
+  scope.setValue('paymentStatus', 'confirmed'); console.log('Payment: confirmed');
+}, 'confirm-payment', 'Wait for confirmation').build();
 
 const notificationService = flowChart(
-  'Send Email',
-  async (scope) => {
-    scope.setValue('emailSent', true);
-    console.log('Notification: email sent');
-  },
-  'send-email',
-  undefined,
-  'Send transactional email',
+  'Send Email', async (scope) => { scope.setValue('emailSent', true); console.log('Notification: email sent'); },
+  'send-email', undefined, 'Send transactional email',
 ).build();
-
-// ── Track which resolvers are called ─────────────────────────
 
 const resolved = [];
 
-// ── Orchestrator with lazy selector branches ─────────────────
-
 const chart = flowChart(
-  'Parse Request',
-  async (scope) => {
+  'Parse Request', async (scope) => {
     const services = scope.getArgs()?.requiredServices ?? ['auth', 'payment'];
     scope.setValue('requiredServices', services);
     console.log('Required services:', services);
-  },
-  'parse-request',
-  undefined,
-  'Determine required services',
+  }, 'parse-request', undefined, 'Determine required services',
 )
-  .addSelectorFunction(
-    'Route Services',
-    async (scope) => scope.getValue('requiredServices'),
-    'route-services',
-    'Select which services to invoke',
-  )
-    .addLazySubFlowChartBranch('auth', () => {
-      resolved.push('auth');
-      return authService;
-    }, 'Auth Service')
-    .addLazySubFlowChartBranch('payment', () => {
-      resolved.push('payment');
-      return paymentService;
-    }, 'Payment Service')
-    .addLazySubFlowChartBranch('notification', () => {
-      resolved.push('notification');
-      return notificationService;
-    }, 'Notification Service')
+  .addSelectorFunction('Route Services', async (scope) => scope.getValue('requiredServices'), 'route-services', 'Select which services to invoke')
+    .addLazySubFlowChartBranch('auth', () => { resolved.push('auth'); return authService; }, 'Auth Service')
+    .addLazySubFlowChartBranch('payment', () => { resolved.push('payment'); return paymentService; }, 'Payment Service')
+    .addLazySubFlowChartBranch('notification', () => { resolved.push('notification'); return notificationService; }, 'Notification Service')
     .end()
-  .addFunction('Build Response', async (scope) => {
-    scope.setValue('status', 200);
-    console.log('Response: OK');
-  }, 'build-response', 'Aggregate results')
+  .addFunction('Build Response', async (scope) => { scope.setValue('status', 200); console.log('Response: OK'); }, 'build-response', 'Aggregate results')
   .setEnableNarrative()
   .build();
 
-// ── Inspect build-time spec (lazy = stubs only) ─────────────
-
-const spec = chart.buildTimeStructure;
-const routeChildren = spec.next?.children ?? [];
-console.log('\\nBuild-time branches:');
-for (const child of routeChildren) {
-  console.log('  ' + child.name + ': isLazy=' + child.isLazy);
-}
-console.log('Subflows at build: ' + (chart.subflows ? Object.keys(chart.subflows).length : 0));
-
-// ── Execute ──────────────────────────────────────────────────
-
 const executor = new FlowChartExecutor(chart);
 await executor.run({ input });
-
-console.log('\\nResolvers called:', resolved.join(', '));
-console.log('Subflow results:', executor.getSubflowResults().size);
 
 return {
   resolved,
   subflowCount: executor.getSubflowResults().size,
   narrative: executor.getNarrative(),
   snapshot: executor.getSnapshot(),
-};
-`;
-
-const s20 = `
-import { Agent, mock, defineTool, gatedTools, staticTools } from 'agentfootprint';
-
-// Permission-Gated Tools — defense-in-depth tool filtering.
-//
-// gatedTools() wraps any ToolProvider to enforce per-turn permissions:
-//   1. resolve(): blocked tools are hidden from the LLM (never sees them)
-//   2. execute(): rejects hallucinated calls to blocked tools
-//
-// The LLM only sees tools the user has access to. If it somehow
-// tries to call a blocked tool, the error goes into conversation
-// history — recorders capture it via onToolCall.
-
-const searchTool = defineTool({
-  name: 'search',
-  description: 'Search the web',
-  parameters: { type: 'object', properties: { query: { type: 'string' } } },
-  handler: async (args) => ({ content: 'Results for: ' + args.query }),
-});
-
-const adminTool = defineTool({
-  name: 'delete-user',
-  description: 'Delete a user account (admin only)',
-  parameters: { type: 'object', properties: { userId: { type: 'string' } } },
-  handler: async (args) => ({ content: 'Deleted user: ' + args.userId }),
-});
-
-const codeTool = defineTool({
-  name: 'run-code',
-  description: 'Execute code in sandbox',
-  parameters: { type: 'object', properties: { code: { type: 'string' } } },
-  handler: async (args) => ({ content: 'Output: 42' }),
-});
-
-// Simulate user permissions (in production: from auth token, DB, etc.)
-const userPermissions = new Set(['search', 'run-code']);  // No admin!
-
-// Wrap with permission gating
-const blocked = [];
-const gated = gatedTools(
-  staticTools([searchTool, adminTool, codeTool]),
-  (toolId) => userPermissions.has(toolId),
-  { onBlocked: (id, phase) => blocked.push({ id, phase }) },
-);
-
-console.log('=== Permission-Gated Tools ===');
-console.log('User permissions:', [...userPermissions]);
-
-// Build agent with gated tools
-const runner = Agent
-  .create({
-    provider: mock([
-      // LLM tries to call search (allowed)
-      { content: '', toolCalls: [{ id: 'c1', name: 'search', arguments: { query: 'AI news' } }] },
-      // LLM tries to call delete-user (BLOCKED — it shouldn't even see this tool)
-      { content: '', toolCalls: [{ id: 'c2', name: 'delete-user', arguments: { userId: '123' } }] },
-      // LLM gets the denial and responds
-      { content: 'I searched for AI news. I cannot delete users as I do not have admin access.' },
-    ]),
-  })
-  .system('You are a helpful assistant.')
-  .toolProvider(gated)
-  .maxIterations(5)
-  .build();
-
-const result = await runner.run(input);
-
-console.log('\\nResult:', result.content);
-console.log('\\nBlocked events:');
-for (const b of blocked) {
-  console.log('  ' + b.id + ' blocked at ' + b.phase);
-}
-
-return { content: result.content, blocked, permissions: [...userPermissions] };
-`;
-
-const s21 = `
-import { Agent, mock, fallbackProvider } from 'agentfootprint';
-
-// Multi-Provider Fallback — automatic failover across LLM providers.
-//
-// fallbackProvider() wraps multiple LLMProviders into one:
-//   - Tries providers in order
-//   - Falls back on failure (rate limit, timeout, network error)
-//   - response.model reflects which provider answered (narrative-aware)
-//   - shouldFallback predicate for error-type-specific decisions
-//
-// The recorder's onLLMCall.model tells you which provider was used.
-// onFallback fires during traversal — not post-processing.
-
-// Simulate providers (in production: real Anthropic, OpenAI, Ollama adapters)
-const fallbacks = [];
-
-const primaryProvider = {
-  chat: async (messages, options) => {
-    // Simulate rate limit
-    console.log('Primary (Claude): attempting...');
-    throw new Error('429 Rate Limited');
-  },
-};
-
-const backupProvider = {
-  chat: async (messages, options) => {
-    console.log('Backup (GPT-4o): attempting...');
-    return {
-      content: 'Hello! I am the backup provider (GPT-4o). The primary was rate limited.',
-      model: 'gpt-4o',
-      finishReason: 'stop',
-    };
-  },
-};
-
-const localProvider = {
-  chat: async (messages, options) => {
-    console.log('Local (Ollama): attempting...');
-    return {
-      content: 'Hello from local Ollama.',
-      model: 'llama3-local',
-      finishReason: 'stop',
-    };
-  },
-};
-
-// Create fallback chain
-const provider = fallbackProvider(
-  [primaryProvider, backupProvider, localProvider],
-  {
-    onFallback: (from, to, error) => {
-      const msg = 'Falling back from provider ' + from + ' to ' + to + ': ' + error.message;
-      console.log(msg);
-      fallbacks.push(msg);
-    },
-    // Only fall back on rate limits and server errors, not auth errors
-    shouldFallback: (error) => {
-      const msg = error.message || '';
-      return msg.includes('429') || msg.includes('500') || msg.includes('timeout');
-    },
-  },
-);
-
-console.log('=== Multi-Provider Fallback ===');
-console.log('Chain: Claude → GPT-4o → Ollama\\n');
-
-// Use with Agent
-const runner = Agent.create({ provider })
-  .system('You are helpful.')
-  .build();
-
-const result = await runner.run(input);
-
-console.log('\\nFinal response from:', result.model || 'unknown');
-console.log('Content:', result.content);
-console.log('\\nFallback events:', fallbacks.length);
-
-return {
-  content: result.content,
-  model: result.model,
-  fallbacks,
 };
 `;
 
@@ -890,10 +352,11 @@ export const samples: Sample[] = [
   { id: 'lazy-subflow', number: 19, title: 'Lazy Subflow', description: 'Graph-of-services — lazy branches resolve only when selected', category: 'Orchestration', code: s19 },
   { id: 'gated-tools', number: 20, title: 'Permission-Gated Tools', description: 'Defense-in-depth tool filtering — LLM never sees blocked tools', category: 'Security', code: s20 },
   { id: 'fallback-provider', number: 21, title: 'Provider Fallback', description: 'Multi-provider failover chain with narrative-aware model tracking', category: 'Resilience', code: s21 },
+  { id: 'persistent-memory', number: 22, title: 'Persistent Memory', description: 'Multi-turn agent — PrepareMemory/CommitMemory visible in narrative', category: 'Memory', code: s22 },
 ];
 
 export function getCategorizedSamples(): SampleCategory[] {
-  const categoryOrder = ['Basics', 'Providers', 'Orchestration', 'Security', 'Resilience', 'Observability', 'Adapters', 'Integration'];
+  const categoryOrder = ['Basics', 'Providers', 'Orchestration', 'Memory', 'Security', 'Resilience', 'Observability', 'Adapters', 'Integration'];
   const map = new Map<string, Sample[]>();
 
   for (const sample of samples) {
