@@ -7,16 +7,39 @@ import { SettingsPanel, loadApiKeys } from './components/SettingsPanel';
 import '@xyflow/react/dist/style.css';
 import './styles/global.css';
 
-function useThemeToggle() {
+function AutoOpenSettings({ onOpen }: { onOpen: () => void }) {
+  const location = useLocation();
+  useEffect(() => {
+    if (location.pathname.includes('live-chat')) {
+      const keys = loadApiKeys();
+      const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
+      if (!hasKeys) onOpen();
+    }
+  }, [location.pathname]);
+  return null;
+}
+
+/** Samples layout — sidebar + sample page */
+function SamplesLayout({ onOpenSettings }: { onOpenSettings: () => void }) {
+  return (
+    <div className="app">
+      <Sidebar />
+      <div className="main">
+        <SamplesToolbar onOpenSettings={onOpenSettings} />
+        <div className="main-content">
+          <SamplePage />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SamplesToolbar({ onOpenSettings }: { onOpenSettings: () => void }) {
   const [light, setLight] = useState(() => document.documentElement.classList.contains('light'));
   useEffect(() => {
     document.documentElement.classList.toggle('light', light);
   }, [light]);
-  return [light, () => setLight((v) => !v)] as const;
-}
 
-function AppHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
-  const [light, toggle] = useThemeToggle();
   const keys = loadApiKeys();
   const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
 
@@ -33,7 +56,7 @@ function AppHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
         </button>
         <span className="app-header-sep">&middot;</span>
         <button
-          onClick={toggle}
+          onClick={() => setLight((v) => !v)}
           title={light ? 'Switch to dark mode' : 'Switch to light mode'}
           style={{
             background: 'none',
@@ -57,35 +80,20 @@ function AppHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
   );
 }
 
-function AutoOpenSettings({ onOpen }: { onOpen: () => void }) {
-  const location = useLocation();
-  useEffect(() => {
-    if (location.pathname.includes('live-chat')) {
-      const keys = loadApiKeys();
-      const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
-      if (!hasKeys) onOpen();
-    }
-  }, [location.pathname]);
-  return null;
-}
-
 export function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   return (
-    <div className="app">
+    <>
       <AutoOpenSettings onOpen={() => setShowSettings(true)} />
-      <Sidebar />
-      <div className="main">
-        <AppHeader onOpenSettings={() => setShowSettings(true)} />
-        <div className="main-content">
-          <Routes>
-            <Route path="/" element={<Welcome />} />
-            <Route path="/samples/:sampleId" element={<SamplePage />} />
-          </Routes>
-        </div>
-      </div>
+      <Routes>
+        <Route path="/" element={<Welcome />} />
+        <Route
+          path="/samples/:sampleId"
+          element={<SamplesLayout onOpenSettings={() => setShowSettings(true)} />}
+        />
+      </Routes>
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
-    </div>
+    </>
   );
 }

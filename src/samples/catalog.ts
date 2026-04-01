@@ -40,35 +40,70 @@ export interface SampleCategory {
   samples: Sample[];
 }
 
-// ── Transform: extract run() body for playground sandbox ─────
+// ── Transform: strip JSDoc, unwrap run(), remove CLI guard ───
+//
+// The sandbox (executeCode.ts) already strips imports and provides `input`.
+// We need to:
+//   1. Remove the JSDoc block at the top
+//   2. Remove `export async function run(input: string) {` and its closing `}`
+//   3. Remove the CLI guard (`if (process.argv ...)`)
+//   4. Dedent the run() body by 2 spaces
+// Module-scope code (like `const searchTool = defineTool(...)`) is kept.
 
 function fromSample(raw: string): string {
   const lines = raw.split('\n');
+  const result: string[] = [];
+  let inJsDoc = false;
+  let insideRun = false;
+  let braceDepth = 0;
 
-  // 1. Collect import lines
-  const importLines = lines.filter(l => l.startsWith('import '));
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trimStart();
 
-  // 2. Find the run() function body
-  const fnIdx = lines.findIndex(l => l.includes('export async function run'));
-  if (fnIdx < 0) return raw; // fallback: return as-is
+    // Skip JSDoc block at the top
+    if (trimmed.startsWith('/**') && i < 10) { inJsDoc = true; continue; }
+    if (inJsDoc) { if (trimmed.includes('*/')) inJsDoc = false; continue; }
 
-  // Find body start (opening brace)
-  const bodyStartIdx = fnIdx + 1;
+    // Skip CLI guard
+    if (trimmed.startsWith('if (process.argv')) {
+      // Skip until the closing brace (usually 1-2 lines)
+      while (i < lines.length - 1 && !lines[i].includes('}')) i++;
+      continue;
+    }
 
-  // Find body end: the closing brace before CLI guard or EOF
-  const cliIdx = lines.findIndex((l, i) => i > fnIdx && l.startsWith('if (process.argv'));
-  const searchEnd = cliIdx > 0 ? cliIdx : lines.length;
+    // Detect `export async function run(...) {`
+    if (!insideRun && trimmed.startsWith('export async function run')) {
+      insideRun = true;
+      braceDepth = 1;
+      continue; // skip the function declaration line
+    }
 
-  // Walk backwards from searchEnd to find the closing '}'
-  let bodyEndIdx = searchEnd - 1;
-  while (bodyEndIdx > fnIdx && lines[bodyEndIdx].trim() === '') bodyEndIdx--;
-  if (lines[bodyEndIdx].trim() === '}') bodyEndIdx--; // skip closing brace
+    if (insideRun) {
+      // Track braces to find the matching closing `}`
+      for (const ch of line) {
+        if (ch === '{') braceDepth++;
+        else if (ch === '}') braceDepth--;
+      }
 
-  // 3. Extract and dedent body by 2 spaces
-  const bodyLines = lines.slice(bodyStartIdx, bodyEndIdx + 1)
-    .map(l => l.startsWith('  ') ? l.slice(2) : l);
+      if (braceDepth <= 0) {
+        // This is the closing `}` of run() — skip it
+        insideRun = false;
+        continue;
+      }
 
-  return importLines.join('\n') + '\n\n' + bodyLines.join('\n').trim() + '\n';
+      // Dedent by 2 spaces
+      result.push(line.startsWith('  ') ? line.slice(2) : line);
+    } else {
+      result.push(line);
+    }
+  }
+
+  // Clean up leading/trailing blank lines
+  while (result.length > 0 && result[0].trim() === '') result.shift();
+  while (result.length > 0 && result[result.length - 1].trim() === '') result.pop();
+
+  return result.join('\n') + '\n';
 }
 
 // ── Transform agent-samples ─────────────────────────────────
