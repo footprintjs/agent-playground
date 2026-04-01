@@ -96,6 +96,24 @@ body {
   margin-top: 2px;
 }
 
+.sidebar-home-btn {
+  margin-top: 8px;
+  width: 100%;
+  padding: 6px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-home-btn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
 .sidebar-list {
   flex: 1;
   overflow-y: auto;

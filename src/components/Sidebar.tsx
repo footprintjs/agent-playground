@@ -39,6 +39,12 @@ export function Sidebar() {
             Agent Playground
           </h1>
           <p>agentfootprint interactive samples</p>
+          <button
+            className="sidebar-home-btn"
+            onClick={() => handleNavigate('/')}
+          >
+            Home
+          </button>
         </div>
         <div className="sidebar-list">
           {categories.map((cat) => (
