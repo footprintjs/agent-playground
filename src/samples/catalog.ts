@@ -23,6 +23,7 @@ import s15Raw from '@samples/integration/15-error-handling.ts?raw';
 import s20Raw from '@samples/security/20-permission-gated-tools.ts?raw';
 import s21Raw from '@samples/resilience/21-provider-fallback.ts?raw';
 import s22Raw from '@samples/memory/22-persistent-memory.ts?raw';
+import s23Raw from '@samples/orchestration/23-react-loop-decider.ts?raw';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -123,6 +124,7 @@ const s15 = fromSample(s15Raw);
 const s20 = fromSample(s20Raw);
 const s21 = fromSample(s21Raw);
 const s22 = fromSample(s22Raw);
+const s23 = fromSample(s23Raw);
 
 // ── Inline samples (not yet in agent-samples) ────────────────
 
@@ -388,6 +390,7 @@ export const samples: Sample[] = [
   { id: 'gated-tools', number: 20, title: 'Permission-Gated Tools', description: 'Defense-in-depth tool filtering — LLM never sees blocked tools', category: 'Security', code: s20 },
   { id: 'fallback-provider', number: 21, title: 'Provider Fallback', description: 'Multi-provider failover chain with narrative-aware model tracking', category: 'Resilience', code: s21 },
   { id: 'persistent-memory', number: 22, title: 'Persistent Memory', description: 'Multi-turn agent — PrepareMemory/CommitMemory visible in narrative', category: 'Memory', code: s22 },
+  { id: 'react-loop-decider', number: 23, title: 'ReAct Loop Decider', description: 'RouteResponse decider — tool-calls vs final branch, no message duplication', category: 'Orchestration', code: s23 },
 ];
 
 export function getCategorizedSamples(): SampleCategory[] {

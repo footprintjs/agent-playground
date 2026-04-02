@@ -3,6 +3,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { SamplePage } from './components/SamplePage';
 import { Welcome } from './components/Welcome';
 import { Sidebar } from './components/Sidebar';
+import { LiveChatPage } from './components/live/LiveChatPage';
 import { SettingsPanel, loadApiKeys } from './components/SettingsPanel';
 import '@xyflow/react/dist/style.css';
 import './styles/global.css';
@@ -10,7 +11,7 @@ import './styles/global.css';
 function AutoOpenSettings({ onOpen }: { onOpen: () => void }) {
   const location = useLocation();
   useEffect(() => {
-    if (location.pathname.includes('live-chat')) {
+    if (location.pathname.includes('live-chat') || location.pathname === '/live') {
       const keys = loadApiKeys();
       const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
       if (!hasKeys) onOpen();
@@ -88,6 +89,7 @@ export function App() {
       <AutoOpenSettings onOpen={() => setShowSettings(true)} />
       <Routes>
         <Route path="/" element={<Welcome />} />
+        <Route path="/live" element={<LiveChatPage />} />
         <Route
           path="/samples/:sampleId"
           element={<SamplesLayout onOpenSettings={() => setShowSettings(true)} />}

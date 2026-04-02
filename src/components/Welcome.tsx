@@ -30,9 +30,9 @@ const CARDS = [
     phase: 'observe' as const,
     icon: '\uD83D\uDCAC',
     title: 'Live Chat',
-    desc: 'Set your Anthropic or OpenAI key via the \u2699 icon and run real LLM calls directly from the browser.',
+    desc: 'Pick a pattern, set your API key, and chat with a real LLM. Every turn shows Behind the Scenes.',
     cta: 'Try with your key',
-    to: '/samples/live-chat',
+    to: '/live',
   },
 ];
 
