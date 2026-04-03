@@ -6,7 +6,7 @@
  * Captures execution data (snapshot, narrative, spec) per turn.
  */
 import {
-  Agent, AgentRunner,
+  Agent, AgentRunner, AgentPattern,
   LLMCall,
   RAG, RAGRunner,
   Swarm, SwarmRunner,
@@ -15,6 +15,7 @@ import {
   InMemoryStore,
   mockRetriever,
 } from 'agentfootprint';
+import type { ToolProvider, PromptProvider } from 'agentfootprint';
 import {
   createEcommerceTools, createHRTools,
   PRODUCT_DOCS_CHUNKS, HR_DOCS_CHUNKS,
@@ -294,6 +295,11 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
   const store = new InMemoryStore();
   const memoryConfig = buildMemoryConfig(config, store);
 
+  // Dynamic ReAct preset — use .toolProvider() and .promptProvider()
+  if (config.presetId === 'dynamic-support') {
+    return buildDynamicSupportRunner(config, provider, store);
+  }
+
   const builder = Agent.create({ provider, name: 'agent' })
     .system(config.systemPrompt)
     .maxIterations(10);
@@ -380,6 +386,105 @@ function buildSwarmRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
     reset: () => { /* Swarm is stateless per turn */ },
     getSpec: () => swarm.getSpec(),
   };
+}
+
+// ── Dynamic ReAct: Progressive Authorization ────────────────
+
+function buildDynamicSupportRunner(config: LiveConfig, provider: LLMProvider, store: InMemoryStore): LiveRunner {
+  const memoryConfig = buildMemoryConfig(config, store);
+
+  // Basic tools — always available
+  const basicTools = createEcommerceTools();
+
+  // Admin tools — unlocked after identity verification
+  const verifyIdentityTool = defineTool({
+    id: 'verify_identity',
+    description: 'Verify customer identity for elevated access. Required before issuing refunds or escalating.',
+    inputSchema: { type: 'object', properties: { customerId: { type: 'string' } }, required: ['customerId'] },
+    handler: async ({ customerId }) => ({
+      content: JSON.stringify({ verified: true, customerId, accessLevel: 'elevated', note: 'Identity confirmed via 2FA' }),
+    }),
+  });
+
+  const issueRefundTool = defineTool({
+    id: 'issue_refund',
+    description: 'Issue a refund for an order. Requires elevated access (verify_identity first).',
+    inputSchema: { type: 'object', properties: { orderId: { type: 'string' }, amount: { type: 'number' } } },
+    handler: async ({ orderId, amount }) => ({
+      content: JSON.stringify({ refundId: `REF-${Date.now()}`, orderId, amount, status: 'processed' }),
+    }),
+  });
+
+  const escalateTool = defineTool({
+    id: 'escalate_to_manager',
+    description: 'Escalate the case to a manager. Requires elevated access.',
+    inputSchema: { type: 'object', properties: { reason: { type: 'string' } } },
+    handler: async ({ reason }) => ({
+      content: JSON.stringify({ escalationId: `ESC-${Date.now()}`, status: 'assigned', manager: 'Sarah Chen', reason }),
+    }),
+  });
+
+  // Dynamic tool provider — changes based on conversation state
+  const dynamicTools: ToolProvider = {
+    resolve: (ctx) => {
+      const verified = ctx.messages.some((m: any) =>
+        m.role === 'tool' && typeof m.content === 'string' && m.content.includes('"verified":true'));
+
+      const allToolDefs = verified
+        ? [...basicTools, verifyIdentityTool, issueRefundTool, escalateTool]
+        : [...basicTools, verifyIdentityTool];
+
+      const toolDescs = allToolDefs.map(t => ({
+        name: t.id,
+        description: t.description,
+        inputSchema: t.inputSchema,
+      }));
+
+      return {
+        value: toolDescs,
+        chosen: verified ? 'elevated' : 'basic',
+        rationale: verified ? 'identity verified — admin tools unlocked' : 'standard access — verify identity for admin tools',
+      };
+    },
+    execute: async (call) => {
+      const allTools = [...basicTools, verifyIdentityTool, issueRefundTool, escalateTool];
+      const tool = allTools.find(t => t.id === call.name);
+      if (!tool) return { content: `Unknown tool: ${call.name}`, error: true };
+      return tool.handler(call.arguments);
+    },
+  };
+
+  // Dynamic prompt — changes after verification
+  const dynamicPrompt: PromptProvider = {
+    resolve: (ctx) => {
+      const verified = ctx.history.some((m: any) =>
+        typeof m.content === 'string' && m.content.includes('"verified":true'));
+
+      if (verified) {
+        return {
+          value: 'You are a SENIOR customer support agent with ELEVATED ACCESS for TechStore. You can now issue refunds and escalate to managers. Always confirm the refund amount with the customer before processing.',
+          chosen: 'elevated',
+          rationale: 'identity verified — elevated prompt active',
+        };
+      }
+      return {
+        value: config.systemPrompt || 'You are a customer support agent for TechStore. You can look up orders and check inventory. To issue refunds or escalate, verify customer identity first using verify_identity.',
+        chosen: 'standard',
+        rationale: 'standard access — verification required for admin actions',
+      };
+    },
+  };
+
+  const builder = Agent.create({ provider, name: 'dynamic-agent' })
+    .pattern(AgentPattern.Dynamic)
+    .toolProvider(dynamicTools)
+    .promptProvider(dynamicPrompt)
+    .maxIterations(10);
+
+  if (memoryConfig) builder.memory(memoryConfig);
+  const runner = builder.build();
+
+  return wrapRunner(runner, store);
 }
 
 // ── Shared Helpers ──────────────────────────────────────────

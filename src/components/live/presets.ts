@@ -251,6 +251,73 @@ const swarm = Swarm.create({ provider: anthropic('claude-sonnet-4-20250514') })
 // Try: "Write a haiku about debugging"
 // Try: "Implement binary search in TypeScript"`,
   },
+
+  // ── Dynamic ReAct ─────────────────────────────────────────
+  {
+    id: 'dynamic-support',
+    label: 'Dynamic Support (Progressive Auth)',
+    description: 'Tools change after identity verification — Dynamic ReAct',
+    pattern: 'agent',
+    config: {
+      pattern: 'agent',
+      modelId: 'claude-sonnet-4-20250514',
+      provider: 'anthropic',
+      systemPrompt: 'You are a customer support agent. Start by looking up the customer order. If the order is flagged or cancelled, you may need elevated access — use verify_identity first, then admin tools become available.',
+      memoryStrategy: 'sliding-window',
+      memoryParam: 50,
+      enableTools: true,
+      presetId: 'dynamic-support',
+    },
+    suggestedMessage: 'Check order ORD-1003 and help me get a refund',
+    code: `import { Agent, AgentPattern, defineTool, anthropic } from 'agentfootprint';
+import type { ToolProvider, PromptProvider } from 'agentfootprint';
+
+// Dynamic tool provider — tools change based on conversation state
+const dynamicTools: ToolProvider = {
+  resolve: (ctx) => {
+    const verified = ctx.messages.some(m =>
+      m.role === 'tool' && m.content.includes('"verified":true'));
+
+    const basic = [lookupOrder, checkInventory, verifyIdentity];
+    const admin = [issueRefund, escalateToManager];
+
+    if (verified) {
+      return { value: [...basic, ...admin], chosen: 'elevated', rationale: 'identity verified' };
+    }
+    return { value: basic, chosen: 'basic', rationale: 'standard access' };
+  },
+};
+
+// Dynamic prompt — changes after verification
+const dynamicPrompt: PromptProvider = {
+  resolve: (ctx) => {
+    const verified = ctx.history.some(m =>
+      typeof m.content === 'string' && m.content.includes('"verified":true'));
+
+    if (verified) {
+      return {
+        value: 'You are a SENIOR support agent with ELEVATED ACCESS. You can issue refunds and escalate.',
+        chosen: 'elevated',
+        rationale: 'identity verified',
+      };
+    }
+    return {
+      value: 'You are a support agent. Verify identity before issuing refunds.',
+      chosen: 'standard',
+    };
+  },
+};
+
+const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
+  .pattern(AgentPattern.Dynamic)     // re-evaluate all slots each iteration
+  .toolProvider(dynamicTools)         // tools change after verification
+  .promptProvider(dynamicPrompt)      // prompt changes after verification
+  .build();
+
+// Turn 1: lookup_order → flagged
+// Turn 2: verify_identity → verified
+// Turn 3: issue_refund now available!`,
+  },
 ];
 
 export function getPresetsByPattern(): Map<PatternType, Preset[]> {
