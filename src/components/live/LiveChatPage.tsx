@@ -186,14 +186,14 @@ export function LiveChatPage() {
   const selectedExecution: CapturedExecution | null =
     messages.find((m) => m.id === selectedBTSId)?.execution ?? null;
 
-  // Show pattern blueprint when no execution is selected
-  const previewSpec = !selectedExecution ? (() => {
+  // Show pattern blueprint when no execution is selected.
+  // Uses runnerRef (already cached) — does NOT call getRunner() to avoid re-render loop.
+  const previewSpec = useMemo(() => {
+    if (selectedExecution) return null;
     try {
-      const result = getRunner();
-      if ('error' in result) return null;
-      return result.runner?.getSpec?.() ?? null;
+      return runnerRef.current?.getSpec?.() ?? null;
     } catch { return null; }
-  })() : null;
+  }, [selectedExecution, config]);
 
   const keys = loadApiKeys();
   const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
