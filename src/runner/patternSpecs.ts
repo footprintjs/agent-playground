@@ -6,7 +6,7 @@
  * rendered as a flowchart preview before any execution.
  */
 
-import { Agent, LLMCall, RAG, mock, mockRetriever, defineTool } from 'agentfootprint';
+import { Agent, LLMCall, RAG, Swarm, mock, mockRetriever, defineTool } from 'agentfootprint';
 import type { PatternType } from '../components/live/types';
 
 // Dummy provider — never called, just needed to build the chart structure
@@ -58,13 +58,20 @@ export function getPatternSpec(pattern: PatternType, presetId?: string): unknown
         break;
       }
       case 'swarm': {
-        // Swarm.getSpec() requires run() first. Use Agent as orchestrator proxy.
-        // The actual Swarm flowchart is built at runtime with specialist subflows.
-        const orchestrator = Agent.create({ provider: dummyProvider, name: 'orchestrator' })
-          .system('...')
-          .tool(dummyTool)
+        // Swarm.getSpec() requires run() first — run with mock to capture spec.
+        const specialist = Agent.create({ provider: dummyProvider, name: 'specialist' })
+          .system('Specialist')
           .build();
-        spec = orchestrator.getSpec();
+        const swarmRunner = Swarm.create({ provider: dummyProvider, name: 'swarm' })
+          .system('Route to specialist')
+          .specialist('coding', 'Code specialist', specialist)
+          .specialist('writing', 'Writing specialist', specialist)
+          .maxIterations(1)
+          .build();
+        // Fire-and-forget run to populate spec, ignore result/errors
+        swarmRunner.run('test').catch(() => {});
+        // Spec is available after run() starts (synchronous chart build)
+        spec = swarmRunner.getSpec();
         break;
       }
     }
