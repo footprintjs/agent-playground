@@ -401,7 +401,7 @@ function buildDynamicSupportRunner(config: LiveConfig, provider: LLMProvider, st
     id: 'verify_identity',
     description: 'Verify customer identity for elevated access. Required before issuing refunds or escalating.',
     inputSchema: { type: 'object', properties: { customerId: { type: 'string' } }, required: ['customerId'] },
-    handler: async ({ customerId }) => ({
+    handler: async ({ customerId }: { customerId: string }) => ({
       content: JSON.stringify({ verified: true, customerId, accessLevel: 'elevated', note: 'Identity confirmed via 2FA' }),
     }),
   });
