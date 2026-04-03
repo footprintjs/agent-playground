@@ -20,7 +20,7 @@ interface ConfigPanelProps {
 export function ConfigPanel({ config, onChange, onReset, collapsed, onToggleCollapse, running, style, onPresetSelect, activePresetId }: ConfigPanelProps) {
   const [showCode, setShowCode] = useState<Preset | null>(null);
   const update = <K extends keyof LiveConfig>(key: K, value: LiveConfig[K]) => {
-    const next = { ...config, [key]: value };
+    const next = { ...config, [key]: value, presetId: undefined }; // Clear preset on manual change
     // Auto-switch provider when model changes
     if (key === 'modelId') {
       const model = MODELS.find((m) => m.id === value);

@@ -7,6 +7,7 @@
  */
 import {
   Agent, AgentRunner,
+  LLMCall,
   RAG, RAGRunner,
   Swarm, SwarmRunner,
   BrowserAnthropicAdapter, BrowserOpenAIAdapter,
@@ -14,6 +15,10 @@ import {
   InMemoryStore,
   mockRetriever,
 } from 'agentfootprint';
+import {
+  createEcommerceTools, createHRTools,
+  PRODUCT_DOCS_CHUNKS, HR_DOCS_CHUNKS,
+} from './mockData';
 import type { LLMProvider, ToolDefinition } from 'agentfootprint';
 import type { CapturedExecution } from './executeCode';
 import type { LiveConfig, ChatMessage } from '../components/live/types';
@@ -256,17 +261,33 @@ function computeMath(expr: string): number {
 // ── Pattern Builders ────────────────────────────────────────
 
 function buildLLMCallRunner(config: LiveConfig, provider: LLMProvider): LiveRunner {
-  const store = new InMemoryStore();
-  const memoryConfig = buildMemoryConfig(config, store);
-
-  const builder = Agent.create({ provider, name: 'llm-call' })
+  // Use LLMCall concept — simpler flowchart without tools/loop/RouteResponse.
+  // Flowchart: SystemPrompt → Messages → CallLLM → ParseResponse → Finalize
+  const runner = LLMCall.create({ provider })
     .system(config.systemPrompt)
-    .maxIterations(1);
+    .build();
 
-  if (memoryConfig) builder.memory(memoryConfig);
-  const runner = builder.build();
+  // LLMCallRunner has no built-in memory — we manage conversation history manually.
+  const history: any[] = [];
 
-  return wrapRunner(runner, store);
+  return {
+    run: async (message: string) => {
+      const start = Date.now();
+      const result = await runner.run(message);
+      history.push(
+        { role: 'user', content: message },
+        { role: 'assistant', content: result.content },
+      );
+      const execution = captureExecution(runner);
+      return {
+        content: result.content,
+        execution,
+        durationMs: Date.now() - start,
+      };
+    },
+    reset: () => { history.length = 0; },
+    getSpec: () => runner.getSpec(),
+  };
 }
 
 function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner {
@@ -278,7 +299,13 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
     .maxIterations(10);
 
   if (config.enableTools) {
-    builder.tools(createFootprintTools());
+    // Select tools based on preset — domain-specific mock data
+    const tools = config.presetId === 'ecommerce-support'
+      ? createEcommerceTools()
+      : config.presetId === 'hr-assistant'
+      ? createHRTools()
+      : createFootprintTools(); // default: calculator, datetime, web search
+    builder.tools(tools);
   }
   if (memoryConfig) builder.memory(memoryConfig);
   const runner = builder.build();
@@ -287,15 +314,18 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
 }
 
 function buildRAGRunner(config: LiveConfig, provider: LLMProvider): LiveRunner {
-  const retriever = mockRetriever([
-    {
-      chunks: [
+  // Select knowledge base based on preset
+  const chunks = config.presetId === 'product-knowledge'
+    ? PRODUCT_DOCS_CHUNKS
+    : config.presetId === 'hr-knowledge'
+    ? HR_DOCS_CHUNKS
+    : [
         { content: 'footprintjs is a flowchart pattern for backend code. It enables self-explainable systems that AI can reason about.', metadata: { source: 'docs' } },
         { content: 'agentfootprint is an explainable agent framework built on footprintjs. It supports LLMCall, Agent, RAG, FlowChart, and Swarm patterns.', metadata: { source: 'docs' } },
         { content: 'The Behind the Scenes (BTS) view shows the execution flowchart, narrative, memory state, and timing for every agent turn.', metadata: { source: 'docs' } },
-      ],
-    },
-  ]);
+      ];
+
+  const retriever = mockRetriever([{ chunks }]);
 
   const runner = RAG.create({ provider, retriever })
     .system(config.systemPrompt)

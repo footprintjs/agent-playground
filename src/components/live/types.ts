@@ -60,6 +60,8 @@ export interface LiveConfig {
   memoryStrategy: MemoryStrategyType;
   memoryParam: number; // maxMessages for sliding-window, maxChars for char-budget
   enableTools: boolean;
+  /** Active preset ID — determines which mock data/tools to use. */
+  presetId?: string;
 }
 
 export const DEFAULT_CONFIG: LiveConfig = {

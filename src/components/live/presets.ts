@@ -1,25 +1,18 @@
 /**
- * Live Chat Presets — pre-configured examples grouped by pattern.
+ * Live Chat Presets — real-world domain scenarios with mock data.
  *
- * Each preset includes a config (pattern, prompt, tools, memory)
- * and a suggested first message so the user just clicks Send.
+ * Each preset feels like a production app: e-commerce support with real order data,
+ * HR assistant with employee records, product knowledge base with specifications.
  */
 import type { LiveConfig, PatternType } from './types';
 
 export interface Preset {
-  /** Unique identifier. */
   readonly id: string;
-  /** Display name. */
   readonly label: string;
-  /** Short description shown on hover/subtitle. */
   readonly description: string;
-  /** Which pattern category this belongs to. */
   readonly pattern: PatternType;
-  /** Pre-filled config applied when selected. */
   readonly config: LiveConfig;
-  /** Suggested first message — pre-filled in the input box. */
   readonly suggestedMessage: string;
-  /** Sample code showing how to build this with agentfootprint. */
   readonly code: string;
 }
 
@@ -28,181 +21,238 @@ export const PRESETS: Preset[] = [
   {
     id: 'chat-assistant',
     label: 'Chat Assistant',
-    description: 'Simple multi-turn chat with memory',
+    description: 'Simple multi-turn conversation with memory',
     pattern: 'llm-call',
     config: {
       pattern: 'llm-call',
       modelId: 'claude-sonnet-4-20250514',
       provider: 'anthropic',
-      systemPrompt: 'You are a helpful, concise assistant. Answer in 2-3 sentences unless the user asks for detail.',
+      systemPrompt: 'You are a helpful, concise assistant. Answer in 2-3 sentences unless asked for detail.',
       memoryStrategy: 'sliding-window',
       memoryParam: 50,
       enableTools: false,
+      presetId: 'chat-assistant',
     },
     suggestedMessage: 'What are the main differences between REST and GraphQL?',
     code: `import { LLMCall, anthropic } from 'agentfootprint';
 
-const runner = LLMCall
+const chat = LLMCall
   .create({ provider: anthropic('claude-sonnet-4-20250514') })
   .system('You are a helpful, concise assistant.')
   .build();
 
-const result = await runner.run('What are the differences between REST and GraphQL?');
-console.log(result.content);`,
+const result = await chat.run('What are the differences between REST and GraphQL?');`,
   },
   {
     id: 'code-reviewer',
     label: 'Code Reviewer',
-    description: 'Reviews code and suggests improvements',
+    description: 'Reviews code for bugs, security, and quality',
     pattern: 'llm-call',
     config: {
       pattern: 'llm-call',
       modelId: 'claude-sonnet-4-20250514',
       provider: 'anthropic',
-      systemPrompt: 'You are a senior code reviewer. When given code, analyze it for: bugs, security issues, performance problems, and readability. Be specific and actionable.',
+      systemPrompt: 'You are a senior code reviewer. Analyze code for: bugs, security vulnerabilities, performance issues, and readability. Be specific and actionable. Use severity levels: CRITICAL, WARNING, INFO.',
       memoryStrategy: 'sliding-window',
       memoryParam: 20,
       enableTools: false,
+      presetId: 'code-reviewer',
     },
     suggestedMessage: 'Review this function:\n\nfunction getUser(id) {\n  const user = db.query("SELECT * FROM users WHERE id = " + id);\n  return user;\n}',
     code: `import { LLMCall, anthropic } from 'agentfootprint';
 
 const reviewer = LLMCall
   .create({ provider: anthropic('claude-sonnet-4-20250514') })
-  .system('You are a senior code reviewer.')
+  .system('You are a senior code reviewer. Analyze for bugs, security, performance.')
   .build();
 
 const result = await reviewer.run('Review this function: ...');`,
   },
 
-  // ── Agent (Regular ReAct) ─────────────────────────────────
+  // ── Agent (ReAct with real data) ──────────────────────────
   {
-    id: 'math-agent',
-    label: 'Math Agent',
-    description: 'Agent with calculator tool — see tool calls in BTS',
+    id: 'ecommerce-support',
+    label: 'E-Commerce Support',
+    description: 'Customer support with orders, inventory, and tracking',
     pattern: 'agent',
     config: {
       pattern: 'agent',
       modelId: 'claude-sonnet-4-20250514',
       provider: 'anthropic',
-      systemPrompt: 'You are a helpful math assistant. Use the calculator tool for any arithmetic. Show your work.',
+      systemPrompt: 'You are a customer support agent for TechStore. You can look up orders, check inventory, and track packages. Be helpful and empathetic. If an order is cancelled or returned, apologize and offer alternatives. Always use the tools to look up information — never make up order details.',
       memoryStrategy: 'sliding-window',
       memoryParam: 50,
       enableTools: true,
+      presetId: 'ecommerce-support',
     },
-    suggestedMessage: 'What is 17 * 23 + 456 / 12?',
+    suggestedMessage: 'Can you check the status of order ORD-1003?',
     code: `import { Agent, defineTool, anthropic } from 'agentfootprint';
 
-const calculator = defineTool({
-  id: 'calculator',
-  description: 'Evaluate a math expression',
-  inputSchema: { type: 'object', properties: { expression: { type: 'string' } } },
-  handler: async ({ expression }) => ({ content: String(compute(expression)) }),
+const lookupOrder = defineTool({
+  id: 'lookup_order',
+  description: 'Look up order by ID or customer name',
+  inputSchema: { ... },
+  handler: async ({ orderId }) => {
+    const order = await db.orders.findOne({ orderId });
+    return { content: JSON.stringify(order) };
+  },
 });
 
 const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
-  .system('You are a math assistant. Use the calculator tool.')
-  .tool(calculator)
+  .system('You are a customer support agent for TechStore.')
+  .tool(lookupOrder)
+  .tool(checkInventory)
+  .tool(trackPackage)
   .build();
 
-const result = await agent.run('What is 17 * 23 + 456 / 12?');`,
+// Try: "Check order ORD-1003" (cancelled)
+// Try: "Is the MacBook Air in stock?" (out of stock)
+// Try: "Track package PKG-4522-US" (shipped)`,
   },
   {
-    id: 'research-agent',
-    label: 'Research Agent',
-    description: 'Multi-turn agent with multiple tools and memory',
+    id: 'hr-assistant',
+    label: 'HR Assistant',
+    description: 'Employee lookup, PTO balance, and policy questions',
     pattern: 'agent',
     config: {
       pattern: 'agent',
       modelId: 'claude-sonnet-4-20250514',
       provider: 'anthropic',
-      systemPrompt: 'You are a research assistant. Use available tools to find information. Ask clarifying questions when needed.',
+      systemPrompt: 'You are an HR assistant. You can look up employee information, check PTO balances, and answer policy questions. Always use the tools to look up data — never guess employee details. For sensitive requests, remind the employee to contact HR directly.',
       memoryStrategy: 'sliding-window',
-      memoryParam: 100,
+      memoryParam: 50,
       enableTools: true,
+      presetId: 'hr-assistant',
     },
-    suggestedMessage: 'What time is it right now, and what is 2^10?',
-    code: `import { Agent, anthropic } from 'agentfootprint';
+    suggestedMessage: 'How many PTO days does Sarah Chen have left?',
+    code: `import { Agent, defineTool, anthropic } from 'agentfootprint';
+
+const lookupEmployee = defineTool({
+  id: 'lookup_employee',
+  description: 'Look up employee info by name or ID',
+  inputSchema: { ... },
+  handler: async ({ name }) => {
+    const emp = await hr.employees.findByName(name);
+    return { content: JSON.stringify(emp) };
+  },
+});
 
 const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
-  .system('You are a research assistant. Use tools to find information.')
-  .tool(calculatorTool)
-  .tool(datetimeTool)
-  .tool(searchTool)
+  .system('You are an HR assistant.')
+  .tool(lookupEmployee)
+  .tool(lookupPolicy)
+  .tool(checkPTOBalance)
   .build();
 
-const result = await agent.run('What time is it right now, and what is 2^10?');`,
+// Try: "How many PTO days does Sarah Chen have?"
+// Try: "What is the remote work policy?"
+// Try: "Look up Maria Garcia's department"`,
   },
 
   // ── RAG ───────────────────────────────────────────────────
   {
-    id: 'knowledge-base',
-    label: 'Knowledge Base Q&A',
-    description: 'Retrieve docs then answer — see retrieval in BTS',
+    id: 'product-knowledge',
+    label: 'Product Knowledge Base',
+    description: 'Answer questions from product docs, return policy, AppleCare',
     pattern: 'rag',
     config: {
       pattern: 'rag',
       modelId: 'claude-sonnet-4-20250514',
       provider: 'anthropic',
-      systemPrompt: 'Answer based on the retrieved documents. If the docs don\'t contain the answer, say so.',
+      systemPrompt: 'You are a product specialist for TechStore. Answer questions based ONLY on the retrieved product documentation. If the docs don\'t contain the answer, say "I don\'t have that information in our product database." Cite which document section your answer comes from.',
       memoryStrategy: 'none',
       memoryParam: 50,
       enableTools: false,
+      presetId: 'product-knowledge',
     },
-    suggestedMessage: 'What is footprintjs and how does it work?',
+    suggestedMessage: 'What does AppleCare+ cover and how much does it cost?',
     code: `import { RAG, anthropic, mockRetriever } from 'agentfootprint';
 
 const retriever = mockRetriever([{
   chunks: [
-    { content: 'footprintjs is a flowchart pattern for backend code...' },
-    { content: 'agentfootprint is an explainable agent framework...' },
+    { content: 'MacBook Pro 16": M4 Pro chip, 24GB RAM...', metadata: { source: 'specs' } },
+    { content: 'Return Policy: 14 days for full refund...', metadata: { source: 'returns' } },
+    { content: 'AppleCare+: 3 years coverage, $199/year...', metadata: { source: 'applecare' } },
   ],
 }]);
 
 const runner = RAG.create({ provider: anthropic('claude-sonnet-4-20250514'), retriever })
-  .system('Answer based on the retrieved documents.')
+  .system('Answer based on retrieved product documentation only.')
   .build();
 
-const result = await runner.run('What is footprintjs?');`,
+// Try: "What does AppleCare+ cover?"
+// Try: "Can I return an opened MacBook?"
+// Try: "What shipping options are available?"`,
+  },
+  {
+    id: 'hr-knowledge',
+    label: 'HR Policy Knowledge Base',
+    description: 'Answer HR questions from company handbook',
+    pattern: 'rag',
+    config: {
+      pattern: 'rag',
+      modelId: 'claude-sonnet-4-20250514',
+      provider: 'anthropic',
+      systemPrompt: 'You are an HR policy advisor. Answer questions based ONLY on the company handbook sections provided. Be precise about numbers (days, amounts, percentages). If the policy doesn\'t cover the question, direct the employee to their HR Business Partner.',
+      memoryStrategy: 'none',
+      memoryParam: 50,
+      enableTools: false,
+      presetId: 'hr-knowledge',
+    },
+    suggestedMessage: 'How many days of parental leave do we get?',
+    code: `import { RAG, anthropic, mockRetriever } from 'agentfootprint';
+
+const retriever = mockRetriever([{
+  chunks: [
+    { content: 'PTO Policy: 1.5 days/month, max 5 carry-over...', metadata: { section: 'PTO' } },
+    { content: 'Remote Work: 2 days in-office minimum...', metadata: { section: 'WFH' } },
+    { content: 'Benefits: 90% health premiums, 401k 4% match...', metadata: { section: 'Benefits' } },
+  ],
+}]);
+
+// Try: "How many days of parental leave?"
+// Try: "What is the expense policy for hotels?"
+// Try: "Can I work fully remote?"`,
   },
 
   // ── Swarm ─────────────────────────────────────────────────
   {
     id: 'specialist-swarm',
-    label: 'Specialist Swarm',
-    description: 'Router dispatches to coding, math, or writing specialist',
+    label: 'Specialist Routing',
+    description: 'Routes to coding, math, or writing specialist',
     pattern: 'swarm',
     config: {
       pattern: 'swarm',
       modelId: 'claude-sonnet-4-20250514',
       provider: 'anthropic',
-      systemPrompt: 'You are an orchestrator. Route the user to the best specialist: coding, math, or writing.',
+      systemPrompt: 'You are an orchestrator. Analyze the user request and route to the best specialist: coding (for code questions), math (for calculations), or writing (for creative content). Explain which specialist you chose and why.',
       memoryStrategy: 'none',
       memoryParam: 50,
       enableTools: false,
+      presetId: 'specialist-swarm',
     },
-    suggestedMessage: 'Write a haiku about programming',
+    suggestedMessage: 'Write a haiku about debugging code',
     code: `import { Swarm, Agent, anthropic } from 'agentfootprint';
 
 const writingAgent = Agent.create({ provider })
-  .system('You are a creative writing specialist.')
+  .system('You are a creative writing specialist. Write vivid, engaging content.')
   .build();
 
 const codingAgent = Agent.create({ provider })
-  .system('You are a coding specialist.')
+  .system('You are a coding specialist. Write clean, well-documented code.')
   .build();
 
 const swarm = Swarm.create({ provider: anthropic('claude-sonnet-4-20250514') })
-  .system('Route to the best specialist.')
+  .system('Route to coding, math, or writing specialist.')
   .specialist('coding', codingAgent)
   .specialist('writing', writingAgent)
   .build();
 
-const result = await swarm.run('Write a haiku about programming');`,
+// Try: "Write a haiku about debugging"
+// Try: "Implement binary search in TypeScript"`,
   },
 ];
 
-/** Group presets by pattern for the UI. */
 export function getPresetsByPattern(): Map<PatternType, Preset[]> {
   const grouped = new Map<PatternType, Preset[]>();
   for (const preset of PRESETS) {
@@ -212,7 +262,6 @@ export function getPresetsByPattern(): Map<PatternType, Preset[]> {
   return grouped;
 }
 
-/** Find a preset by ID. */
 export function getPresetById(id: string): Preset | undefined {
   return PRESETS.find((p) => p.id === id);
 }
