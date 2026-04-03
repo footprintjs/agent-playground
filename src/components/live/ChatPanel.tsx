@@ -5,6 +5,7 @@ interface ChatPanelProps {
   messages: ChatMessage[];
   running: boolean;
   input: string;
+  streamingContent: string | null;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onResume?: (response: string) => void;
@@ -12,7 +13,7 @@ interface ChatPanelProps {
   selectedBTSId: string | null;
 }
 
-export function ChatPanel({ messages, running, input, onInputChange, onSend, onResume, onViewBTS, selectedBTSId }: ChatPanelProps) {
+export function ChatPanel({ messages, running, input, streamingContent, onInputChange, onSend, onResume, onViewBTS, selectedBTSId }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -74,9 +75,13 @@ export function ChatPanel({ messages, running, input, onInputChange, onSend, onR
               <span className="live-msg-role">Assistant</span>
             </div>
             <div className="live-msg-content">
-              <span className="live-typing-dots">
-                <span>.</span><span>.</span><span>.</span>
-              </span>
+              {streamingContent ? (
+                <span>{streamingContent}<span className="live-cursor">|</span></span>
+              ) : (
+                <span className="live-typing-dots">
+                  <span>.</span><span>.</span><span>.</span>
+                </span>
+              )}
             </div>
           </div>
         )}

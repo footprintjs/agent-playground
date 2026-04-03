@@ -141,6 +141,19 @@ export function ConfigPanel({ config, onChange, onReset, collapsed, onToggleColl
             </Section>
           )}
 
+          {/* Streaming */}
+          <Section label="Streaming">
+            <label className="live-toggle">
+              <input
+                type="checkbox"
+                checked={config.enableStreaming}
+                onChange={(e) => update('enableStreaming', e.target.checked)}
+                disabled={running}
+              />
+              <span>Stream tokens (see response as it types)</span>
+            </label>
+          </Section>
+
           {/* Memory Strategy */}
           <Section label="Memory Strategy">
             <div className="live-memory-options">

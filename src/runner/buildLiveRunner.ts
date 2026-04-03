@@ -29,7 +29,7 @@ import type { LiveConfig, ChatMessage } from '../components/live/types';
 
 export interface LiveRunner {
   /** Send a message and get a response + captured execution data. */
-  run(message: string): Promise<LiveTurnResult>;
+  run(message: string, options?: { onToken?: (token: string) => void }): Promise<LiveTurnResult>;
   /** Resume a paused agent with human input. */
   resume?(humanResponse: string): Promise<LiveTurnResult>;
   /** Reset conversation state. */
@@ -309,7 +309,8 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
 
   const builder = Agent.create({ provider, name: 'agent' })
     .system(config.systemPrompt)
-    .maxIterations(10);
+    .maxIterations(10)
+    .streaming(config.enableStreaming);
 
   if (config.enableTools) {
     // Select tools based on preset — domain-specific mock data
@@ -509,9 +510,9 @@ function captureExecution(runner: { getSnapshot?: () => unknown; getNarrativeEnt
 
 function wrapRunner(runner: AgentRunner, store: InMemoryStore): LiveRunner {
   return {
-    run: async (message: string) => {
+    run: async (message: string, options?: { onToken?: (token: string) => void }) => {
       const start = Date.now();
-      const result = await runner.run(message);
+      const result = await runner.run(message, { onToken: options?.onToken });
       const execution = captureExecution(runner);
       if (result.paused) {
         return {

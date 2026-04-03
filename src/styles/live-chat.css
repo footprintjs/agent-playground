@@ -944,3 +944,15 @@
   color: #22c55e;
   font-weight: 600;
 }
+
+/* ── Streaming Cursor ──────────────────────────────────── */
+
+.live-cursor {
+  animation: blink 0.8s step-end infinite;
+  color: var(--accent, #7c6cf0);
+  font-weight: 300;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}

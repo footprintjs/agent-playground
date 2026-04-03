@@ -32,6 +32,7 @@ export function LiveChatPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | undefined>();
+  const [streamingContent, setStreamingContent] = useState<string | null>(null);
   const pausedRef = useRef(false);
 
   // Drag-resizable panel widths
@@ -125,9 +126,16 @@ export function LiveChatPage() {
 
       currentRunner = result$.runner;
       const isPausedResume = pausedRef.current;
+
+      setStreamingContent('');
       const result = isPausedResume && currentRunner.resume
         ? await currentRunner.resume(userMsg.content)
-        : await currentRunner.run(userMsg.content);
+        : await currentRunner.run(userMsg.content, {
+            onToken: (token: string) => {
+              setStreamingContent((prev) => (prev ?? '') + token);
+            },
+          });
+      setStreamingContent(null);
 
       if (result.paused) {
         // Agent paused — show pause message, mark as waiting for input
@@ -340,6 +348,7 @@ export function LiveChatPage() {
           messages={messages}
           running={running}
           input={input}
+          streamingContent={streamingContent}
           onInputChange={setInput}
           onSend={handleSend}
           onResume={handleResume}
