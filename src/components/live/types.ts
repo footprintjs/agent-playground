@@ -1,0 +1,88 @@
+import type { CapturedExecution } from '../../runner/executeCode';
+
+// ── Pattern Types ─────────────────────────────────────────
+
+export type PatternType = 'llm-call' | 'agent' | 'rag' | 'swarm';
+
+export interface PatternOption {
+  readonly id: PatternType;
+  readonly label: string;
+  readonly description: string;
+}
+
+export const PATTERNS: PatternOption[] = [
+  { id: 'llm-call', label: 'LLM Call', description: 'Single LLM call with multi-turn memory' },
+  { id: 'agent', label: 'Agent', description: 'ReAct agent with tools and memory' },
+  { id: 'rag', label: 'RAG', description: 'Retrieval-augmented generation (single-shot per turn)' },
+  { id: 'swarm', label: 'Swarm', description: 'Multi-agent orchestrator with specialist routing' },
+];
+
+// ── Model Types ───────────────────────────────────────────
+
+export type ProviderType = 'anthropic' | 'openai';
+
+export interface ModelOption {
+  readonly id: string;
+  readonly label: string;
+  readonly provider: ProviderType;
+}
+
+export const MODELS: ModelOption[] = [
+  { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', provider: 'anthropic' },
+  { id: 'claude-haiku-3-5-20241022', label: 'Claude Haiku 3.5', provider: 'anthropic' },
+  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'openai' },
+  { id: 'gpt-4o', label: 'GPT-4o', provider: 'openai' },
+];
+
+// ── Memory Strategy ───────────────────────────────────────
+
+export type MemoryStrategyType = 'sliding-window' | 'char-budget' | 'none';
+
+export interface MemoryStrategyOption {
+  readonly id: MemoryStrategyType;
+  readonly label: string;
+  readonly description: string;
+}
+
+export const MEMORY_STRATEGIES: MemoryStrategyOption[] = [
+  { id: 'sliding-window', label: 'Sliding Window', description: 'Keep last N messages' },
+  { id: 'char-budget', label: 'Char Budget', description: 'Fit within character limit' },
+  { id: 'none', label: 'No Memory', description: 'Each turn is independent' },
+];
+
+// ── Configuration ─────────────────────────────────────────
+
+export interface LiveConfig {
+  pattern: PatternType;
+  modelId: string;
+  provider: ProviderType;
+  systemPrompt: string;
+  memoryStrategy: MemoryStrategyType;
+  memoryParam: number; // maxMessages for sliding-window, maxChars for char-budget
+  enableTools: boolean;
+}
+
+export const DEFAULT_CONFIG: LiveConfig = {
+  pattern: 'agent',
+  modelId: 'claude-sonnet-4-20250514',
+  provider: 'anthropic',
+  systemPrompt: 'You are a helpful assistant. Be concise.',
+  memoryStrategy: 'sliding-window',
+  memoryParam: 50,
+  enableTools: true,
+};
+
+// ── Chat Messages ─────────────────────────────────────────
+
+export interface ChatMessage {
+  readonly id: string;
+  readonly role: 'user' | 'assistant';
+  readonly content: string;
+  readonly timestamp: number;
+  /** Captured execution data for BTS — only on assistant messages. */
+  readonly execution?: CapturedExecution;
+  /** Tool calls made during this turn. */
+  readonly toolCalls?: Array<{ name: string; args: string; result: string }>;
+  /** Duration in ms for the LLM turn. */
+  readonly durationMs?: number;
+}
