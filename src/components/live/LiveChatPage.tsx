@@ -10,6 +10,7 @@ import type { LiveConfig, ChatMessage } from './types';
 import type { CapturedExecution } from '../../runner/executeCode';
 import { DEFAULT_CONFIG } from './types';
 import { useDragResize } from './useDragResize';
+import { getPatternSpec } from '../../runner/patternSpecs';
 import '../../styles/live-chat.css';
 
 const CONFIG_DEFAULT_W = 280;
@@ -187,13 +188,11 @@ export function LiveChatPage() {
     messages.find((m) => m.id === selectedBTSId)?.execution ?? null;
 
   // Show pattern blueprint when no execution is selected.
-  // Uses runnerRef (already cached) — does NOT call getRunner() to avoid re-render loop.
+  // Uses cached spec generation — no API keys needed, no runner creation.
   const previewSpec = useMemo(() => {
     if (selectedExecution) return null;
-    try {
-      return runnerRef.current?.getSpec?.() ?? null;
-    } catch { return null; }
-  }, [selectedExecution, config]);
+    return getPatternSpec(config.pattern, config.presetId);
+  }, [selectedExecution, config.pattern, config.presetId]);
 
   const keys = loadApiKeys();
   const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
