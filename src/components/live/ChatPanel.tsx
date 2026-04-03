@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { ChatMessage } from './types';
 
 interface ChatPanelProps {
@@ -7,11 +7,12 @@ interface ChatPanelProps {
   input: string;
   onInputChange: (value: string) => void;
   onSend: () => void;
+  onResume?: (response: string) => void;
   onViewBTS: (messageId: string) => void;
   selectedBTSId: string | null;
 }
 
-export function ChatPanel({ messages, running, input, onInputChange, onSend, onViewBTS, selectedBTSId }: ChatPanelProps) {
+export function ChatPanel({ messages, running, input, onInputChange, onSend, onResume, onViewBTS, selectedBTSId }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -38,15 +39,25 @@ export function ChatPanel({ messages, running, input, onInputChange, onSend, onV
         )}
 
         {messages.map((msg) => (
-          <div key={msg.id} className={`live-msg live-msg--${msg.role}`}>
+          <div key={msg.id} className={`live-msg live-msg--${msg.role === 'pause' ? 'assistant' : msg.role}${msg.paused ? ' live-msg--paused' : ''}`}>
             <div className="live-msg-header">
-              <span className="live-msg-role">{msg.role === 'user' ? 'You' : 'Assistant'}</span>
+              <span className="live-msg-role">
+                {msg.role === 'user' ? 'You' : msg.paused ? 'Agent (waiting)' : 'Assistant'}
+              </span>
               {msg.durationMs != null && (
                 <span className="live-msg-meta">{msg.durationMs}ms</span>
               )}
             </div>
-            <div className="live-msg-content">{msg.content}</div>
-            {msg.role === 'assistant' && msg.execution && (
+            {msg.paused ? (
+              <PauseActionCard
+                question={msg.pauseQuestion ?? 'Waiting for your response...'}
+                onResume={onResume}
+                disabled={running}
+              />
+            ) : (
+              <div className="live-msg-content">{msg.content}</div>
+            )}
+            {msg.execution && (
               <button
                 className={`live-bts-badge ${selectedBTSId === msg.id ? 'active' : ''}`}
                 onClick={() => onViewBTS(msg.id)}
@@ -92,6 +103,83 @@ export function ChatPanel({ messages, running, input, onInputChange, onSend, onV
           {running ? '\u23F3' : '\u2191'}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── Pause Action Card — inline approval UI ──────────────────
+
+function PauseActionCard({
+  question,
+  onResume,
+  disabled,
+}: {
+  question: string;
+  onResume?: (response: string) => void;
+  disabled: boolean;
+}) {
+  const [customResponse, setCustomResponse] = useState('');
+  const [responded, setResponded] = useState(false);
+
+  const handleAction = (response: string) => {
+    if (responded || disabled) return;
+    setResponded(true);
+    onResume?.(response);
+  };
+
+  return (
+    <div className="pause-card">
+      <div className="pause-card-header">
+        <span className="pause-card-icon">{'\u23F8'}</span>
+        <span className="pause-card-label">Approval Required</span>
+      </div>
+      <div className="pause-card-question">{question}</div>
+      {!responded ? (
+        <>
+          <div className="pause-card-actions">
+            <button
+              className="pause-card-btn pause-card-btn--approve"
+              onClick={() => handleAction('Approved. Please proceed with the refund.')}
+              disabled={disabled}
+            >
+              {'\u2713'} Approve
+            </button>
+            <button
+              className="pause-card-btn pause-card-btn--deny"
+              onClick={() => handleAction('Denied. The refund request is rejected.')}
+              disabled={disabled}
+            >
+              {'\u2717'} Deny
+            </button>
+          </div>
+          <div className="pause-card-custom">
+            <input
+              type="text"
+              className="pause-card-input"
+              value={customResponse}
+              onChange={(e) => setCustomResponse(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && customResponse.trim()) {
+                  handleAction(customResponse.trim());
+                }
+              }}
+              placeholder="Or type a custom response..."
+              disabled={disabled}
+            />
+            {customResponse.trim() && (
+              <button
+                className="pause-card-btn pause-card-btn--send"
+                onClick={() => handleAction(customResponse.trim())}
+                disabled={disabled}
+              >
+                Send
+              </button>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="pause-card-responded">Response sent</div>
+      )}
     </div>
   );
 }

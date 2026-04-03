@@ -810,3 +810,137 @@
   flex: 1;
   overflow: auto;
 }
+
+/* ── Pause Message ─────────────────────────────────────── */
+
+.live-msg--paused {
+  border-left: 3px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.live-msg-pause {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.live-pause-icon {
+  font-size: 20px;
+}
+
+.live-pause-question {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.live-pause-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+
+/* ── Pause Action Card ─────────────────────────────────── */
+
+.pause-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+}
+
+.pause-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pause-card-icon {
+  font-size: 18px;
+}
+
+.pause-card-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #f59e0b;
+}
+
+.pause-card-question {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.pause-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pause-card-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.pause-card-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.pause-card-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pause-card-btn--approve {
+  background: #22c55e;
+  color: white;
+}
+
+.pause-card-btn--deny {
+  background: #ef4444;
+  color: white;
+}
+
+.pause-card-btn--send {
+  background: var(--accent, #7c6cf0);
+  color: white;
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+.pause-card-custom {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pause-card-input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.pause-card-input:focus {
+  border-color: var(--accent, #7c6cf0);
+}
+
+.pause-card-responded {
+  font-size: 12px;
+  color: #22c55e;
+  font-weight: 600;
+}

@@ -32,6 +32,7 @@ export function LiveChatPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | undefined>();
+  const pausedRef = useRef(false);
 
   // Drag-resizable panel widths
   const [configWidth, setConfigWidth] = useState(CONFIG_DEFAULT_W);
@@ -123,19 +124,39 @@ export function LiveChatPage() {
       }
 
       currentRunner = result$.runner;
-      const result = await currentRunner.run(userMsg.content);
+      const isPausedResume = pausedRef.current;
+      const result = isPausedResume && currentRunner.resume
+        ? await currentRunner.resume(userMsg.content)
+        : await currentRunner.run(userMsg.content);
 
-      const assistantMsg: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: result.content,
-        timestamp: Date.now(),
-        execution: result.execution,
-        durationMs: result.durationMs,
-      };
-
-      setMessages((prev) => [...prev, assistantMsg]);
-      setSelectedBTSId(assistantMsg.id);
+      if (result.paused) {
+        // Agent paused — show pause message, mark as waiting for input
+        pausedRef.current = true;
+        const pauseMsg: ChatMessage = {
+          id: `pause-${Date.now()}`,
+          role: 'pause',
+          content: '',
+          timestamp: Date.now(),
+          execution: result.execution,
+          durationMs: result.durationMs,
+          paused: true,
+          pauseQuestion: result.pauseQuestion,
+        };
+        setMessages((prev) => [...prev, pauseMsg]);
+        setSelectedBTSId(pauseMsg.id);
+      } else {
+        pausedRef.current = false;
+        const assistantMsg: ChatMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: result.content,
+          timestamp: Date.now(),
+          execution: result.execution,
+          durationMs: result.durationMs,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        setSelectedBTSId(assistantMsg.id);
+      }
     } catch (e) {
       const errMsg = (e as Error).message;
       setError(errMsg);
@@ -165,6 +186,64 @@ export function LiveChatPage() {
       setRunning(false);
     }
   }, [input, running, getRunner]);
+
+  const handleResume = useCallback(async (response: string) => {
+    if (running) return;
+
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: response,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setRunning(true);
+    setError(null);
+
+    try {
+      const result$ = getRunner();
+      if ('error' in result$) {
+        setRunning(false);
+        return;
+      }
+      const runner = result$.runner;
+      if (!runner.resume) {
+        setRunning(false);
+        return;
+      }
+      pausedRef.current = false;
+      const result = await runner.resume(response);
+
+      if (result.paused) {
+        pausedRef.current = true;
+        setMessages((prev) => [...prev, {
+          id: `pause-${Date.now()}`,
+          role: 'pause' as const,
+          content: '',
+          timestamp: Date.now(),
+          execution: result.execution,
+          durationMs: result.durationMs,
+          paused: true,
+          pauseQuestion: result.pauseQuestion,
+        }]);
+      } else {
+        const assistantMsg: ChatMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: result.content,
+          timestamp: Date.now(),
+          execution: result.execution,
+          durationMs: result.durationMs,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        setSelectedBTSId(assistantMsg.id);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRunning(false);
+    }
+  }, [running, getRunner]);
 
   const handleReset = useCallback(() => {
     runnerRef.current?.reset();
@@ -263,6 +342,7 @@ export function LiveChatPage() {
           input={input}
           onInputChange={setInput}
           onSend={handleSend}
+          onResume={handleResume}
           onViewBTS={handleViewBTS}
           selectedBTSId={selectedBTSId}
         />

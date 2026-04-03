@@ -12,6 +12,7 @@ import {
   Swarm, SwarmRunner,
   BrowserAnthropicAdapter, BrowserOpenAIAdapter,
   defineTool,
+  askHuman,
   InMemoryStore,
   mockRetriever,
 } from 'agentfootprint';
@@ -29,6 +30,8 @@ import type { LiveConfig, ChatMessage } from '../components/live/types';
 export interface LiveRunner {
   /** Send a message and get a response + captured execution data. */
   run(message: string): Promise<LiveTurnResult>;
+  /** Resume a paused agent with human input. */
+  resume?(humanResponse: string): Promise<LiveTurnResult>;
   /** Reset conversation state. */
   reset(): void;
   /** Get the spec for BTS visualization. */
@@ -40,6 +43,10 @@ export interface LiveTurnResult {
   execution: CapturedExecution;
   durationMs: number;
   toolCalls?: Array<{ name: string; args: string; result: string }>;
+  /** When true, agent paused (ask_human). Show input and call runner.resume(). */
+  paused?: boolean;
+  /** The question the agent is asking the human. */
+  pauseQuestion?: string;
 }
 
 /**
@@ -312,6 +319,8 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
       ? createHRTools()
       : createFootprintTools(); // default: calculator, datetime, web search
     builder.tools(tools);
+    // Always add ask_human — enables human-in-the-loop for any agent
+    builder.tool(askHuman());
   }
   if (memoryConfig) builder.memory(memoryConfig);
   const runner = builder.build();
@@ -504,6 +513,34 @@ function wrapRunner(runner: AgentRunner, store: InMemoryStore): LiveRunner {
       const start = Date.now();
       const result = await runner.run(message);
       const execution = captureExecution(runner);
+      if (result.paused) {
+        return {
+          content: '',
+          execution,
+          durationMs: Date.now() - start,
+          paused: true,
+          pauseQuestion: result.pauseData?.question,
+        };
+      }
+      return {
+        content: result.content,
+        execution,
+        durationMs: Date.now() - start,
+      };
+    },
+    resume: async (humanResponse: string) => {
+      const start = Date.now();
+      const result = await runner.resume(humanResponse);
+      const execution = captureExecution(runner);
+      if (result.paused) {
+        return {
+          content: '',
+          execution,
+          durationMs: Date.now() - start,
+          paused: true,
+          pauseQuestion: result.pauseData?.question,
+        };
+      }
       return {
         content: result.content,
         execution,

@@ -71,6 +71,42 @@ const result = await reviewer.run('Review this function: ...');`,
 
   // ── Agent (ReAct with real data) ──────────────────────────
   {
+    id: 'refund-approval',
+    label: 'Refund Approval (ask_human)',
+    description: 'Agent pauses to ask human for approval before processing refunds',
+    pattern: 'agent',
+    config: {
+      pattern: 'agent',
+      modelId: 'claude-sonnet-4-20250514',
+      provider: 'anthropic',
+      systemPrompt: `You are a customer support agent for TechStore. You help customers with refunds.
+
+RULES (follow strictly):
+1. ALWAYS look up the order first using lookup_order. If the lookup fails or returns an error, tell the customer you cannot access their order right now and ask them to try again later. Do NOT proceed with a refund if the order lookup failed.
+2. Only if the order lookup succeeds, use the ask_human tool to request manager approval. Include the EXACT order ID, amount, and item names from the lookup result — never make up order details.
+3. After the manager responds via ask_human, tell the customer the decision.
+4. If the manager denies, explain politely. If approved, confirm the refund.`,
+      memoryStrategy: 'sliding-window',
+      memoryParam: 50,
+      enableTools: true,
+      presetId: 'ecommerce-support',
+    },
+    suggestedMessage: 'I want a refund for order ORD-1001. The product arrived damaged.',
+    code: `import { Agent, askHuman, defineTool, anthropic } from 'agentfootprint';
+
+const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
+  .system('You are a support agent. Use ask_human for manager approval before refunds.')
+  .tool(lookupOrder)
+  .tool(askHuman())  // ← enables human-in-the-loop
+  .build();
+
+const result = await agent.run('I want a refund for order ORD-1001');
+if (result.paused) {
+  // Agent asked: "Approve refund of $299 for ORD-1001?"
+  const final = await agent.resume('Yes, approved');
+}`,
+  },
+  {
     id: 'ecommerce-support',
     label: 'E-Commerce Support',
     description: 'Customer support with orders, inventory, and tracking',

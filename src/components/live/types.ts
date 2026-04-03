@@ -78,7 +78,7 @@ export const DEFAULT_CONFIG: LiveConfig = {
 
 export interface ChatMessage {
   readonly id: string;
-  readonly role: 'user' | 'assistant';
+  readonly role: 'user' | 'assistant' | 'pause';
   readonly content: string;
   readonly timestamp: number;
   /** Captured execution data for BTS — only on assistant messages. */
@@ -87,4 +87,8 @@ export interface ChatMessage {
   readonly toolCalls?: Array<{ name: string; args: string; result: string }>;
   /** Duration in ms for the LLM turn. */
   readonly durationMs?: number;
+  /** When true, this is a pause message — waiting for human input. */
+  readonly paused?: boolean;
+  /** The question the agent is asking. */
+  readonly pauseQuestion?: string;
 }
