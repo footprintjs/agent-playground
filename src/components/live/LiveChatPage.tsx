@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfigPanel } from './ConfigPanel';
 import { ChatPanel } from './ChatPanel';
