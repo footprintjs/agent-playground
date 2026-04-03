@@ -6,7 +6,7 @@
  * rendered as a flowchart preview before any execution.
  */
 
-import { Agent, LLMCall, RAG, Swarm, mock, mockRetriever, defineTool } from 'agentfootprint';
+import { Agent, LLMCall, RAG, mock, mockRetriever, defineTool } from 'agentfootprint';
 import type { PatternType } from '../components/live/types';
 
 // Dummy provider — never called, just needed to build the chart structure
@@ -58,18 +58,18 @@ export function getPatternSpec(pattern: PatternType, presetId?: string): unknown
         break;
       }
       case 'swarm': {
-        const specialist = Agent.create({ provider: dummyProvider, name: 'specialist' })
+        // Swarm.getSpec() requires run() first. Use Agent as orchestrator proxy.
+        // The actual Swarm flowchart is built at runtime with specialist subflows.
+        const orchestrator = Agent.create({ provider: dummyProvider, name: 'orchestrator' })
           .system('...')
+          .tool(dummyTool)
           .build();
-        const runner = Swarm.create({ provider: dummyProvider, name: 'swarm' })
-          .system('...')
-          .specialist('specialist', 'A specialist agent', specialist)
-          .build();
-        spec = runner.getSpec();
+        spec = orchestrator.getSpec();
         break;
       }
     }
-  } catch {
+  } catch (err) {
+    console.error(`[patternSpecs] Failed to build spec for "${pattern}":`, err);
     spec = null;
   }
 

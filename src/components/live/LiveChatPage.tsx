@@ -191,7 +191,9 @@ export function LiveChatPage() {
   // Uses cached spec generation — no API keys needed, no runner creation.
   const previewSpec = useMemo(() => {
     if (selectedExecution) return null;
-    return getPatternSpec(config.pattern, config.presetId);
+    const spec = getPatternSpec(config.pattern, config.presetId);
+    if (!spec) console.warn('[LiveChat] No spec for pattern:', config.pattern, config.presetId);
+    return spec;
   }, [selectedExecution, config.pattern, config.presetId]);
 
   const keys = loadApiKeys();
