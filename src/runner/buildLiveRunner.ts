@@ -370,10 +370,7 @@ function buildSwarmRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
     run: async (message: string) => {
       const start = Date.now();
       const result = await swarm.run(message);
-      const execution: CapturedExecution = {};
-      try { execution.snapshot = swarm.getSnapshot(); } catch {}
-      try { execution.narrative = swarm.getNarrative(); } catch {}
-      try { execution.spec = swarm.getSpec(); } catch {}
+      const execution = captureExecution(swarm);
       return {
         content: result.content,
         execution,
