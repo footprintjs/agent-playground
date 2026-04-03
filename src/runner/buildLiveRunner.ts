@@ -95,10 +95,10 @@ function buildMemoryConfig(config: LiveConfig, store: InMemoryStore) {
   const maxN = config.memoryParam;
   const strategy = {
     prepare: (history: any[]) => {
-      if (history.length <= maxN) return history;
+      if (history.length <= maxN) return { value: history, chosen: 'sliding-window' };
       const system = history.filter((m: any) => m.role === 'system');
       const rest = history.filter((m: any) => m.role !== 'system');
-      return [...system, ...rest.slice(-maxN)];
+      return { value: [...system, ...rest.slice(-maxN)], chosen: 'sliding-window' };
     },
   };
 
@@ -410,7 +410,7 @@ function buildDynamicSupportRunner(config: LiveConfig, provider: LLMProvider, st
     id: 'issue_refund',
     description: 'Issue a refund for an order. Requires elevated access (verify_identity first).',
     inputSchema: { type: 'object', properties: { orderId: { type: 'string' }, amount: { type: 'number' } } },
-    handler: async ({ orderId, amount }) => ({
+    handler: async ({ orderId, amount }: { orderId: string; amount: number }) => ({
       content: JSON.stringify({ refundId: `REF-${Date.now()}`, orderId, amount, status: 'processed' }),
     }),
   });
@@ -419,7 +419,7 @@ function buildDynamicSupportRunner(config: LiveConfig, provider: LLMProvider, st
     id: 'escalate_to_manager',
     description: 'Escalate the case to a manager. Requires elevated access.',
     inputSchema: { type: 'object', properties: { reason: { type: 'string' } } },
-    handler: async ({ reason }) => ({
+    handler: async ({ reason }: { reason: string }) => ({
       content: JSON.stringify({ escalationId: `ESC-${Date.now()}`, status: 'assigned', manager: 'Sarah Chen', reason }),
     }),
   });
