@@ -6,7 +6,7 @@
  * rendered as a flowchart preview before any execution.
  */
 
-import { Agent, LLMCall, RAG, mock, mockRetriever, defineTool } from 'agentfootprint';
+import { Agent, LLMCall, RAG, Swarm, mock, mockRetriever, defineTool } from 'agentfootprint';
 import type { PatternType } from '../components/live/types';
 
 // Dummy provider — never called, just needed to build the chart structure
@@ -58,14 +58,17 @@ export function getPatternSpec(pattern: PatternType, presetId?: string): unknown
         break;
       }
       case 'swarm': {
-        // Swarm IS an Agent under the hood — specialists are registered as tools.
-        // The flowchart topology is the same Agent pattern (RouteResponse + tool loop).
-        // Specialist routing is visible in tool calls during execution, not in the static spec.
-        const swarmAgent = Agent.create({ provider: dummyProvider, name: 'swarm-orchestrator' })
+        // Swarm builds an orchestrator Agent with specialist tools.
+        // getSpec() now works before run() — shows Agent flowchart with specialist tool IDs.
+        const specialist = Agent.create({ provider: dummyProvider, name: 'specialist' })
           .system('...')
-          .tool(dummyTool) // placeholder for specialist tools
           .build();
-        spec = swarmAgent.getSpec();
+        const swarmRunner = Swarm.create({ provider: dummyProvider, name: 'swarm' })
+          .system('...')
+          .specialist('coding', 'Code specialist', specialist)
+          .specialist('writing', 'Writing specialist', specialist)
+          .build();
+        spec = swarmRunner.getSpec();
         break;
       }
     }
