@@ -9,12 +9,14 @@ import type { CapturedExecution } from '../../runner/executeCode';
 
 interface BTSPanelProps {
   execution: CapturedExecution | null;
+  /** Pattern blueprint spec — shown when no execution is selected. */
+  previewSpec?: unknown;
   collapsed: boolean;
   onToggleCollapse: () => void;
   style?: React.CSSProperties;
 }
 
-export function BTSPanel({ execution, collapsed, onToggleCollapse, style }: BTSPanelProps) {
+export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, style }: BTSPanelProps) {
   const snapshots = useMemo<StageSnapshot[]>(() => {
     if (!execution?.snapshot) return [];
     try {
@@ -49,6 +51,10 @@ export function BTSPanel({ execution, collapsed, onToggleCollapse, style }: BTSP
 
   const spec = execution?.spec ?? null;
 
+  // Determine what to show: execution, preview, or empty
+  const hasExecution = execution && snapshots.length > 0;
+  const hasPreview = !hasExecution && previewSpec;
+
   return (
     <div className={`live-bts ${collapsed ? 'live-bts--collapsed' : ''}`} style={style}>
       <div className="live-bts-header" onClick={onToggleCollapse}>
@@ -61,19 +67,13 @@ export function BTSPanel({ execution, collapsed, onToggleCollapse, style }: BTSP
 
       {!collapsed && (
         <div className="live-bts-body">
-          {!execution || snapshots.length === 0 ? (
-            <div className="live-bts-empty">
-              <div className="live-bts-empty-icon">{'\uD83D\uDD2D'}</div>
-              <div className="live-bts-empty-text">
-                {execution ? 'No execution data for this turn' : 'Click a "Behind the Scenes" badge on a message to inspect it'}
-              </div>
-            </div>
-          ) : (
+          {hasExecution ? (
+            /* Execution mode: full BTS with narrative, timing, flowchart trace */
             <ExplainableShell
               snapshots={snapshots}
               spec={spec as any}
               narrative={narrative}
-              narrativeEntries={execution.narrativeEntries as any[] ?? undefined}
+              narrativeEntries={execution!.narrativeEntries as any[] ?? undefined}
               tabs={['explainable']}
               defaultTab="narrative"
               size="compact"
@@ -92,6 +92,30 @@ export function BTSPanel({ execution, collapsed, onToggleCollapse, style }: BTSP
               }
               style={{ flex: 1 }}
             />
+          ) : hasPreview ? (
+            /* Preview mode: pattern blueprint — flowchart only, no execution data */
+            <div className="live-bts-preview">
+              <div className="live-bts-preview-label">Pattern Blueprint</div>
+              <div className="live-bts-preview-hint">
+                This is what will run when you send a message.
+                Each stage is a step in the flowchart.
+              </div>
+              <div className="live-bts-preview-chart">
+                <TracedFlowchartView
+                  spec={previewSpec as any}
+                  snapshots={[]}
+                  snapshotIndex={-1}
+                />
+              </div>
+            </div>
+          ) : (
+            /* Empty state */
+            <div className="live-bts-empty">
+              <div className="live-bts-empty-icon">{'\uD83D\uDD2D'}</div>
+              <div className="live-bts-empty-text">
+                Select an example to see the pattern flowchart, or click "Behind the Scenes" on a message to inspect it.
+              </div>
+            </div>
           )}
         </div>
       )}

@@ -186,6 +186,15 @@ export function LiveChatPage() {
   const selectedExecution: CapturedExecution | null =
     messages.find((m) => m.id === selectedBTSId)?.execution ?? null;
 
+  // Show pattern blueprint when no execution is selected
+  const previewSpec = !selectedExecution ? (() => {
+    try {
+      const result = getRunner();
+      if ('error' in result) return null;
+      return result.runner?.getSpec?.() ?? null;
+    } catch { return null; }
+  })() : null;
+
   const keys = loadApiKeys();
   const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
 
@@ -269,6 +278,7 @@ export function LiveChatPage() {
 
         <BTSPanel
           execution={selectedExecution}
+          previewSpec={previewSpec}
           collapsed={btsCollapsed}
           onToggleCollapse={() => { setBtsCollapsed((v) => !v); setTimeout(() => window.dispatchEvent(new Event('resize')), 50); }}
           style={{ width: btsW }}
