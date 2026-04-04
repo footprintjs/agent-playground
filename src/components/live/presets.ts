@@ -278,6 +278,8 @@ const retriever = mockRetriever([{
     suggestedMessage: 'Write a haiku about debugging code',
     code: `import { Swarm, Agent, anthropic } from 'agentfootprint';
 
+const provider = anthropic('claude-sonnet-4-20250514');
+
 const writingAgent = Agent.create({ provider })
   .system('You are a creative writing specialist. Write vivid, engaging content.')
   .build();
@@ -286,14 +288,18 @@ const codingAgent = Agent.create({ provider })
   .system('You are a coding specialist. Write clean, well-documented code.')
   .build();
 
-const swarm = Swarm.create({ provider: anthropic('claude-sonnet-4-20250514') })
-  .system('Route to coding, math, or writing specialist.')
-  .specialist('coding', codingAgent)
-  .specialist('writing', writingAgent)
+// Swarm uses the same Agent loop infrastructure — gains streaming,
+// memory, narrative, toFlowChart() for free.
+const swarm = Swarm.create({ provider })
+  .system('Route to coding or writing specialist.')
+  .specialist('coding', 'Code specialist for programming tasks', codingAgent)
+  .specialist('writing', 'Writing specialist for creative content', writingAgent)
+  .streaming(true)
   .build();
 
-// Try: "Write a haiku about debugging"
-// Try: "Implement binary search in TypeScript"`,
+const result = await swarm.run('Write a haiku about debugging');
+// result.agents shows which specialists were invoked
+// swarm.getNarrative() shows full execution trace`,
   },
 
   // ── Dynamic ReAct ─────────────────────────────────────────

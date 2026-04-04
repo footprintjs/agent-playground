@@ -379,13 +379,14 @@ function buildSwarmRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
     .system(config.systemPrompt || 'You are an orchestrator. Route research questions to the researcher and writing tasks to the writer.')
     .specialist('researcher', 'Research a topic and provide factual information', researcher)
     .specialist('writer', 'Write or rewrite content in a specific style', writer)
+    .streaming(config.enableStreaming)
     .maxIterations(5)
     .build();
 
   return {
-    run: async (message: string) => {
+    run: async (message: string, options?: { onToken?: (token: string) => void }) => {
       const start = Date.now();
-      const result = await swarm.run(message);
+      const result = await swarm.run(message, { onToken: options?.onToken });
       const execution = captureExecution(swarm);
       return {
         content: result.content,
@@ -393,7 +394,7 @@ function buildSwarmRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
         durationMs: Date.now() - start,
       };
     },
-    reset: () => { /* Swarm is stateless per turn */ },
+    reset: () => { swarm.resetConversation(); },
     getSpec: () => swarm.getSpec(),
   };
 }
