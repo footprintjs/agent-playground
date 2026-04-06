@@ -28,10 +28,16 @@ export interface ModelOption {
 }
 
 export const MODELS: ModelOption[] = [
+  // Anthropic
   { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', provider: 'anthropic' },
+  { id: 'claude-opus-4-20250514', label: 'Claude Opus 4', provider: 'anthropic' },
   { id: 'claude-haiku-3-5-20241022', label: 'Claude Haiku 3.5', provider: 'anthropic' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'openai' },
+  // OpenAI
   { id: 'gpt-4o', label: 'GPT-4o', provider: 'openai' },
+  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'openai' },
+  { id: 'gpt-4.1', label: 'GPT-4.1', provider: 'openai' },
+  { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', provider: 'openai' },
+  { id: 'o3-mini', label: 'o3 Mini', provider: 'openai' },
 ];
 
 // ── Memory Strategy ───────────────────────────────────────

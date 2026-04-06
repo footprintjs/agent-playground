@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { LiveConfig, PatternType, MemoryStrategyType, ProviderType } from './types';
 import { PATTERNS, MODELS, MEMORY_STRATEGIES } from './types';
 import { PRESETS, getPresetsByPattern, type Preset } from './presets';
+import { loadApiKeys } from '../SettingsPanel';
 
 interface ConfigPanelProps {
   config: LiveConfig;
@@ -29,10 +30,21 @@ export function ConfigPanel({ config, onChange, onReset, collapsed, onToggleColl
     onChange(next);
   };
 
-  const availableModels = MODELS.filter((m) => {
-    // Show all models — provider mismatch will show a warning
-    return true;
-  });
+  // Show models based on which API keys are configured
+  const availableModels = useMemo(() => {
+    const keys = loadApiKeys();
+    const hasAnthropic = keys.anthropic.length > 0;
+    const hasOpenAI = keys.openai.length > 0;
+
+    // If no keys at all, show everything (user hasn't configured yet)
+    if (!hasAnthropic && !hasOpenAI) return MODELS;
+
+    // Filter to providers with keys
+    return MODELS.filter((m) =>
+      (m.provider === 'anthropic' && hasAnthropic) ||
+      (m.provider === 'openai' && hasOpenAI),
+    );
+  }, [config]); // re-check when config changes (settings might have been updated)
 
   return (
     <div className={`live-config ${collapsed ? 'live-config--collapsed' : ''}`} style={style}>
