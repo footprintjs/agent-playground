@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { LiveConfig, PatternType, MemoryStrategyType, ProviderType } from './types';
-import { PATTERNS, MODELS, MEMORY_STRATEGIES } from './types';
+import { PATTERNS, MEMORY_STRATEGIES } from './types';
 import { PRESETS, getPresetsByPattern, type Preset } from './presets';
 import { loadApiKeys } from '../SettingsPanel';
+import { fetchAvailableModels, FALLBACK_MODELS, type AvailableModel } from '../../runner/fetchModels';
 
 interface ConfigPanelProps {
   config: LiveConfig;
@@ -24,27 +25,31 @@ export function ConfigPanel({ config, onChange, onReset, collapsed, onToggleColl
     const next = { ...config, [key]: value, presetId: undefined }; // Clear preset on manual change
     // Auto-switch provider when model changes
     if (key === 'modelId') {
-      const model = MODELS.find((m) => m.id === value);
+      const models = dynamicModels ?? FALLBACK_MODELS;
+      const model = models.find((m) => m.id === value);
       if (model) next.provider = model.provider;
     }
     onChange(next);
   };
 
-  // Show models based on which API keys are configured
-  const availableModels = useMemo(() => {
+  // Fetch models dynamically from provider APIs based on configured keys
+  const [dynamicModels, setDynamicModels] = useState<AvailableModel[] | null>(null);
+
+  useEffect(() => {
     const keys = loadApiKeys();
-    const hasAnthropic = keys.anthropic.length > 0;
-    const hasOpenAI = keys.openai.length > 0;
+    if (!keys.anthropic && !keys.openai) {
+      setDynamicModels(null); // no keys → use fallback
+      return;
+    }
+    fetchAvailableModels({
+      anthropic: keys.anthropic || undefined,
+      openai: keys.openai || undefined,
+    }).then((models) => {
+      setDynamicModels(models.length > 0 ? models : null);
+    });
+  }, [config.provider]); // re-fetch when provider changes (settings updated)
 
-    // If no keys at all, show everything (user hasn't configured yet)
-    if (!hasAnthropic && !hasOpenAI) return MODELS;
-
-    // Filter to providers with keys
-    return MODELS.filter((m) =>
-      (m.provider === 'anthropic' && hasAnthropic) ||
-      (m.provider === 'openai' && hasOpenAI),
-    );
-  }, [config]); // re-check when config changes (settings might have been updated)
+  const availableModels = dynamicModels ?? FALLBACK_MODELS;
 
   return (
     <div className={`live-config ${collapsed ? 'live-config--collapsed' : ''}`} style={style}>
