@@ -6,7 +6,7 @@
  * Captures execution data (snapshot, narrative, spec) per turn.
  */
 import {
-  Agent, AgentRunner, AgentPattern,
+  Agent, AgentRunner,
   LLMCall,
   RAG, RAGRunner,
   Swarm, SwarmRunner,
@@ -16,7 +16,9 @@ import {
   InMemoryStore,
   mockRetriever,
 } from 'agentfootprint';
+import { defineInstruction, AgentPattern } from 'agentfootprint/instructions';
 import type { ToolProvider, PromptProvider } from 'agentfootprint';
+import type { AgentInstruction } from 'agentfootprint/instructions';
 import {
   createEcommerceTools, createHRTools,
   PRODUCT_DOCS_CHUNKS, HR_DOCS_CHUNKS,
@@ -307,6 +309,11 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
     return buildDynamicSupportRunner(config, provider, store);
   }
 
+  // Conditional Instructions preset — defineInstruction + Decision Scope
+  if (config.presetId === 'conditional-instructions') {
+    return buildConditionalInstructionsRunner(config, provider, store);
+  }
+
   const builder = Agent.create({ provider, name: 'agent' })
     .system(config.systemPrompt)
     .maxIterations(10)
@@ -490,6 +497,58 @@ function buildDynamicSupportRunner(config: LiveConfig, provider: LLMProvider, st
     .pattern(AgentPattern.Dynamic)
     .toolProvider(dynamicTools)
     .promptProvider(dynamicPrompt)
+    .streaming(config.enableStreaming)
+    .maxIterations(10);
+
+  if (memoryConfig) builder.memory(memoryConfig);
+  const runner = builder.build();
+
+  return wrapRunner(runner, store);
+}
+
+// ── Conditional Instructions: Decision Scope ───────────────
+
+function buildConditionalInstructionsRunner(config: LiveConfig, provider: LLMProvider, store: InMemoryStore): LiveRunner {
+  const memoryConfig = buildMemoryConfig(config, store);
+
+  const ecommerceTools = createEcommerceTools();
+
+  // Classify instruction — sets decision scope from tool results
+  const classifyInstruction = defineInstruction({
+    id: 'classify-order',
+    onToolResult: [{
+      id: 'classify',
+      decide: (decision: Record<string, unknown>, ctx: any) => {
+        const content = ctx.content as Record<string, unknown> | undefined;
+        if (content?.status) decision.orderStatus = content.status;
+        if (content?.amount) decision.highValue = (content.amount as number) > 500;
+      },
+    }],
+  });
+
+  // Refund instruction — activates when order is cancelled/denied
+  const refundInstruction = defineInstruction({
+    id: 'refund-handling',
+    activeWhen: (d: any) => d.orderStatus === 'cancelled' || d.orderStatus === 'denied',
+    prompt: 'This order is cancelled. Be empathetic. Offer to process a refund. Explain the timeline (3-5 business days).',
+  });
+
+  // High-value instruction — activates for expensive orders
+  const highValueInstruction = defineInstruction({
+    id: 'high-value-alert',
+    activeWhen: (d: any) => d.highValue === true,
+    prompt: 'This is a high-value order. Offer expedited support and consider a courtesy discount on the next purchase.',
+  });
+
+  const builder = Agent.create({ provider, name: 'instruction-agent' })
+    .system(config.systemPrompt || 'You are a customer support agent for TechStore. Look up orders and help customers.')
+    .tools(ecommerceTools)
+    .instruction(classifyInstruction as AgentInstruction)
+    .instruction(refundInstruction as AgentInstruction)
+    .instruction(highValueInstruction as AgentInstruction)
+    .decision({ orderStatus: null, highValue: false })
+    .pattern(AgentPattern.Dynamic)
+    .streaming(config.enableStreaming)
     .maxIterations(10);
 
   if (memoryConfig) builder.memory(memoryConfig);

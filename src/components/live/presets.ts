@@ -302,6 +302,60 @@ const result = await swarm.run('Write a haiku about debugging');
 // swarm.getNarrative() shows full execution trace`,
   },
 
+  // ── Conditional Instructions ──────────────────────────────
+  {
+    id: 'conditional-instructions',
+    label: 'Conditional Instructions',
+    description: 'Instructions activate based on tool results — Decision Scope drives behavior',
+    pattern: 'agent',
+    config: {
+      pattern: 'agent',
+      modelId: 'claude-sonnet-4-20250514',
+      provider: 'anthropic',
+      systemPrompt: 'You are a customer support agent for TechStore. Look up orders and help customers.',
+      memoryStrategy: 'sliding-window',
+      memoryParam: 50,
+      enableTools: true,
+      enableStreaming: true,
+      presetId: 'conditional-instructions',
+    },
+    suggestedMessage: 'Check order ORD-1003 — I need help with a refund',
+    code: `import { Agent, defineTool } from 'agentfootprint';
+import { defineInstruction, AgentPattern } from 'agentfootprint/instructions';
+
+// Classify — tool results update Decision Scope
+const classify = defineInstruction({
+  id: 'classify-order',
+  onToolResult: [{
+    id: 'classify',
+    decide: (decision, ctx) => {
+      decision.orderStatus = ctx.content.status;
+      decision.highValue = ctx.content.amount > 500;
+    },
+  }],
+});
+
+// Refund — activates ONLY when order is cancelled
+const refund = defineInstruction({
+  id: 'refund-handling',
+  activeWhen: (d) => d.orderStatus === 'cancelled',
+  prompt: 'Be empathetic. Offer refund. Timeline: 3-5 days.',
+});
+
+const agent = Agent.create({ provider })
+  .tool(lookupOrder)
+  .instruction(classify)
+  .instruction(refund)
+  .decision({ orderStatus: null, highValue: false })
+  .pattern(AgentPattern.Dynamic)
+  .build();
+
+// Turn 1: lookup_order → {status: "cancelled"}
+//   decide() sets orderStatus = "cancelled"
+// Turn 2: InstructionsToLLM re-evaluates
+//   refund-handling activates → empathy prompt injected`,
+  },
+
   // ── Dynamic ReAct ─────────────────────────────────────────
   {
     id: 'dynamic-support',
