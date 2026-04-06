@@ -40,14 +40,20 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
     }
   }, [execution]);
 
+  // Use the captured agent narrative directly (from createAgentRenderer)
+  // instead of rebuilding from snapshots
   const narrative = useMemo(() => {
+    if (execution?.narrative && execution.narrative.length > 0) {
+      return execution.narrative;
+    }
+    // Fallback: rebuild from snapshots
     const lines: string[] = [];
     for (const snap of snapshots) {
       const stageLines = (snap.narrative ?? '').split('\n').filter(Boolean);
       lines.push(...stageLines);
     }
     return lines;
-  }, [snapshots]);
+  }, [execution, snapshots]);
 
   const spec = execution?.spec ?? null;
 
@@ -93,7 +99,7 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
               <div className="live-bts-metrics-title">Execution Metrics</div>
               <div className="live-bts-metrics-grid">
                 <div className="live-bts-metric">
-                  <span className="live-bts-metric-value">{metrics.totalDuration ? `${metrics.totalDuration}ms` : '—'}</span>
+                  <span className="live-bts-metric-value">{metrics.totalDuration ? (metrics.totalDuration >= 1000 ? `${(metrics.totalDuration / 1000).toFixed(1)}s` : `${metrics.totalDuration}ms`) : '—'}</span>
                   <span className="live-bts-metric-label">Duration</span>
                 </div>
                 <div className="live-bts-metric">
@@ -123,6 +129,7 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
                 tabs={['explainable']}
                 defaultTab="narrative"
                 size="compact"
+                hideTabs={['result']}
                 panelLabels={{ topology: "What Ran", details: "What Happened", timeline: "How Long" }}
                 renderFlowchart={
                   spec
