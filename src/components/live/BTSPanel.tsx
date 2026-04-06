@@ -51,6 +51,27 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
 
   const spec = execution?.spec ?? null;
 
+  // Extract metrics from snapshot recorders
+  const metrics = useMemo(() => {
+    if (!execution?.snapshot) return null;
+    const snap = execution.snapshot as any;
+    const recorders = snap?.recorders ?? snap?.recorderSnapshots;
+    if (!recorders) return null;
+
+    // Find MetricRecorder data
+    const metricSnap = Array.isArray(recorders)
+      ? recorders.find((r: any) => r.name === 'Metrics')
+      : recorders['metrics'] ?? recorders['Metrics'];
+
+    if (!metricSnap?.data) return null;
+    return metricSnap.data as {
+      totalDuration?: number;
+      totalReads?: number;
+      totalWrites?: number;
+      stages?: Record<string, { totalDuration?: number; readCount?: number; writeCount?: number }>;
+    };
+  }, [execution]);
+
   // Determine what to show: execution, preview, or empty
   const hasExecution = execution && snapshots.length > 0;
   const hasPreview = !hasExecution && previewSpec;
@@ -67,6 +88,30 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
 
       {!collapsed && (
         <div className="live-bts-body">
+          {hasExecution && metrics && (
+            <div className="live-bts-metrics">
+              <div className="live-bts-metrics-title">Execution Metrics</div>
+              <div className="live-bts-metrics-grid">
+                <div className="live-bts-metric">
+                  <span className="live-bts-metric-value">{metrics.totalDuration ? `${metrics.totalDuration}ms` : '—'}</span>
+                  <span className="live-bts-metric-label">Duration</span>
+                </div>
+                <div className="live-bts-metric">
+                  <span className="live-bts-metric-value">{metrics.totalReads ?? '—'}</span>
+                  <span className="live-bts-metric-label">Reads</span>
+                </div>
+                <div className="live-bts-metric">
+                  <span className="live-bts-metric-value">{metrics.totalWrites ?? '—'}</span>
+                  <span className="live-bts-metric-label">Writes</span>
+                </div>
+                <div className="live-bts-metric">
+                  <span className="live-bts-metric-value">{metrics.stages ? Object.keys(metrics.stages).length : '—'}</span>
+                  <span className="live-bts-metric-label">Stages</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {hasExecution ? (
             /* Execution mode: full BTS with narrative, timing, flowchart trace */
             <ExplainableShell
@@ -92,6 +137,10 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
               }
               style={{ flex: 1 }}
             />
+            <div className="live-bts-hint">
+              This trace was collected automatically during execution — no extra code.
+              Try "Conditional Instructions" to see how tool results change the system prompt.
+            </div>
           ) : hasPreview ? (
             /* Preview mode: pattern blueprint — flowchart only, no execution data */
             <div className="live-bts-preview">

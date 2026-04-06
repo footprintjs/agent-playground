@@ -956,3 +956,56 @@
 @keyframes blink {
   50% { opacity: 0; }
 }
+
+/* ── BTS Metrics ───────────────────────────────────────── */
+
+.live-bts-metrics {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, #333);
+  background: rgba(124, 108, 240, 0.05);
+}
+
+.live-bts-metrics-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent, #7c6cf0);
+  margin-bottom: 6px;
+}
+
+.live-bts-metrics-grid {
+  display: flex;
+  gap: 16px;
+}
+
+.live-bts-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.live-bts-metric-value {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.live-bts-metric-label {
+  font-size: 10px;
+  color: var(--text-secondary, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* ── BTS Learning Hint ─────────────────────────────────── */
+
+.live-bts-hint {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  border-top: 1px solid var(--border, #333);
+  background: rgba(124, 108, 240, 0.03);
+  line-height: 1.4;
+}
