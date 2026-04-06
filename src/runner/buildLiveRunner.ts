@@ -16,8 +16,8 @@ import {
   InMemoryStore,
   mockRetriever,
 } from 'agentfootprint';
-import { defineInstruction, AgentPattern } from 'agentfootprint/instructions';
 import type { ToolProvider, PromptProvider } from 'agentfootprint';
+import { defineInstruction, AgentPattern } from 'agentfootprint/instructions';
 import type { AgentInstruction } from 'agentfootprint/instructions';
 import {
   createEcommerceTools, createHRTools,
