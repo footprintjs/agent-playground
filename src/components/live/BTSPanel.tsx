@@ -113,34 +113,36 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
           )}
 
           {hasExecution ? (
-            /* Execution mode: full BTS with narrative, timing, flowchart trace */
-            <ExplainableShell
-              snapshots={snapshots}
-              spec={spec as any}
-              narrative={narrative}
-              narrativeEntries={execution!.narrativeEntries as any[] ?? undefined}
-              tabs={['explainable']}
-              defaultTab="narrative"
-              size="compact"
-              panelLabels={{ topology: "What Ran", details: "What Happened", timeline: "How Long" }}
-              renderFlowchart={
-                spec
-                  ? ({ spec: levelSpec, snapshots: snaps, selectedIndex, onNodeClick }) => (
-                      <TracedFlowchartView
-                        spec={levelSpec}
-                        snapshots={snaps}
-                        snapshotIndex={selectedIndex}
-                        onNodeClick={onNodeClick}
-                      />
-                    )
-                  : undefined
-              }
-              style={{ flex: 1 }}
-            />
-            <div className="live-bts-hint">
-              This trace was collected automatically during execution — no extra code.
-              Try "Conditional Instructions" to see how tool results change the system prompt.
-            </div>
+            <>
+              {/* Execution mode: full BTS with narrative, timing, flowchart trace */}
+              <ExplainableShell
+                snapshots={snapshots}
+                spec={spec as any}
+                narrative={narrative}
+                narrativeEntries={execution!.narrativeEntries as any[] ?? undefined}
+                tabs={['explainable']}
+                defaultTab="narrative"
+                size="compact"
+                panelLabels={{ topology: "What Ran", details: "What Happened", timeline: "How Long" }}
+                renderFlowchart={
+                  spec
+                    ? ({ spec: levelSpec, snapshots: snaps, selectedIndex, onNodeClick }) => (
+                        <TracedFlowchartView
+                          spec={levelSpec}
+                          snapshots={snaps}
+                          snapshotIndex={selectedIndex}
+                          onNodeClick={onNodeClick}
+                        />
+                      )
+                    : undefined
+                }
+                style={{ flex: 1 }}
+              />
+              <div className="live-bts-hint">
+                This trace was collected automatically during execution — no extra code.
+                Try &ldquo;Conditional Instructions&rdquo; to see how tool results change the system prompt.
+              </div>
+            </>
           ) : hasPreview ? (
             /* Preview mode: pattern blueprint — flowchart only, no execution data */
             <div className="live-bts-preview">
