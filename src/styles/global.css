@@ -13,8 +13,8 @@
   --text-secondary: #a0a0b8;
   --text-muted: #6b6b80;
   --border: #2a2a40;
-  --accent: #7c6cf0;
-  --accent-hover: #9b8ff5;
+  --accent: #facc15;
+  --accent-hover: #fde68a;
   --success: #34d399;
   --error: #f87171;
   --warning: #fbbf24;
@@ -48,8 +48,8 @@
   --text-secondary: #5a5a6e;
   --text-muted: #8a8a9a;
   --border: #d4cec4;
-  --accent: #7c6cf0;
-  --accent-hover: #6a5ad8;
+  --accent: #ca8a04;
+  --accent-hover: #a16207;
   --success: #16a34a;
   --error: #dc2626;
   --warning: #d97706;
@@ -1112,4 +1112,47 @@ body {
 .key-active { color: var(--success); font-weight: 600; }
 .key-active::before { content: '● '; }
 .key-inactive { color: var(--text-muted); }
+
+/* ── Welcome page responsive ────────────────────────── */
+.welcome-brand {
+  font-size: 52px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  margin: 0 0 6px;
+  line-height: 1;
+}
+.welcome-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+  max-width: 900px;
+}
+.welcome-concepts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.welcome-concept-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .welcome-brand {
+    font-size: 32px;
+    letter-spacing: 0;
+  }
+  .welcome-cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .welcome-concept-row {
+    gap: 6px;
+  }
+}
 .key-inactive::before { content: '○ '; }

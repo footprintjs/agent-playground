@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { LiveConfig, PatternType, MemoryStrategyType, ProviderType } from './types';
 import { PATTERNS, MEMORY_STRATEGIES } from './types';
-import { PRESETS, getPresetsByPattern, type Preset } from './presets';
+import type { Preset } from './presets';
+import { PresetSelector } from './PresetSelector';
 import { loadApiKeys } from '../SettingsPanel';
 import { fetchAvailableModels, FALLBACK_MODELS, type AvailableModel } from '../../runner/fetchModels';
 
@@ -62,39 +63,18 @@ export function ConfigPanel({ config, onChange, onReset, collapsed, onToggleColl
 
       {!collapsed && (
         <div className="live-config-body">
-          {/* Try an Example */}
+          {/* Preset Selector */}
           <Section label="Try an Example">
-            <div className="live-preset-list">
-              {PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  className={`live-preset-btn ${activePresetId === preset.id ? 'active' : ''}`}
-                  onClick={() => {
-                    onChange(preset.config);
-                    onPresetSelect?.(preset);
-                    onReset();
-                  }}
-                  disabled={running}
-                  title={preset.description}
-                >
-                  <span className="live-preset-icon">{patternIcon(preset.pattern)}</span>
-                  <span className="live-preset-info">
-                    <span className="live-preset-label">{preset.label}</span>
-                    <span className="live-preset-desc">{preset.description}</span>
-                  </span>
-                  <button
-                    className="live-preset-code-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowCode(preset);
-                    }}
-                    title="View code"
-                  >
-                    {'</>'}
-                  </button>
-                </button>
-              ))}
-            </div>
+            <PresetSelector
+              activePresetId={activePresetId}
+              onSelect={(preset) => {
+                onChange(preset.config);
+                onPresetSelect?.(preset);
+                onReset();
+              }}
+              onViewCode={(preset) => setShowCode(preset)}
+              disabled={running}
+            />
           </Section>
 
           {/* Pattern Picker */}

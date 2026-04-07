@@ -127,7 +127,7 @@ export function ResultPanel({ history, running, pendingInput, onRun, onInputChan
       <div className="chat-messages">
         {isEmpty && (
           <div className="chat-empty">
-            Press <strong>Run ▶</strong> to execute
+            Type a message below and click <strong>Run</strong>
           </div>
         )}
 

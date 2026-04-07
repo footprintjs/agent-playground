@@ -9,6 +9,7 @@
  */
 import { transform } from 'sucrase';
 import * as agentfootprint from 'agentfootprint';
+import * as agentfootprintObserve from 'agentfootprint/observe';
 import * as footprintjs from 'footprintjs';
 
 export interface ExecuteResult {
@@ -25,6 +26,17 @@ export interface CapturedExecution {
   narrativeEntries?: unknown[];
   narrative?: string[];
   spec?: unknown;
+  /** Recorder data from agentObservability (tokens, tools, cost). */
+  recorders?: {
+    tokens?: {
+      totalCalls: number;
+      totalInputTokens: number;
+      totalOutputTokens: number;
+      calls?: Array<{ model: string; inputTokens: number; outputTokens: number; latencyMs: number }>;
+    };
+    tools?: { totalCalls: number; byTool: Record<string, { calls: number; errors: number; averageLatencyMs?: number }> };
+    cost?: number;
+  };
 }
 
 export interface ApiKeys {
@@ -138,7 +150,9 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
 
     // Execute
     const fn = new Function('__agentfootprint', '__input', '__console', '__captured', '__apiKeys', '__footprintjs', wrapped);
-    const output = await fn(agentfootprint, input, mockConsole, captured, apiKeys ?? {}, footprintjs);
+    // Merge observe barrel into agentfootprint so recorders are available
+    const mergedAgentfootprint = { ...agentfootprint, ...agentfootprintObserve };
+    const output = await fn(mergedAgentfootprint, input, mockConsole, captured, apiKeys ?? {}, footprintjs);
 
     return {
       output,

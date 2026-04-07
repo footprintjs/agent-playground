@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { samples } from '../samples/catalog';
 import { CodePanel } from './CodePanel';
 import { ResultPanel } from './ResultPanel';
@@ -12,7 +12,12 @@ type View = 'code' | 'result' | 'bts';
 
 export function SamplePage() {
   const { sampleId } = useParams<{ sampleId: string }>();
+  const [searchParams] = useSearchParams();
   const sample = samples.find((s) => s.id === sampleId);
+  const mode = searchParams.get('mode');
+
+  // Concept mode = read-only code (focus on flowchart/BTS)
+  const isConceptSample = mode === 'concepts';
 
   const [code, setCode] = useState(sample?.code ?? '');
   const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
@@ -106,7 +111,7 @@ export function SamplePage() {
 
       {/* Desktop: side-by-side code + result */}
       <div className="main-body desktop-panels">
-        <CodePanel code={code} onChange={setCode} />
+        <CodePanel code={code} onChange={isConceptSample ? undefined : setCode} />
         <ResultPanel
           history={chatHistory}
           running={running}

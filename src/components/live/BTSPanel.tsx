@@ -4,8 +4,9 @@ import {
   toVisualizationSnapshots,
 } from 'footprint-explainable-ui';
 import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
-import type { StageSnapshot } from 'footprint-explainable-ui';
+import type { StageSnapshot, RecorderView } from 'footprint-explainable-ui';
 import type { CapturedExecution } from '../../runner/executeCode';
+import { createTokensView, createToolsView } from './recorderViews';
 
 interface BTSPanelProps {
   execution: CapturedExecution | null;
@@ -41,12 +42,10 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
   }, [execution]);
 
   // Use the captured agent narrative directly (from createAgentRenderer)
-  // instead of rebuilding from snapshots
   const narrative = useMemo(() => {
     if (execution?.narrative && execution.narrative.length > 0) {
       return execution.narrative;
     }
-    // Fallback: rebuild from snapshots
     const lines: string[] = [];
     for (const snap of snapshots) {
       const stageLines = (snap.narrative ?? '').split('\n').filter(Boolean);
@@ -57,28 +56,21 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
 
   const spec = execution?.spec ?? null;
 
-  // Extract metrics from snapshot recorders
-  const metrics = useMemo(() => {
-    if (!execution?.snapshot) return null;
-    const snap = execution.snapshot as any;
-    const recorders = snap?.recorders ?? snap?.recorderSnapshots;
-    if (!recorders) return null;
+  // Build recorder views from agentObservability data — consumer-driven tabs
+  const recorderViews = useMemo<RecorderView[]>(() => {
+    const views: RecorderView[] = [];
+    const rec = execution?.recorders;
+    if (!rec) return views;
 
-    // Find MetricRecorder data
-    const metricSnap = Array.isArray(recorders)
-      ? recorders.find((r: any) => r.name === 'Metrics')
-      : recorders['metrics'] ?? recorders['Metrics'];
-
-    if (!metricSnap?.data) return null;
-    return metricSnap.data as {
-      totalDuration?: number;
-      totalReads?: number;
-      totalWrites?: number;
-      stages?: Record<string, { totalDuration?: number; readCount?: number; writeCount?: number }>;
-    };
+    if (rec.tokens && rec.tokens.totalCalls > 0) {
+      views.push(createTokensView(rec.tokens, rec.cost ?? undefined));
+    }
+    if (rec.tools && rec.tools.totalCalls > 0) {
+      views.push(createToolsView(rec.tools));
+    }
+    return views;
   }, [execution]);
 
-  // Determine what to show: execution, preview, or empty
   const hasExecution = execution && snapshots.length > 0;
   const hasPreview = !hasExecution && previewSpec;
 
@@ -94,33 +86,8 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
 
       {!collapsed && (
         <div className="live-bts-body">
-          {hasExecution && metrics && (
-            <div className="live-bts-metrics">
-              <div className="live-bts-metrics-title">Execution Metrics</div>
-              <div className="live-bts-metrics-grid">
-                <div className="live-bts-metric">
-                  <span className="live-bts-metric-value">{metrics.totalDuration ? (metrics.totalDuration >= 1000 ? `${(metrics.totalDuration / 1000).toFixed(1)}s` : `${metrics.totalDuration}ms`) : '—'}</span>
-                  <span className="live-bts-metric-label">Duration</span>
-                </div>
-                <div className="live-bts-metric">
-                  <span className="live-bts-metric-value">{metrics.totalReads ?? '—'}</span>
-                  <span className="live-bts-metric-label">Reads</span>
-                </div>
-                <div className="live-bts-metric">
-                  <span className="live-bts-metric-value">{metrics.totalWrites ?? '—'}</span>
-                  <span className="live-bts-metric-label">Writes</span>
-                </div>
-                <div className="live-bts-metric">
-                  <span className="live-bts-metric-value">{metrics.stages ? Object.keys(metrics.stages).length : '—'}</span>
-                  <span className="live-bts-metric-label">Stages</span>
-                </div>
-              </div>
-            </div>
-          )}
-
           {hasExecution ? (
             <>
-              {/* Execution mode: full BTS with narrative, timing, flowchart trace */}
               <ExplainableShell
                 snapshots={snapshots}
                 spec={spec as any}
@@ -130,6 +97,7 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
                 defaultTab="narrative"
                 size="compact"
                 hideTabs={['result']}
+                recorderViews={recorderViews}
                 panelLabels={{ topology: "What Ran", details: "What Happened", timeline: "How Long" }}
                 renderFlowchart={
                   spec
@@ -147,11 +115,9 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
               />
               <div className="live-bts-hint">
                 This trace was collected automatically during execution — no extra code.
-                Try &ldquo;Conditional Instructions&rdquo; to see how tool results change the system prompt.
               </div>
             </>
           ) : hasPreview ? (
-            /* Preview mode: pattern blueprint — flowchart only, no execution data */
             <div className="live-bts-preview">
               <div className="live-bts-preview-label">Pattern Blueprint</div>
               <div className="live-bts-preview-hint">
@@ -167,11 +133,10 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
               </div>
             </div>
           ) : (
-            /* Empty state */
             <div className="live-bts-empty">
               <div className="live-bts-empty-icon">{'\uD83D\uDD2D'}</div>
               <div className="live-bts-empty-text">
-                Select an example to see the pattern flowchart, or click "Behind the Scenes" on a message to inspect it.
+                Select an example to see the pattern flowchart, or click &ldquo;Behind the Scenes&rdquo; on a message to inspect it.
               </div>
             </div>
           )}

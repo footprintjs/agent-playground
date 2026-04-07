@@ -17,6 +17,8 @@ import {
   mockRetriever,
 } from 'agentfootprint';
 import type { ToolProvider, PromptProvider } from 'agentfootprint';
+import { agentObservability } from 'agentfootprint/observe';
+import type { AgentObservabilityRecorder } from 'agentfootprint/observe';
 import { defineInstruction, AgentPattern } from 'agentfootprint/instructions';
 import type { AgentInstruction } from 'agentfootprint/instructions';
 import {
@@ -330,10 +332,12 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
     // Always add ask_human — enables human-in-the-loop for any agent
     builder.tool(askHuman());
   }
+  const obs = agentObservability();
+  builder.recorder(obs);
   if (memoryConfig) builder.memory(memoryConfig);
   const runner = builder.build();
 
-  return wrapRunner(runner, store);
+  return wrapRunner(runner, store, obs);
 }
 
 function buildRAGRunner(config: LiveConfig, provider: LLMProvider): LiveRunner {
@@ -500,10 +504,12 @@ function buildDynamicSupportRunner(config: LiveConfig, provider: LLMProvider, st
     .streaming(config.enableStreaming)
     .maxIterations(10);
 
+  const obs = agentObservability();
+  builder.recorder(obs);
   if (memoryConfig) builder.memory(memoryConfig);
   const runner = builder.build();
 
-  return wrapRunner(runner, store);
+  return wrapRunner(runner, store, obs);
 }
 
 // ── Conditional Instructions: Decision Scope ───────────────
@@ -551,29 +557,43 @@ function buildConditionalInstructionsRunner(config: LiveConfig, provider: LLMPro
     .streaming(config.enableStreaming)
     .maxIterations(10);
 
+  const obs = agentObservability();
+  builder.recorder(obs);
   if (memoryConfig) builder.memory(memoryConfig);
   const runner = builder.build();
 
-  return wrapRunner(runner, store);
+  return wrapRunner(runner, store, obs);
 }
 
 // ── Shared Helpers ──────────────────────────────────────────
 
-function captureExecution(runner: { getSnapshot?: () => unknown; getNarrativeEntries?: () => unknown[]; getNarrative?: () => string[]; getSpec?: () => unknown }): CapturedExecution {
+function captureExecution(
+  runner: { getSnapshot?: () => unknown; getNarrativeEntries?: () => unknown[]; getNarrative?: () => string[]; getSpec?: () => unknown },
+  obs?: AgentObservabilityRecorder,
+): CapturedExecution {
   const execution: CapturedExecution = {};
   try { if (runner.getSnapshot) execution.snapshot = runner.getSnapshot(); } catch {}
   try { if (runner.getNarrativeEntries) execution.narrativeEntries = runner.getNarrativeEntries(); } catch {}
   try { if (runner.getNarrative) execution.narrative = runner.getNarrative(); } catch {}
   try { if (runner.getSpec) execution.spec = runner.getSpec(); } catch {}
+  if (obs) {
+    try {
+      execution.recorders = {
+        tokens: obs.tokens(),
+        tools: obs.tools(),
+        cost: obs.cost(),
+      };
+    } catch {}
+  }
   return execution;
 }
 
-function wrapRunner(runner: AgentRunner, store: InMemoryStore): LiveRunner {
+function wrapRunner(runner: AgentRunner, store: InMemoryStore, obs?: AgentObservabilityRecorder): LiveRunner {
   return {
     run: async (message: string, options?: { onToken?: (token: string) => void }) => {
       const start = Date.now();
       const result = await runner.run(message, { onToken: options?.onToken });
-      const execution = captureExecution(runner);
+      const execution = captureExecution(runner, obs);
       if (result.paused) {
         return {
           content: '',
@@ -592,7 +612,7 @@ function wrapRunner(runner: AgentRunner, store: InMemoryStore): LiveRunner {
     resume: async (humanResponse: string) => {
       const start = Date.now();
       const result = await runner.resume(humanResponse);
-      const execution = captureExecution(runner);
+      const execution = captureExecution(runner, obs);
       if (result.paused) {
         return {
           content: '',

@@ -6,23 +6,46 @@
  */
 import type { LiveConfig, PatternType } from './types';
 
+export type PresetCategory =
+  | 'getting-started'
+  | 'tool-use'
+  | 'dynamic-behavior'
+  | 'knowledge'
+  | 'multi-agent';
+
+export interface PresetCategoryMeta {
+  readonly id: PresetCategory;
+  readonly label: string;
+  readonly description: string;
+}
+
+export const PRESET_CATEGORIES: PresetCategoryMeta[] = [
+  { id: 'getting-started', label: 'Getting Started', description: 'Simple patterns to explore' },
+  { id: 'tool-use', label: 'Tool Use', description: 'Agents that call tools and APIs' },
+  { id: 'dynamic-behavior', label: 'Dynamic Behavior', description: 'Runtime adaptation and conditional logic' },
+  { id: 'knowledge', label: 'Knowledge & RAG', description: 'Answer from documents and data' },
+  { id: 'multi-agent', label: 'Multi-Agent', description: 'Orchestrate multiple specialists' },
+];
+
 export interface Preset {
   readonly id: string;
   readonly label: string;
   readonly description: string;
   readonly pattern: PatternType;
+  readonly category: PresetCategory;
   readonly config: LiveConfig;
   readonly suggestedMessage: string;
   readonly code: string;
 }
 
 export const PRESETS: Preset[] = [
-  // ── LLM Call ──────────────────────────────────────────────
+  // ── Getting Started ───────────────────────────────────────
   {
     id: 'chat-assistant',
     label: 'Chat Assistant',
     description: 'Simple multi-turn conversation with memory',
     pattern: 'llm-call',
+    category: 'getting-started',
     config: {
       pattern: 'llm-call',
       modelId: 'claude-sonnet-4-20250514',
@@ -49,6 +72,7 @@ const result = await chat.run('What are the differences between REST and GraphQL
     label: 'Code Reviewer',
     description: 'Reviews code for bugs, security, and quality',
     pattern: 'llm-call',
+    category: 'getting-started',
     config: {
       pattern: 'llm-call',
       modelId: 'claude-sonnet-4-20250514',
@@ -71,12 +95,13 @@ const reviewer = LLMCall
 const result = await reviewer.run('Review this function: ...');`,
   },
 
-  // ── Agent (ReAct with real data) ──────────────────────────
+  // ── Tool Use ──────────────────────────────────────────────
   {
     id: 'refund-approval',
-    label: 'Refund Approval (ask_human)',
-    description: 'Agent pauses to ask human for approval before processing refunds',
+    label: 'Refund Approval',
+    description: 'Pauses to ask human for approval before processing refunds',
     pattern: 'agent',
+    category: 'tool-use',
     config: {
       pattern: 'agent',
       modelId: 'claude-sonnet-4-20250514',
@@ -114,6 +139,7 @@ if (result.paused) {
     label: 'E-Commerce Support',
     description: 'Customer support with orders, inventory, and tracking',
     pattern: 'agent',
+    category: 'tool-use',
     config: {
       pattern: 'agent',
       modelId: 'claude-sonnet-4-20250514',
@@ -154,6 +180,7 @@ const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
     label: 'HR Assistant',
     description: 'Employee lookup, PTO balance, and policy questions',
     pattern: 'agent',
+    category: 'tool-use',
     config: {
       pattern: 'agent',
       modelId: 'claude-sonnet-4-20250514',
@@ -190,12 +217,13 @@ const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
 // Try: "Look up Maria Garcia's department"`,
   },
 
-  // ── RAG ───────────────────────────────────────────────────
+  // ── Knowledge & RAG ───────────────────────────────────────
   {
     id: 'product-knowledge',
     label: 'Product Knowledge Base',
     description: 'Answer questions from product docs, return policy, AppleCare',
     pattern: 'rag',
+    category: 'knowledge',
     config: {
       pattern: 'rag',
       modelId: 'claude-sonnet-4-20250514',
@@ -231,6 +259,7 @@ const runner = RAG.create({ provider: anthropic('claude-sonnet-4-20250514'), ret
     label: 'HR Policy Knowledge Base',
     description: 'Answer HR questions from company handbook',
     pattern: 'rag',
+    category: 'knowledge',
     config: {
       pattern: 'rag',
       modelId: 'claude-sonnet-4-20250514',
@@ -258,12 +287,13 @@ const retriever = mockRetriever([{
 // Try: "Can I work fully remote?"`,
   },
 
-  // ── Swarm ─────────────────────────────────────────────────
+  // ── Multi-Agent ───────────────────────────────────────────
   {
     id: 'specialist-swarm',
     label: 'Specialist Routing',
     description: 'Routes to coding, math, or writing specialist',
     pattern: 'swarm',
+    category: 'multi-agent',
     config: {
       pattern: 'swarm',
       modelId: 'claude-sonnet-4-20250514',
@@ -302,12 +332,13 @@ const result = await swarm.run('Write a haiku about debugging');
 // swarm.getNarrative() shows full execution trace`,
   },
 
-  // ── Conditional Instructions ──────────────────────────────
+  // ── Dynamic Behavior ──────────────────────────────────────
   {
     id: 'conditional-instructions',
     label: 'Conditional Instructions',
-    description: 'Instructions activate based on tool results — Decision Scope drives behavior',
+    description: 'Instructions activate based on tool results via Decision Scope',
     pattern: 'agent',
+    category: 'dynamic-behavior',
     config: {
       pattern: 'agent',
       modelId: 'claude-sonnet-4-20250514',
@@ -356,12 +387,12 @@ const agent = Agent.create({ provider })
 //   refund-handling activates → empathy prompt injected`,
   },
 
-  // ── Dynamic ReAct ─────────────────────────────────────────
   {
     id: 'dynamic-support',
-    label: 'Dynamic Support (Progressive Auth)',
-    description: 'Tools change after identity verification — Dynamic ReAct',
+    label: 'Progressive Authorization',
+    description: 'Tools and prompt change after identity verification',
     pattern: 'agent',
+    category: 'dynamic-behavior',
     config: {
       pattern: 'agent',
       modelId: 'claude-sonnet-4-20250514',
@@ -432,6 +463,15 @@ export function getPresetsByPattern(): Map<PatternType, Preset[]> {
     grouped.get(preset.pattern)!.push(preset);
   }
   return grouped;
+}
+
+export function getPresetsByCategory(): { category: PresetCategoryMeta; presets: Preset[] }[] {
+  return PRESET_CATEGORIES
+    .map((cat) => ({
+      category: cat,
+      presets: PRESETS.filter((p) => p.category === cat.id),
+    }))
+    .filter((g) => g.presets.length > 0);
 }
 
 export function getPresetById(id: string): Preset | undefined {

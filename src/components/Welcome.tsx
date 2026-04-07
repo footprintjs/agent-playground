@@ -14,31 +14,31 @@ const CARDS = [
     phase: 'build' as const,
     icon: '\uD83E\uDDE0',
     title: 'Concept Ladder',
-    desc: 'LLMCall \u2192 Agent \u2192 RAG \u2192 FlowChart \u2192 Swarm. Every layer adds orchestration power. 5 minutes to understand the whole stack.',
-    cta: 'Start from scratch',
-    to: '/samples/simple-llm-call',
+    desc: 'Single LLM: LLM Call \u2192 Agent \u2192 RAG. Multi-Agent: Sequential \u2192 Parallel \u2192 Swarm. 6 concepts in 5 minutes.',
+    cta: 'Learn the concepts',
+    to: '/samples/simple-llm-call?mode=concepts',
   },
   {
     phase: 'execute' as const,
     icon: '\u26A1',
-    title: 'Playground',
-    desc: '22 interactive samples \u2014 tools, memory, multi-modal, resilience, gated permissions. Edit and run live, $0 with mock adapters.',
-    cta: 'Explore samples',
-    to: '/samples/agent-with-tools',
+    title: 'Feature Playground',
+    desc: 'Tools, memory, streaming, security, resilience, recorders, grounding \u2014 every feature with runnable code and Behind the Scenes.',
+    cta: 'Explore features',
+    to: '/samples/prompt-strategies?mode=features',
   },
   {
     phase: 'observe' as const,
     icon: '\uD83D\uDCAC',
     title: 'Live Chat',
-    desc: 'Pick a pattern, set your API key, and chat with a real LLM. Every turn shows Behind the Scenes.',
+    desc: 'Pick a pattern, set your API key, and chat with a real LLM. Every turn shows the full execution trace.',
     cta: 'Try with your key',
     to: '/live',
   },
 ];
 
 const PHASE_COLORS: Record<string, { color: string; dim: string; border: string }> = {
-  build: { color: '#7c6cf0', dim: 'rgba(124,108,240,0.08)', border: 'rgba(124,108,240,0.25)' },
-  execute: { color: '#a855f7', dim: 'rgba(168,85,247,0.08)', border: 'rgba(168,85,247,0.25)' },
+  build: { color: '#facc15', dim: 'rgba(250,204,21,0.08)', border: 'rgba(250,204,21,0.25)' },
+  execute: { color: '#f59e0b', dim: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.25)' },
   observe: { color: '#10b981', dim: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.25)' },
 };
 
@@ -53,8 +53,8 @@ export function Welcome() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '60px 40px',
-        gap: 48,
+        padding: '40px 16px',
+        gap: 32,
         background: 'var(--bg-primary)',
       }}
     >
@@ -78,54 +78,57 @@ export function Welcome() {
       </button>
 
       {/* Header */}
-      <div style={{ textAlign: 'center', maxWidth: 600 }}>
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: 'var(--accent)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            marginBottom: 12,
-          }}
-        >
-          agentfootprint
-        </div>
-        <h1
-          style={{
-            fontSize: 48,
-            fontWeight: 800,
-            lineHeight: 1.1,
-            margin: '0 0 16px',
-            background: 'linear-gradient(135deg, var(--text-primary) 40%, var(--accent))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          Explainable AI Agents
+      <div style={{ textAlign: 'center', maxWidth: 650 }}>
+        {/* Robot footprint icon */}
+        <svg viewBox="0 0 64 64" fill="var(--accent, #facc15)" xmlns="http://www.w3.org/2000/svg" width="48" height="48" style={{ marginBottom: 16 }}>
+          <rect x="18" y="24" width="28" height="34" rx="10" ry="10" />
+          <rect x="22" y="32" width="20" height="3" rx="1.5" fill="currentColor" opacity="0.3" />
+          <rect x="22" y="39" width="20" height="3" rx="1.5" fill="currentColor" opacity="0.3" />
+          <rect x="22" y="46" width="20" height="3" rx="1.5" fill="currentColor" opacity="0.3" />
+          <rect x="18" y="10" width="8" height="10" rx="4" />
+          <rect x="28" y="8" width="8" height="10" rx="4" />
+          <rect x="38" y="10" width="8" height="10" rx="4" />
+        </svg>
+
+        {/* Brand name — responsive via CSS class */}
+        <h1 className="welcome-brand">
+          <span style={{ color: 'var(--text-primary)' }}>AGENT</span>
+          <span style={{ color: 'var(--accent, #facc15)' }}>FOOTPRINT</span>
         </h1>
-        <p
-          style={{
-            fontSize: 17,
-            color: 'var(--text-secondary)',
-            lineHeight: 1.6,
-            margin: 0,
-          }}
-        >
-          Build &rarr; Run &rarr; Observe. Every turn, tool call, and decision documented automatically. Zero extra code.
+
+        {/* Subtitle — smaller */}
+        <div style={{
+          fontSize: 16,
+          fontWeight: 500,
+          color: 'var(--text-secondary)',
+          marginBottom: 20,
+          letterSpacing: '0.02em',
+        }}>
+          The Explainable Agent Framework
+        </div>
+
+        {/* Build → Run → Observe — its own line, prominent */}
+        <div style={{
+          fontSize: 20,
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          marginBottom: 8,
+        }}>
+          Build &rarr; Run &rarr; Observe.
+        </div>
+
+        <p style={{
+          fontSize: 15,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.6,
+          margin: 0,
+        }}>
+          Every turn, tool call, and decision documented automatically. Zero extra code.
         </p>
       </div>
 
-      {/* 3 cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          gap: 16,
-          width: '100%',
-          maxWidth: 900,
-        }}
-      >
+      {/* 3 cards — responsive via CSS class */}
+      <div className="welcome-cards">
         {CARDS.map((card, i) => {
           const colors = PHASE_COLORS[card.phase];
           return (
@@ -196,34 +199,45 @@ export function Welcome() {
         })}
       </div>
 
-      {/* Concept Ladder */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-        {['LLMCall', 'Agent', 'RAG', 'FlowChart', 'Swarm'].map((c, i) => (
-          <React.Fragment key={c}>
-            {i > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>&rarr;</span>}
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--accent)',
-                background: 'rgba(124,108,240,0.1)',
-                border: '1px solid rgba(124,108,240,0.2)',
-                borderRadius: 6,
-                padding: '4px 10px',
-                letterSpacing: '0.02em',
-              }}
-            >
-              {c}
-            </span>
-          </React.Fragment>
-        ))}
+      {/* Concept Ladder — Single LLM | Multi-Agent */}
+      <div className="welcome-concepts">
+        <div className="welcome-concept-row">
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Single LLM</span>
+          {['LLM Call', 'Agent', 'RAG'].map((c, i) => (
+            <React.Fragment key={c}>
+              {i > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>&rarr;</span>}
+              <span style={{
+                fontSize: 12, fontWeight: 600,
+                color: 'var(--accent, #facc15)',
+                background: 'rgba(250,204,21,0.1)',
+                border: '1px solid rgba(250,204,21,0.2)',
+                borderRadius: 6, padding: '4px 10px',
+              }}>{c}</span>
+            </React.Fragment>
+          ))}
+        </div>
+        <div className="welcome-concept-row">
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Multi-Agent</span>
+          {['Sequential', 'Parallel', 'Swarm'].map((c, i) => (
+            <React.Fragment key={c}>
+              {i > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>&rarr;</span>}
+              <span style={{
+                fontSize: 12, fontWeight: 600,
+                color: 'var(--accent, #facc15)',
+                background: 'rgba(250,204,21,0.1)',
+                border: '1px solid rgba(250,204,21,0.2)',
+                borderRadius: 6, padding: '4px 10px',
+              }}>{c}</span>
+            </React.Fragment>
+          ))}
+        </div>
       </div>
 
       {/* Footer links */}
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
         {[
           { label: 'GitHub', href: 'https://github.com/footprintjs/agentfootprint' },
-          { label: 'footprintjs', href: 'https://github.com/footprintjs/footPrint' },
+          { label: 'Powered by footprintjs', href: 'https://footprintjs.github.io/footPrint/' },
           { label: 'npm', href: 'https://www.npmjs.com/package/agentfootprint' },
         ].map((link) => (
           <a

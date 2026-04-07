@@ -365,17 +365,55 @@ return {
 };
 `;
 
+const s24 = `
+import { Parallel, Agent, mock } from 'agentfootprint';
+
+// Two agents with different perspectives
+const optimist = Agent.create({
+  provider: mock([{ content: 'The AI trends look very promising! Advances in reasoning, tool use, and multimodal understanding are opening new markets. Strong growth expected.' }]),
+  name: 'optimist',
+})
+  .system('You are an optimistic analyst. Focus on opportunities and growth.')
+  .build();
+
+const critic = Agent.create({
+  provider: mock([{ content: 'There are significant risks: regulatory uncertainty, compute costs rising, talent shortage, and over-hyped expectations. Proceed with caution.' }]),
+  name: 'critic',
+})
+  .system('You are a critical analyst. Focus on risks and challenges.')
+  .build();
+
+// Run both in parallel, merge with LLM
+const parallel = Parallel.create({
+  provider: mock([{ content: 'Balanced view: AI presents strong opportunities in reasoning and tool use, but faces real risks from regulation and compute costs. A measured approach is recommended.' }]),
+  name: 'balanced-analysis',
+})
+  .agent('optimist', optimist, 'Positive perspective')
+  .agent('critic', critic, 'Critical perspective')
+  .mergeWithLLM('Synthesize both perspectives into a balanced, actionable summary.')
+  .build();
+
+const result = await parallel.run(input);
+
+return {
+  content: result.content,
+  branches: result.branches.map(b => ({ id: b.id, status: b.status, preview: b.content.slice(0, 80) + '...' })),
+  narrative: parallel.getNarrative(),
+};
+`;
+
 // ── Catalog ──────────────────────────────────────────────────
 
 export const samples: Sample[] = [
-  { id: 'simple-llm-call', number: 1, title: 'Simple LLM Call', description: 'LLMCall builder + TokenRecorder', category: 'Basics', code: s01 },
-  { id: 'agent-with-tools', number: 2, title: 'Agent with Tools', description: 'Agent builder + tools + recorders', category: 'Basics', code: s02 },
-  { id: 'rag-retrieval', number: 3, title: 'RAG Retrieval', description: 'RAG builder + retriever + recorder', category: 'Basics', code: s03 },
+  { id: 'simple-llm-call', number: 1, title: 'LLM Call', description: 'Single prompt \u2192 single response. No tools, no loop.', category: 'Single LLM', code: s01 },
+  { id: 'agent-with-tools', number: 2, title: 'Agent (Tool Use)', description: 'LLM + tools in a loop. Decides when to call tools and when to stop.', category: 'Single LLM', code: s02 },
+  { id: 'rag-retrieval', number: 3, title: 'RAG (Retrieval)', description: 'LLM + knowledge retrieval. Chunks injected before the call.', category: 'Single LLM', code: s03 },
+  { id: 'flowchart-sequential', number: 7, title: 'Sequential (FlowChart)', description: 'Multiple agents chained in order. Output of one feeds the next.', category: 'Multi-Agent', code: s07 },
+  { id: 'parallel-execution', number: 24, title: 'Parallel', description: 'Multiple agents run simultaneously. Results merged by LLM.', category: 'Multi-Agent', code: s24 },
+  { id: 'swarm-delegation', number: 8, title: 'Swarm (Routing)', description: 'Orchestrator picks ONE specialist per request. Dynamic delegation.', category: 'Multi-Agent', code: s08 },
   { id: 'prompt-strategies', number: 4, title: 'Prompt Strategies', description: 'Different system prompts per runner', category: 'Providers', code: s04 },
   { id: 'message-strategies', number: 5, title: 'Message Strategies', description: 'Sliding window, truncation', category: 'Providers', code: s05 },
   { id: 'tool-strategies', number: 6, title: 'Tool Strategies', description: 'ToolRegistry, defineTool', category: 'Providers', code: s06 },
-  { id: 'flowchart-sequential', number: 7, title: 'FlowChart Pipeline', description: 'Sequential pipeline + token/turn recorders', category: 'Orchestration', code: s07 },
-  { id: 'swarm-delegation', number: 8, title: 'Swarm Delegation', description: 'Specialist routing + token/tool recorders', category: 'Orchestration', code: s08 },
   { id: 'orchestration', number: 9, title: 'Resilience', description: 'withRetry, withFallback', category: 'Orchestration', code: s09 },
   { id: 'recorders', number: 10, title: 'Recorders', description: 'Token, Cost, Tool usage tracking', category: 'Observability', code: s10 },
   { id: 'protocol-adapters', number: 11, title: 'Protocol Adapters', description: 'MCP tool provider', category: 'Adapters', code: s11 },
@@ -394,7 +432,7 @@ export const samples: Sample[] = [
 ];
 
 export function getCategorizedSamples(): SampleCategory[] {
-  const categoryOrder = ['Basics', 'Providers', 'Orchestration', 'Memory', 'Security', 'Resilience', 'Observability', 'Adapters', 'Integration'];
+  const categoryOrder = ['Single LLM', 'Multi-Agent', 'Providers', 'Orchestration', 'Memory', 'Security', 'Resilience', 'Observability', 'Adapters', 'Integration'];
   const map = new Map<string, Sample[]>();
 
   for (const sample of samples) {
