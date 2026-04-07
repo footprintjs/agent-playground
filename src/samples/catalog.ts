@@ -484,7 +484,7 @@ return {
 
 const s27 = `
 import { Agent, mock, defineTool } from 'agentfootprint';
-import { ExplainRecorder } from 'agentfootprint/explain';
+import { agentObservability } from 'agentfootprint/observe';
 
 const orderTool = defineTool({
   id: 'check_order',
@@ -493,7 +493,7 @@ const orderTool = defineTool({
   handler: async ({ orderId }) => ({ content: 'Order ' + orderId + ': shipped, arrives Thursday' }),
 });
 
-const explain = new ExplainRecorder();
+const obs = agentObservability();
 
 const runner = Agent
   .create({ provider: mock([
@@ -502,12 +502,13 @@ const runner = Agent
   ]) })
   .system('Help customers with order inquiries.')
   .tool(orderTool)
-  .recorder(explain)
+  .recorder(obs)
   .build();
 
 await runner.run(input);
 
-const report = explain.explain();
+// obs.explain() — what ONLY agentfootprint gives you
+const report = obs.explain();
 return {
   sources: report.sources,
   claims: report.claims,
@@ -615,10 +616,10 @@ export const samples: Sample[] = [
   { id: 'message-strategies', number: 5, title: 'Message Strategies', description: 'Sliding window, truncation', category: 'Providers', code: s05 },
   { id: 'tool-strategies', number: 6, title: 'Tool Strategies', description: 'ToolRegistry, defineTool', category: 'Providers', code: s06 },
   { id: 'orchestration', number: 9, title: 'Resilience', description: 'withRetry, withFallback', category: 'Orchestration', code: s09 },
-  { id: 'recorders', number: 10, title: 'Recorders Overview', description: 'agentObservability() — one-liner for tokens, tools, and cost', category: 'Observability', code: s10 },
+  { id: 'recorders', number: 10, title: 'Recorders Overview', description: 'agentObservability() — tokens, tools, cost, and grounding in one call', category: 'Observability', code: s10 },
   { id: 'token-cost-tracking', number: 25, title: 'Token & Cost Tracking', description: 'TokenRecorder with pricing table, per-call cost breakdown', category: 'Observability', code: s25 },
   { id: 'tool-usage-analysis', number: 26, title: 'Tool Usage Analysis', description: 'ToolUsageRecorder — calls, errors, latency by tool name', category: 'Observability', code: s26 },
-  { id: 'grounding-explain', number: 27, title: 'Grounding (ExplainRecorder)', description: 'Sources vs claims — what tools returned vs what the LLM said', category: 'Observability', code: s27 },
+  { id: 'grounding-explain', number: 27, title: 'Grounding (obs.explain)', description: 'Sources vs claims — what tools returned vs what the LLM said', category: 'Observability', code: s27 },
   { id: 'otel-export', number: 28, title: 'OpenTelemetry Export', description: 'OTelRecorder — spans to Datadog, Grafana, or any OTel backend', category: 'Observability', code: s28 },
   { id: 'cloudwatch-export', number: 29, title: 'CloudWatch Export', description: 'Recorder data → AWS CloudWatch metrics pipeline', category: 'Observability', code: s29 },
   { id: 'protocol-adapters', number: 11, title: 'Protocol Adapters', description: 'MCP tool provider', category: 'Adapters', code: s11 },
