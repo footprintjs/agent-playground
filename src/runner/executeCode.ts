@@ -88,6 +88,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
           withRetry, withFallback, CircuitBreaker,
           StreamEmitter, SSEFormatter,
           hasToolCalls,
+          agentObservability,
         } = __agentfootprint;
 
         // footprintjs core — flowChart builder, executor, subflow utilities
