@@ -10,6 +10,9 @@
 import { transform } from 'sucrase';
 import * as agentfootprint from 'agentfootprint';
 import * as agentfootprintObserve from 'agentfootprint/observe';
+import * as agentfootprintExplain from 'agentfootprint/explain';
+import * as agentfootprintResilience from 'agentfootprint/resilience';
+import * as agentfootprintProviders from 'agentfootprint/providers';
 import * as footprintjs from 'footprintjs';
 
 export interface ExecuteResult {
@@ -69,10 +72,10 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
       return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs) {
         const {
           LLMCall, LLMCallRunner, Agent, AgentRunner, RAG, RAGRunner,
-          FlowChart, FlowChartRunner, Swarm, SwarmRunner,
+          FlowChart, FlowChartRunner, Swarm, SwarmRunner, Parallel, ParallelRunner,
           mock, mockRetriever, defineTool, ToolRegistry,
           staticPrompt, templatePrompt, compositePrompt,
-          slidingWindow, truncateToCharBudget, appendMessage,
+          slidingWindow, charBudget, appendMessage,
           userMessage, assistantMessage, systemMessage, toolResultMessage,
           textBlock, base64Image, urlImage, imageBlock,
           AnthropicAdapter, OpenAIAdapter, BedrockAdapter, createProvider,
@@ -89,6 +92,8 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
           StreamEmitter, SSEFormatter,
           hasToolCalls,
           agentObservability,
+          OTelRecorder,
+          ExplainRecorder,
         } = __agentfootprint;
 
         // footprintjs core — flowChart builder, executor, subflow utilities
@@ -115,7 +120,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
 
         // Intercept .build() on builder classes to inject agentObservability recorder
         let __obs = null;
-        const builderClasses = [LLMCall, Agent, RAG, Swarm];
+        const builderClasses = [LLMCall, Agent, RAG, Swarm, Parallel];
         const origBuilds = new Map();
         for (const Cls of builderClasses) {
           if (Cls && Cls.prototype && Cls.prototype.build) {
@@ -123,7 +128,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
             Cls.prototype.build = function(...args) {
               // Inject agentObservability before build
               if (agentObservability && typeof this.recorder === 'function') {
-                __obs = agentObservability();
+                __obs = agentObservability({ id: '__bts-obs' });
                 this.recorder(__obs);
               }
               return origBuilds.get(Cls).apply(this, args);
@@ -132,7 +137,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
         }
 
         // Wrap .run() on runner classes to capture execution data
-        const runnerClasses = [LLMCallRunner, AgentRunner, RAGRunner, FlowChartRunner, SwarmRunner, __footprintjs.FlowChartExecutor];
+        const runnerClasses = [LLMCallRunner, AgentRunner, RAGRunner, FlowChartRunner, SwarmRunner, ParallelRunner, __footprintjs.FlowChartExecutor];
         const origRuns = new Map();
         for (const Cls of runnerClasses) {
           if (Cls && Cls.prototype && Cls.prototype.run) {
@@ -182,8 +187,8 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
 
     // Execute
     const fn = new Function('__agentfootprint', '__input', '__console', '__captured', '__apiKeys', '__footprintjs', wrapped);
-    // Merge observe barrel into agentfootprint so recorders are available
-    const mergedAgentfootprint = { ...agentfootprint, ...agentfootprintObserve };
+    // Merge subpath barrels into agentfootprint so all exports are available
+    const mergedAgentfootprint = { ...agentfootprint, ...agentfootprintObserve, ...agentfootprintExplain, ...agentfootprintResilience, ...agentfootprintProviders };
     const output = await fn(mergedAgentfootprint, input, mockConsole, captured, apiKeys ?? {}, footprintjs);
 
     return {

@@ -367,6 +367,9 @@ return {
 
 const s24 = `
 import { Parallel, Agent, mock } from 'agentfootprint';
+import { agentObservability } from 'agentfootprint/observe';
+
+const obs = agentObservability();
 
 // Two agents with different perspectives
 const optimist = Agent.create({
@@ -391,6 +394,7 @@ const parallel = Parallel.create({
   .agent('optimist', optimist, 'Positive perspective')
   .agent('critic', critic, 'Critical perspective')
   .mergeWithLLM('Synthesize both perspectives into a balanced, actionable summary.')
+  .recorder(obs)
   .build();
 
 const result = await parallel.run(input);
@@ -398,7 +402,203 @@ const result = await parallel.run(input);
 return {
   content: result.content,
   branches: result.branches.map(b => ({ id: b.id, status: b.status, preview: b.content.slice(0, 80) + '...' })),
-  narrative: parallel.getNarrative(),
+  tokens: obs.tokens(),
+  tools: obs.tools(),
+  cost: obs.cost(),
+};
+`;
+
+// ── Observability deep-dive samples (inline) ────────────────
+
+const s25 = `
+import { LLMCall, mock } from 'agentfootprint';
+import { TokenRecorder, CostRecorder } from 'agentfootprint/observe';
+
+// Individual recorders for fine-grained control
+const tokens = new TokenRecorder();
+const cost = new CostRecorder({
+  pricingTable: {
+    'claude-sonnet-4-20250514': { input: 3, output: 15 },
+    'gpt-4o': { input: 2.5, output: 10 },
+  },
+});
+
+const runner = LLMCall
+  .create({ provider: mock([{ content: 'Hello!' }]) })
+  .system('You are a helpful assistant.')
+  .recorder(tokens)
+  .recorder(cost)
+  .build();
+
+await runner.run(input);
+
+return {
+  tokenStats: tokens.getStats(),
+  totalCost: cost.getTotalCost(),
+  costBreakdown: cost.getEntries(),
+};
+`;
+
+const s26 = `
+import { Agent, mock, defineTool } from 'agentfootprint';
+import { ToolUsageRecorder } from 'agentfootprint/observe';
+
+const searchTool = defineTool({
+  id: 'search',
+  description: 'Search the web',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
+  handler: async ({ query }) => ({ content: 'Results for: ' + query }),
+});
+
+const calcTool = defineTool({
+  id: 'calculate',
+  description: 'Perform calculations',
+  inputSchema: { type: 'object', properties: { expression: { type: 'string' } } },
+  handler: async ({ expression }) => ({ content: 'Result: 42' }),
+});
+
+const toolUsage = new ToolUsageRecorder();
+
+const runner = Agent
+  .create({ provider: mock([
+    { content: 'Searching...', toolCalls: [
+      { id: '1', name: 'search', arguments: { query: 'population' } },
+      { id: '2', name: 'calculate', arguments: { expression: '8.1e9 * 0.6' } },
+    ] },
+    { content: 'About 4.86 billion people have internet access.' },
+  ]) })
+  .system('Use tools to answer questions.')
+  .tool(searchTool)
+  .tool(calcTool)
+  .recorder(toolUsage)
+  .build();
+
+await runner.run(input);
+
+const stats = toolUsage.getStats();
+return {
+  totalCalls: stats.totalCalls,
+  byTool: stats.byTool,
+};
+`;
+
+const s27 = `
+import { Agent, mock, defineTool } from 'agentfootprint';
+import { ExplainRecorder } from 'agentfootprint/explain';
+
+const orderTool = defineTool({
+  id: 'check_order',
+  description: 'Check order status',
+  inputSchema: { type: 'object', properties: { orderId: { type: 'string' } } },
+  handler: async ({ orderId }) => ({ content: 'Order ' + orderId + ': shipped, arrives Thursday' }),
+});
+
+const explain = new ExplainRecorder();
+
+const runner = Agent
+  .create({ provider: mock([
+    { content: 'Let me check.', toolCalls: [{ id: '1', name: 'check_order', arguments: { orderId: 'ORD-123' } }] },
+    { content: 'Your order ORD-123 has shipped and arrives Thursday.' },
+  ]) })
+  .system('Help customers with order inquiries.')
+  .tool(orderTool)
+  .recorder(explain)
+  .build();
+
+await runner.run(input);
+
+const report = explain.explain();
+return {
+  sources: report.sources,
+  claims: report.claims,
+  decisions: report.decisions,
+  summary: report.summary,
+};
+`;
+
+const s28 = `
+import { Agent, mock } from 'agentfootprint';
+import { OTelRecorder } from 'agentfootprint/observe';
+
+// Duck-typed OTel tracer — in production, use @opentelemetry/api
+const spans = [];
+const mockTracer = {
+  startSpan: (name, options) => {
+    const span = { name, attributes: { ...options?.attributes }, events: [] };
+    spans.push(span);
+    return {
+      setAttribute: (k, v) => { span.attributes[k] = v; },
+      setStatus: (s) => { span.status = s; },
+      end: () => { span.endedAt = Date.now(); },
+    };
+  },
+};
+
+const otel = new OTelRecorder(mockTracer);
+
+const runner = Agent
+  .create({ provider: mock([{ content: 'Hello from the traced agent!' }]) })
+  .system('You are a helpful assistant.')
+  .recorder(otel)
+  .build();
+
+await runner.run(input);
+
+return {
+  spanCount: spans.length,
+  spans: spans.map(s => ({
+    name: s.name,
+    model: s.attributes['gen_ai.request.model'],
+    inputTokens: s.attributes['gen_ai.usage.input_tokens'],
+    outputTokens: s.attributes['gen_ai.usage.output_tokens'],
+  })),
+};
+`;
+
+const s29 = `
+import { Agent, mock, defineTool } from 'agentfootprint';
+import { agentObservability } from 'agentfootprint/observe';
+
+// Simulate CloudWatch putMetricData
+const cloudwatchMetrics = [];
+function putMetric(namespace, name, value, unit) {
+  cloudwatchMetrics.push({ namespace, name, value, unit, timestamp: new Date().toISOString() });
+}
+
+const searchTool = defineTool({
+  id: 'search',
+  description: 'Search',
+  inputSchema: { type: 'object', properties: { q: { type: 'string' } } },
+  handler: async ({ q }) => ({ content: 'Found: ' + q }),
+});
+
+const obs = agentObservability();
+
+const runner = Agent
+  .create({ provider: mock([
+    { content: 'Searching...', toolCalls: [{ id: '1', name: 'search', arguments: { q: 'data' } }] },
+    { content: 'Here is the data.' },
+  ]) })
+  .system('Search assistant.')
+  .tool(searchTool)
+  .recorder(obs)
+  .build();
+
+await runner.run(input);
+
+// Export recorder data to CloudWatch-style metrics
+const tokens = obs.tokens();
+putMetric('AgentFootprint', 'InputTokens', tokens.totalInputTokens, 'Count');
+putMetric('AgentFootprint', 'OutputTokens', tokens.totalOutputTokens, 'Count');
+putMetric('AgentFootprint', 'LLMCalls', tokens.totalCalls, 'Count');
+putMetric('AgentFootprint', 'EstimatedCost', obs.cost(), 'None');
+
+const tools = obs.tools();
+putMetric('AgentFootprint', 'ToolCalls', tools.totalCalls, 'Count');
+
+return {
+  metrics: cloudwatchMetrics,
+  summary: tokens.totalCalls + ' LLM calls, ' + tools.totalCalls + ' tool calls',
 };
 `;
 
@@ -415,7 +615,12 @@ export const samples: Sample[] = [
   { id: 'message-strategies', number: 5, title: 'Message Strategies', description: 'Sliding window, truncation', category: 'Providers', code: s05 },
   { id: 'tool-strategies', number: 6, title: 'Tool Strategies', description: 'ToolRegistry, defineTool', category: 'Providers', code: s06 },
   { id: 'orchestration', number: 9, title: 'Resilience', description: 'withRetry, withFallback', category: 'Orchestration', code: s09 },
-  { id: 'recorders', number: 10, title: 'Recorders', description: 'Token, Cost, Tool usage tracking', category: 'Observability', code: s10 },
+  { id: 'recorders', number: 10, title: 'Recorders Overview', description: 'agentObservability() — one-liner for tokens, tools, and cost', category: 'Observability', code: s10 },
+  { id: 'token-cost-tracking', number: 25, title: 'Token & Cost Tracking', description: 'TokenRecorder with pricing table, per-call cost breakdown', category: 'Observability', code: s25 },
+  { id: 'tool-usage-analysis', number: 26, title: 'Tool Usage Analysis', description: 'ToolUsageRecorder — calls, errors, latency by tool name', category: 'Observability', code: s26 },
+  { id: 'grounding-explain', number: 27, title: 'Grounding (ExplainRecorder)', description: 'Sources vs claims — what tools returned vs what the LLM said', category: 'Observability', code: s27 },
+  { id: 'otel-export', number: 28, title: 'OpenTelemetry Export', description: 'OTelRecorder — spans to Datadog, Grafana, or any OTel backend', category: 'Observability', code: s28 },
+  { id: 'cloudwatch-export', number: 29, title: 'CloudWatch Export', description: 'Recorder data → AWS CloudWatch metrics pipeline', category: 'Observability', code: s29 },
   { id: 'protocol-adapters', number: 11, title: 'Protocol Adapters', description: 'MCP tool provider', category: 'Adapters', code: s11 },
   { id: 'agent-loop', number: 12, title: 'Agent Loop', description: 'Low-level agentLoop() control', category: 'Adapters', code: s12 },
   { id: 'full-integration', number: 13, title: 'Full Integration', description: 'RAG + Agent + tools combined', category: 'Integration', code: s13 },
