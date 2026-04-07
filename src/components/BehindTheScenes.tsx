@@ -13,7 +13,7 @@ import {
 import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
 import type { StageSnapshot, RecorderView } from 'footprint-explainable-ui';
 import type { CapturedExecution } from '../runner/executeCode';
-import { createTokensView, createToolsView, createExplainView } from './live/recorderViews';
+import { createRecorderViews } from './live/recorderViews';
 
 interface BehindTheScenesProps {
   execution: CapturedExecution;
@@ -58,22 +58,11 @@ export function BehindTheScenes({ execution, onClose }: BehindTheScenesProps) {
 
   const spec = execution.spec ?? null;
 
-  // Build recorder views from captured agentObservability data
-  const recorderViews = useMemo<RecorderView[]>(() => {
-    const views: RecorderView[] = [];
-    const rec = execution.recorders;
-    if (!rec) return views;
-    if (rec.tokens && rec.tokens.totalCalls > 0) {
-      views.push(createTokensView(rec.tokens, rec.cost ?? undefined));
-    }
-    if (rec.tools && rec.tools.totalCalls > 0) {
-      views.push(createToolsView(rec.tools));
-    }
-    if (rec.explain && (rec.explain.sources.length > 0 || rec.explain.claims.length > 0)) {
-      views.push(createExplainView(rec.explain));
-    }
-    return views;
-  }, [execution]);
+  // Progressive recorder tabs — update with time-travel slider
+  const recorderViews = useMemo<RecorderView[]>(
+    () => createRecorderViews(execution.recorders ?? undefined, execution.recordersByStage ?? undefined),
+    [execution],
+  );
 
   if (snapshots.length === 0) {
     return (
@@ -111,6 +100,7 @@ export function BehindTheScenes({ execution, onClose }: BehindTheScenesProps) {
         narrativeEntries={execution.narrativeEntries as any[] ?? undefined}
         tabs={['explainable']}
         defaultTab="narrative"
+        hideTabs={['result']}
         size="compact"
         recorderViews={recorderViews}
         panelLabels={{ topology: "What Ran", details: "What Happened", timeline: "How Long" }}

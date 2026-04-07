@@ -1299,6 +1299,21 @@
   min-width: 3px;
 }
 
+/* ── Empty RecorderView state ─────────────────────────── */
+
+.rv-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+}
+
+.rv-empty-text {
+  font-size: 12px;
+  color: var(--text-muted, #6b6b80);
+  text-align: center;
+}
+
 /* ── Explain RecorderView ─────────────────────────────── */
 
 .rv-explain-summary {
