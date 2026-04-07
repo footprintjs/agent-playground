@@ -149,6 +149,86 @@ export function createToolsView(tools: ToolStats): RecorderView {
   };
 }
 
+// ── Explain View ──────────────────────────────────────────
+
+interface ExplainData {
+  sources: Array<{ toolName: string; args: Record<string, unknown>; result: string; turnNumber?: number }>;
+  claims: Array<{ content: string; model?: string; iteration: number }>;
+  decisions: Array<{ toolName: string; args: Record<string, unknown>; latencyMs: number }>;
+  summary: string;
+}
+
+export function createExplainView(explain: ExplainData): RecorderView {
+  return {
+    id: 'explain',
+    name: 'Explain',
+    render: () => (
+      <div className="rv-panel">
+        <div className="rv-stats">
+          <Stat value={explain.sources.length} label="Sources" />
+          <Stat value={explain.claims.length} label="Claims" />
+          <Stat value={explain.decisions.length} label="Decisions" />
+        </div>
+
+        <div className="rv-section">
+          <div className="rv-section-title rv-explain-summary">{explain.summary}</div>
+        </div>
+
+        {explain.sources.length > 0 && (
+          <div className="rv-section">
+            <div className="rv-section-title">Sources (tool results — ground truth)</div>
+            <div className="rv-tool-list">
+              {explain.sources.map((s, i) => (
+                <div key={i} className="rv-tool-item">
+                  <div className="rv-tool-header">
+                    <span className="rv-tool-name">{s.toolName}</span>
+                    {s.turnNumber != null && <span className="rv-tool-calls">turn {s.turnNumber}</span>}
+                  </div>
+                  <div className="rv-explain-content">{s.result}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {explain.claims.length > 0 && (
+          <div className="rv-section">
+            <div className="rv-section-title">Claims (LLM output — to verify)</div>
+            <div className="rv-tool-list">
+              {explain.claims.map((c, i) => (
+                <div key={i} className="rv-tool-item">
+                  <div className="rv-tool-header">
+                    <span className="rv-tool-name">Claim {i + 1}</span>
+                    {c.model && <span className="rv-tool-calls">{c.model}</span>}
+                  </div>
+                  <div className="rv-explain-content">{c.content}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {explain.decisions.length > 0 && (
+          <div className="rv-section">
+            <div className="rv-section-title">Decisions (tool calls the LLM made)</div>
+            <div className="rv-tool-list">
+              {explain.decisions.map((d, i) => (
+                <div key={i} className="rv-tool-item">
+                  <div className="rv-tool-header">
+                    <span className="rv-tool-name">{d.toolName}</span>
+                    <span className="rv-tool-latency">{Math.round(d.latencyMs)}ms</span>
+                  </div>
+                  <div className="rv-explain-content rv-explain-args">{JSON.stringify(d.args)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    ),
+  };
+}
+
 // ── Shared Stat Component ──────────────────────────────────
 
 function Stat({ value, label, accent }: { value: string | number; label: string; accent?: 'error' }) {

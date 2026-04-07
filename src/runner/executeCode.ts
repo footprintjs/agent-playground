@@ -29,7 +29,7 @@ export interface CapturedExecution {
   narrativeEntries?: unknown[];
   narrative?: string[];
   spec?: unknown;
-  /** Recorder data from agentObservability (tokens, tools, cost). */
+  /** Recorder data from agentObservability (tokens, tools, cost, explain). */
   recorders?: {
     tokens?: {
       totalCalls: number;
@@ -39,6 +39,12 @@ export interface CapturedExecution {
     };
     tools?: { totalCalls: number; byTool: Record<string, { calls: number; errors: number; averageLatencyMs?: number }> };
     cost?: number;
+    explain?: {
+      sources: Array<{ toolName: string; args: Record<string, unknown>; result: string; turnNumber?: number }>;
+      claims: Array<{ content: string; model?: string; iteration: number }>;
+      decisions: Array<{ toolName: string; args: Record<string, unknown>; latencyMs: number }>;
+      summary: string;
+    };
   };
 }
 
@@ -157,6 +163,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
                     tokens: __obs.tokens(),
                     tools: __obs.tools(),
                     cost: __obs.cost(),
+                    explain: __obs.explain(),
                   };
                 } catch(e) {}
               }

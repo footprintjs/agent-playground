@@ -13,7 +13,7 @@ import {
 import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
 import type { StageSnapshot, RecorderView } from 'footprint-explainable-ui';
 import type { CapturedExecution } from '../runner/executeCode';
-import { createTokensView, createToolsView } from './live/recorderViews';
+import { createTokensView, createToolsView, createExplainView } from './live/recorderViews';
 
 interface BehindTheScenesProps {
   execution: CapturedExecution;
@@ -68,6 +68,9 @@ export function BehindTheScenes({ execution, onClose }: BehindTheScenesProps) {
     }
     if (rec.tools && rec.tools.totalCalls > 0) {
       views.push(createToolsView(rec.tools));
+    }
+    if (rec.explain && (rec.explain.sources.length > 0 || rec.explain.claims.length > 0)) {
+      views.push(createExplainView(rec.explain));
     }
     return views;
   }, [execution]);
@@ -164,7 +167,7 @@ function Header({ onClose }: { onClose: () => void }) {
           padding: '1px 6px',
           borderRadius: '4px',
           background: 'var(--accent)',
-          color: 'white',
+          color: '#1a1a2e',
           fontWeight: 600,
         }}
       >

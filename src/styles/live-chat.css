@@ -82,7 +82,7 @@
 .live-settings-btn:hover,
 .live-theme-btn:hover {
   background: var(--accent);
-  color: white;
+  color: #1a1a2e;
 }
 .live-settings-btn.has-keys {
   border-color: var(--success);
@@ -540,7 +540,7 @@
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--accent);
-  color: white;
+  color: #1a1a2e;
 }
 .live-bts--collapsed .live-bts-badge-label { display: none; }
 
@@ -1297,6 +1297,29 @@
   background: var(--accent, #7c6cf0);
   border-radius: 2px;
   min-width: 3px;
+}
+
+/* ── Explain RecorderView ─────────────────────────────── */
+
+.rv-explain-summary {
+  font-style: italic;
+  color: var(--text-secondary, #888);
+}
+
+.rv-explain-content {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary, #e8e8e8);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-top: 4px;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.rv-explain-args {
+  color: var(--text-secondary, #888);
 }
 
 /* ── BTS Learning Hint ─────────────────────────────────── */

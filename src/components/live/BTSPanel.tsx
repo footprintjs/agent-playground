@@ -6,7 +6,7 @@ import {
 import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
 import type { StageSnapshot, RecorderView } from 'footprint-explainable-ui';
 import type { CapturedExecution } from '../../runner/executeCode';
-import { createTokensView, createToolsView } from './recorderViews';
+import { createTokensView, createToolsView, createExplainView } from './recorderViews';
 
 interface BTSPanelProps {
   execution: CapturedExecution | null;
@@ -67,6 +67,9 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
     }
     if (rec.tools && rec.tools.totalCalls > 0) {
       views.push(createToolsView(rec.tools));
+    }
+    if (rec.explain && (rec.explain.sources.length > 0 || rec.explain.claims.length > 0)) {
+      views.push(createExplainView(rec.explain));
     }
     return views;
   }, [execution]);
