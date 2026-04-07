@@ -11,8 +11,9 @@ import {
   toVisualizationSnapshots,
 } from 'footprint-explainable-ui';
 import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
-import type { StageSnapshot } from 'footprint-explainable-ui';
+import type { StageSnapshot, RecorderView } from 'footprint-explainable-ui';
 import type { CapturedExecution } from '../runner/executeCode';
+import { createTokensView, createToolsView } from './live/recorderViews';
 
 interface BehindTheScenesProps {
   execution: CapturedExecution;
@@ -57,6 +58,20 @@ export function BehindTheScenes({ execution, onClose }: BehindTheScenesProps) {
 
   const spec = execution.spec ?? null;
 
+  // Build recorder views from captured agentObservability data
+  const recorderViews = useMemo<RecorderView[]>(() => {
+    const views: RecorderView[] = [];
+    const rec = execution.recorders;
+    if (!rec) return views;
+    if (rec.tokens && rec.tokens.totalCalls > 0) {
+      views.push(createTokensView(rec.tokens, rec.cost ?? undefined));
+    }
+    if (rec.tools && rec.tools.totalCalls > 0) {
+      views.push(createToolsView(rec.tools));
+    }
+    return views;
+  }, [execution]);
+
   if (snapshots.length === 0) {
     return (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -92,8 +107,10 @@ export function BehindTheScenes({ execution, onClose }: BehindTheScenesProps) {
         narrative={narrative}
         narrativeEntries={execution.narrativeEntries as any[] ?? undefined}
         tabs={['explainable']}
-        defaultTab="explainable"
+        defaultTab="narrative"
         size="compact"
+        hideTabs={['result']}
+        recorderViews={recorderViews}
         panelLabels={{ topology: "What Ran", details: "What Happened", timeline: "How Long" }}
         renderFlowchart={
           spec

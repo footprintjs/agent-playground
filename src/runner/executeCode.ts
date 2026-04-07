@@ -115,6 +115,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
         // Wrap .run() on common runner classes
         const runnerClasses = [LLMCallRunner, AgentRunner, RAGRunner, FlowChartRunner, SwarmRunner, __footprintjs.FlowChartExecutor];
         const origRuns = new Map();
+        let __obs = null; // agentObservability recorder for capturing tokens/tools/cost
         for (const Cls of runnerClasses) {
           if (Cls && Cls.prototype && Cls.prototype.run) {
             origRuns.set(Cls, Cls.prototype.run);
@@ -124,8 +125,23 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
               if (MetricRecorder && typeof this.attachRecorder === 'function') {
                 this.attachRecorder(new MetricRecorder('__timing'));
               }
+              // Attach agentObservability recorder for tokens/tools/cost
+              if (agentObservability && typeof this.recorder === 'function') {
+                __obs = agentObservability();
+                this.recorder(__obs);
+              }
               const result = await origRuns.get(Cls).apply(this, args);
               captureFromRunner(this);
+              // Capture recorder data
+              if (__obs) {
+                try {
+                  __captured.recorders = {
+                    tokens: __obs.tokens(),
+                    tools: __obs.tools(),
+                    cost: __obs.cost(),
+                  };
+                } catch(e) {}
+              }
               return result;
             };
           }
