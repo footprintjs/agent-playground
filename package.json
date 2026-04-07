@@ -15,14 +15,15 @@
     "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.1",
     "agent-explainable-ui": "github:footprintjs/agent-explainable-ui",
-    "agent-samples": "file:../agent-samples",
-    "agentfootprint": "file:../agentfootprint",
-    "footprint-explainable-ui": "file:../explainable-ui",
-    "footprintjs": "file:../footPrint",
+    "agent-samples": "github:footprintjs/agent-samples",
+    "agentfootprint": "^1.0.0",
+    "footprint-explainable-ui": "^0.13.0",
+    "footprintjs": "^4.4.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
-    "sucrase": "^3.35.1"
+    "sucrase": "^3.35.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
