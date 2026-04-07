@@ -113,10 +113,27 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
           } catch(e) {}
         }
 
-        // Wrap .run() on common runner classes
+        // Intercept .build() on builder classes to inject agentObservability recorder
+        let __obs = null;
+        const builderClasses = [LLMCall, Agent, RAG, Swarm];
+        const origBuilds = new Map();
+        for (const Cls of builderClasses) {
+          if (Cls && Cls.prototype && Cls.prototype.build) {
+            origBuilds.set(Cls, Cls.prototype.build);
+            Cls.prototype.build = function(...args) {
+              // Inject agentObservability before build
+              if (agentObservability && typeof this.recorder === 'function') {
+                __obs = agentObservability();
+                this.recorder(__obs);
+              }
+              return origBuilds.get(Cls).apply(this, args);
+            };
+          }
+        }
+
+        // Wrap .run() on runner classes to capture execution data
         const runnerClasses = [LLMCallRunner, AgentRunner, RAGRunner, FlowChartRunner, SwarmRunner, __footprintjs.FlowChartExecutor];
         const origRuns = new Map();
-        let __obs = null; // agentObservability recorder for capturing tokens/tools/cost
         for (const Cls of runnerClasses) {
           if (Cls && Cls.prototype && Cls.prototype.run) {
             origRuns.set(Cls, Cls.prototype.run);
@@ -126,14 +143,9 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
               if (MetricRecorder && typeof this.attachRecorder === 'function') {
                 this.attachRecorder(new MetricRecorder('__timing'));
               }
-              // Attach agentObservability recorder for tokens/tools/cost
-              if (agentObservability && typeof this.recorder === 'function') {
-                __obs = agentObservability();
-                this.recorder(__obs);
-              }
               const result = await origRuns.get(Cls).apply(this, args);
               captureFromRunner(this);
-              // Capture recorder data
+              // Capture recorder data from obs injected at build time
               if (__obs) {
                 try {
                   __captured.recorders = {
@@ -151,9 +163,12 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
         try {
           ${jsCode}
         } finally {
-          // Restore original .run() methods
+          // Restore original methods
           for (const [Cls, orig] of origRuns) {
             Cls.prototype.run = orig;
+          }
+          for (const [Cls, orig] of origBuilds) {
+            Cls.prototype.build = orig;
           }
         }
       })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs);
