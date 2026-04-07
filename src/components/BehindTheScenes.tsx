@@ -109,9 +109,7 @@ export function BehindTheScenes({ execution, onClose }: BehindTheScenesProps) {
         tabs={['explainable']}
         defaultTab="narrative"
         size="compact"
-        hideTabs={['result']}
         recorderViews={recorderViews}
-        defaultExpanded={{ details: true, topology: false, timeline: true }}
         panelLabels={{ topology: "What Ran", details: "What Happened", timeline: "How Long" }}
         renderFlowchart={
           spec

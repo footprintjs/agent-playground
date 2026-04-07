@@ -96,7 +96,6 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
                 tabs={['explainable']}
                 defaultTab="narrative"
                 size="compact"
-                hideTabs={['result']}
                 recorderViews={recorderViews}
                 panelLabels={{ topology: "What Ran", details: "What Happened", timeline: "How Long" }}
                 renderFlowchart={
