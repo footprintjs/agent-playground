@@ -258,6 +258,28 @@ body {
   display: flex;
 }
 
+/* 3-panel: code+result | drag handle | BTS */
+.sample-3panel {
+  display: flex;
+  overflow: hidden;
+}
+
+.sample-code-result {
+  display: flex;
+  overflow: hidden;
+}
+
+.sample-drag-handle {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.sample-drag-handle:hover {
+  background: rgba(124, 108, 240, 0.15);
+}
+
 .mobile-panels {
   display: none;
 }

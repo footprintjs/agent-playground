@@ -1,36 +1,41 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { samples } from '../samples/catalog';
 import { CodePanel } from './CodePanel';
 import { ResultPanel } from './ResultPanel';
-import { BehindTheScenes } from './BehindTheScenes';
+import { BTSPanel } from './live/BTSPanel';
 import { executeCode } from '../runner/executeCode';
 import { loadApiKeys } from './SettingsPanel';
+import { useDragResize } from './live/useDragResize';
 import type { ChatTurn } from './ResultPanel';
 
-type View = 'code' | 'result' | 'bts';
+type MobileTab = 'code' | 'output' | 'bts';
 
 export function SamplePage() {
   const { sampleId } = useParams<{ sampleId: string }>();
   const [searchParams] = useSearchParams();
   const sample = samples.find((s) => s.id === sampleId);
   const mode = searchParams.get('mode');
-
-  // Concept mode = read-only code (focus on flowchart/BTS)
   const isConceptSample = mode === 'concepts';
 
   const [code, setCode] = useState(sample?.code ?? '');
   const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
   const [running, setRunning] = useState(false);
   const [input, setInput] = useState('Hello, how can you help me?');
-  const [mobileView, setMobileView] = useState<View>('code');
+
+  // BTS panel state
+  const [btsCollapsed, setBtsCollapsed] = useState(false);
+  const [btsWidth, setBtsWidth] = useState(420);
+
+  // Mobile tab
+  const [mobileTab, setMobileTab] = useState<MobileTab>('code');
 
   // Reset all state when switching samples
   useEffect(() => {
     setCode(sample?.code ?? '');
     setChatHistory([]);
     setRunning(false);
-    setMobileView('code');
+    setMobileTab('code');
   }, [sampleId]);
 
   const handleRun = useCallback(async () => {
@@ -44,11 +49,23 @@ export function SamplePage() {
         openai: keys.openai || undefined,
       });
       setChatHistory((prev) => [...prev, { input: capturedInput, result: res }]);
-      setMobileView('result'); // auto-switch to result on mobile
+      setMobileTab('output');
+      // Auto-expand BTS when first execution arrives
+      if (btsCollapsed) setBtsCollapsed(false);
     } finally {
       setRunning(false);
     }
-  }, [sample, code, input, running]);
+  }, [sample, code, input, running, btsCollapsed]);
+
+  // Drag resize for BTS panel
+  const dragHandle = useDragResize({
+    initialWidth: btsWidth,
+    minWidth: 240,
+    maxWidth: 900,
+    direction: 'left',
+    onResize: setBtsWidth,
+    onCollapse: () => setBtsCollapsed(true),
+  });
 
   if (!sample) {
     return (
@@ -61,19 +78,7 @@ export function SamplePage() {
 
   const lastTurn = chatHistory[chatHistory.length - 1];
   const execution = lastTurn?.result?.execution ?? null;
-  const hasExecution = !!execution;
-
-  // Behind the Scenes full-screen view
-  if (mobileView === 'bts' && execution) {
-    return (
-      <div className="bts-fullscreen" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <BehindTheScenes
-          execution={execution}
-          onClose={() => setMobileView('result')}
-        />
-      </div>
-    );
-  }
+  const spec = execution?.spec ?? null;
 
   return (
     <>
@@ -85,65 +90,87 @@ export function SamplePage() {
           </h2>
           <div className="description">{sample.description}</div>
         </div>
-        {/* Desktop: BTS button in header */}
-        {hasExecution && (
-          <button
-            onClick={() => setMobileView('bts')}
-            className="bts-button desktop-only"
-            style={{
-              padding: '6px 16px',
-              fontSize: '12px',
-              fontWeight: 600,
-              background: 'var(--accent)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-              animation: 'bts-appear 0.4s ease-out',
-            }}
-          >
-            Behind the Scenes
-          </button>
+        {/* Desktop: BTS toggle */}
+        <button
+          onClick={() => setBtsCollapsed(!btsCollapsed)}
+          className="bts-toggle-btn desktop-only"
+          style={{
+            padding: '6px 16px',
+            fontSize: '12px',
+            fontWeight: 600,
+            background: btsCollapsed ? 'var(--bg-tertiary)' : 'var(--accent)',
+            color: btsCollapsed ? 'var(--text-secondary)' : '#1a1a2e',
+            border: '1px solid var(--border)',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {btsCollapsed ? 'Show BTS' : 'Behind the Scenes'}
+        </button>
+      </div>
+
+      {/* Desktop: 3-panel layout — Code+Result | Drag | BTS */}
+      <div className="main-body desktop-panels sample-3panel">
+        <div className="sample-code-result" style={{ flex: 1, minWidth: 0 }}>
+          <CodePanel code={code} onChange={isConceptSample ? undefined : setCode} />
+          <ResultPanel
+            history={chatHistory}
+            running={running}
+            pendingInput={input}
+            onRun={handleRun}
+            onInputChange={setInput}
+            onClear={() => setChatHistory([])}
+          />
+        </div>
+
+        {!btsCollapsed && (
+          <>
+            <div
+              className="sample-drag-handle"
+              onMouseDown={dragHandle.onMouseDown}
+            />
+            <div style={{ width: btsWidth, minWidth: 240, flexShrink: 0 }}>
+              <BTSPanel
+                execution={execution}
+                previewSpec={spec}
+                collapsed={false}
+                onToggleCollapse={() => setBtsCollapsed(true)}
+              />
+            </div>
+          </>
         )}
       </div>
 
-      {/* Desktop: side-by-side code + result */}
-      <div className="main-body desktop-panels">
-        <CodePanel code={code} onChange={isConceptSample ? undefined : setCode} />
-        <ResultPanel
-          history={chatHistory}
-          running={running}
-          pendingInput={input}
-          onRun={handleRun}
-          onInputChange={setInput}
-          onClear={() => setChatHistory([])}
-        />
-      </div>
-
-      {/* Mobile: togglable code/result + contextual action button */}
+      {/* Mobile: tab bar + single panel */}
       <div className="main-body mobile-panels">
-        {/* Toggle tabs */}
         <div className="mobile-tab-bar">
           <button
-            className={`mobile-tab ${mobileView === 'code' ? 'active' : ''}`}
-            onClick={() => setMobileView('code')}
+            className={`mobile-tab ${mobileTab === 'code' ? 'active' : ''}`}
+            onClick={() => setMobileTab('code')}
           >
             Code
           </button>
           <button
-            className={`mobile-tab ${mobileView === 'result' ? 'active' : ''}`}
-            onClick={() => setMobileView('result')}
+            className={`mobile-tab ${mobileTab === 'output' ? 'active' : ''}`}
+            onClick={() => setMobileTab('output')}
           >
-            Chat
+            Output
+          </button>
+          <button
+            className={`mobile-tab ${mobileTab === 'bts' ? 'active' : ''}`}
+            onClick={() => setMobileTab('bts')}
+          >
+            BTS
           </button>
         </div>
 
-        {/* Panel content */}
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          {mobileView === 'code' && <CodePanel code={code} onChange={setCode} />}
-          {mobileView === 'result' && (
+          {mobileTab === 'code' && (
+            <CodePanel code={code} onChange={isConceptSample ? undefined : setCode} />
+          )}
+          {mobileTab === 'output' && (
             <ResultPanel
               history={chatHistory}
               running={running}
@@ -153,23 +180,27 @@ export function SamplePage() {
               onClear={() => setChatHistory([])}
             />
           )}
+          {mobileTab === 'bts' && (
+            <div style={{ height: '100%' }}>
+              <BTSPanel
+                execution={execution}
+                previewSpec={spec}
+                collapsed={false}
+                onToggleCollapse={() => setMobileTab('output')}
+              />
+            </div>
+          )}
         </div>
 
-        {/* Contextual action button */}
+        {/* Mobile action bar */}
         <div className="mobile-action-bar">
-          {hasExecution ? (
-            <button className="mobile-action-btn bts" onClick={() => setMobileView('bts')}>
-              Behind the Scenes
-            </button>
-          ) : (
-            <button
-              className="mobile-action-btn run"
-              onClick={handleRun}
-              disabled={running}
-            >
-              {running ? 'Running...' : 'Run'}
-            </button>
-          )}
+          <button
+            className="mobile-action-btn run"
+            onClick={handleRun}
+            disabled={running}
+          >
+            {running ? 'Running...' : 'Run'}
+          </button>
         </div>
       </div>
     </>
