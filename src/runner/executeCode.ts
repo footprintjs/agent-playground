@@ -46,10 +46,8 @@ export interface CapturedExecution {
   narrativeEntries?: unknown[];
   narrative?: string[];
   spec?: unknown;
-  /** Recorder data from agentObservability — per-stage cumulative snapshots for time-travel. */
+  /** Recorder data from agentObservability (tokens, tools, cost, explain). */
   recorders?: RecorderSnapshot;
-  /** Cumulative snapshots at each stage boundary — recordersByStage[i] = state after stage i. */
-  recordersByStage?: RecorderSnapshot[];
 }
 
 export interface ApiKeys {
@@ -172,25 +170,12 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
                 this.attachRecorder(new MetricRecorder('__timing'));
               }
 
-              // Attach stage-boundary capturer — snapshots obs at each onStageEnd
-              const __stageSnapshots = [];
-              if (__obs && typeof this.attachRecorder === 'function') {
-                this.attachRecorder({
-                  id: '__bts-stage-capture',
-                  onStageEnd: () => {
-                    const snap = snapshotObs();
-                    if (snap) __stageSnapshots.push(snap);
-                  },
-                });
-              }
-
               const result = await origRuns.get(Cls).apply(this, args);
               captureFromRunner(this);
               // Final recorder snapshot
               const finalSnap = snapshotObs();
               if (finalSnap) {
                 __captured.recorders = finalSnap;
-                __captured.recordersByStage = __stageSnapshots;
               }
               return result;
             };

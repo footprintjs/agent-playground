@@ -58,9 +58,9 @@ export function BehindTheScenes({ execution, onClose }: BehindTheScenesProps) {
 
   const spec = execution.spec ?? null;
 
-  // Progressive recorder tabs — update with time-travel slider
+  // Progressive recorder tabs — update with time-travel slider via stageLabel
   const recorderViews = useMemo<RecorderView[]>(
-    () => createRecorderViews(execution.recorders ?? undefined, execution.recordersByStage ?? undefined),
+    () => createRecorderViews(execution.recorders ?? undefined),
     [execution],
   );
 
