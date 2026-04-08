@@ -1,15 +1,16 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { samples } from '../samples/catalog';
 import { CodePanel } from './CodePanel';
 import { ResultPanel } from './ResultPanel';
 import { BTSPanel } from './live/BTSPanel';
+import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
 import { executeCode } from '../runner/executeCode';
 import { loadApiKeys } from './SettingsPanel';
-import { useDragResize } from './live/useDragResize';
 import type { ChatTurn } from './ResultPanel';
 
 type MobileTab = 'code' | 'output' | 'bts';
+type LeftView = 'code' | 'flowchart';
 
 export function SamplePage() {
   const { sampleId } = useParams<{ sampleId: string }>();
@@ -23,9 +24,12 @@ export function SamplePage() {
   const [running, setRunning] = useState(false);
   const [input, setInput] = useState('Hello, how can you help me?');
 
-  // BTS panel state
-  const [btsCollapsed, setBtsCollapsed] = useState(false);
-  const [btsWidth, setBtsWidth] = useState(420);
+  // Left panel: code or flowchart spec toggle
+  const [leftView, setLeftView] = useState<LeftView>('code');
+
+  // Right panel: BTS (opens after run with animation)
+  const [btsOpen, setBtsOpen] = useState(false);
+  const [codeCollapsed, setCodeCollapsed] = useState(false);
 
   // Mobile tab
   const [mobileTab, setMobileTab] = useState<MobileTab>('code');
@@ -35,7 +39,24 @@ export function SamplePage() {
     setCode(sample?.code ?? '');
     setChatHistory([]);
     setRunning(false);
+    setLeftView('code');
+    setBtsOpen(false);
+    setCodeCollapsed(false);
     setMobileTab('code');
+
+    // Auto-run on load for concept samples — mock-based, instant, $0
+    // This makes the flowchart spec available immediately
+    if (sample && isConceptSample) {
+      const autoRun = async () => {
+        const keys = loadApiKeys();
+        const res = await executeCode(sample.code, 'Hello, how can you help me?', {
+          anthropic: keys.anthropic || undefined,
+          openai: keys.openai || undefined,
+        });
+        setChatHistory([{ input: 'Hello, how can you help me?', result: res }]);
+      };
+      autoRun();
+    }
   }, [sampleId]);
 
   const handleRun = useCallback(async () => {
@@ -49,23 +70,15 @@ export function SamplePage() {
         openai: keys.openai || undefined,
       });
       setChatHistory((prev) => [...prev, { input: capturedInput, result: res }]);
-      setMobileTab('output');
-      // Auto-expand BTS when first execution arrives
-      if (btsCollapsed) setBtsCollapsed(false);
+
+      // Choreography: collapse code, open BTS
+      setCodeCollapsed(true);
+      setBtsOpen(true);
+      setMobileTab('bts');
     } finally {
       setRunning(false);
     }
-  }, [sample, code, input, running, btsCollapsed]);
-
-  // Drag resize for BTS panel
-  const dragHandle = useDragResize({
-    initialWidth: btsWidth,
-    minWidth: 240,
-    maxWidth: 900,
-    direction: 'left',
-    onResize: setBtsWidth,
-    onCollapse: () => setBtsCollapsed(true),
-  });
+  }, [sample, code, input, running]);
 
   if (!sample) {
     return (
@@ -90,31 +103,71 @@ export function SamplePage() {
           </h2>
           <div className="description">{sample.description}</div>
         </div>
-        {/* Desktop: BTS toggle */}
-        <button
-          onClick={() => setBtsCollapsed(!btsCollapsed)}
-          className="bts-toggle-btn desktop-only"
-          style={{
-            padding: '6px 16px',
-            fontSize: '12px',
-            fontWeight: 600,
-            background: btsCollapsed ? 'var(--bg-tertiary)' : 'var(--accent)',
-            color: btsCollapsed ? 'var(--text-secondary)' : '#1a1a2e',
-            border: '1px solid var(--border)',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {btsCollapsed ? 'Show BTS' : 'Behind the Scenes'}
-        </button>
       </div>
 
-      {/* Desktop: 3-panel layout — Code+Result | Drag | BTS */}
+      {/* Desktop: Left (Code/Spec) | Result | BTS (after run) */}
       <div className="main-body desktop-panels sample-3panel">
-        <div className="sample-code-result" style={{ flex: 1, minWidth: 0 }}>
-          <CodePanel code={code} onChange={isConceptSample ? undefined : setCode} />
+        {/* Left panel: Code ↔ Flowchart Spec */}
+        <div className={`sample-left-panel ${codeCollapsed ? 'sample-left-panel--collapsed' : ''}`}>
+          {codeCollapsed ? (
+            <div
+              className="sample-collapsed-strip"
+              onClick={() => { setCodeCollapsed(false); setBtsOpen(false); }}
+            >
+              <span className="sample-collapsed-icon">{'</>'}</span>
+              <span>Code</span>
+            </div>
+          ) : (
+            <>
+              <div className="sample-left-tabs">
+                <button
+                  className={`sample-left-tab ${leftView === 'code' ? 'active' : ''}`}
+                  onClick={() => setLeftView('code')}
+                >
+                  {'</>'}  Code
+                </button>
+                <button
+                  className={`sample-left-tab ${leftView === 'flowchart' ? 'active' : ''}`}
+                  onClick={() => setLeftView('flowchart')}
+                >
+                  Flowchart
+                </button>
+                {execution && !btsOpen && (
+                  <button
+                    className="sample-left-tab sample-bts-tab"
+                    onClick={() => { setCodeCollapsed(true); setBtsOpen(true); }}
+                  >
+                    BTS
+                  </button>
+                )}
+              </div>
+              <div className="sample-left-content">
+                {leftView === 'code' ? (
+                  <CodePanel code={code} onChange={isConceptSample ? undefined : setCode} />
+                ) : (
+                  <div className="sample-spec-view">
+                    {spec ? (
+                      <TracedFlowchartView
+                        spec={spec as any}
+                        snapshots={[]}
+                        snapshotIndex={-1}
+                      />
+                    ) : (
+                      <div className="sample-spec-empty">
+                        <div className="sample-spec-empty-text">
+                          Click <strong>Run</strong> to generate the flowchart spec
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Result panel */}
+        <div className="sample-result-panel">
           <ResultPanel
             history={chatHistory}
             running={running}
@@ -125,21 +178,16 @@ export function SamplePage() {
           />
         </div>
 
-        {!btsCollapsed && (
-          <>
-            <div
-              className="sample-drag-handle"
-              onMouseDown={dragHandle.onMouseDown}
+        {/* BTS panel — slides in after run */}
+        {btsOpen && execution && (
+          <div className="sample-bts-panel">
+            <BTSPanel
+              execution={execution}
+              previewSpec={spec}
+              collapsed={false}
+              onToggleCollapse={() => { setBtsOpen(false); setCodeCollapsed(false); }}
             />
-            <div style={{ width: btsWidth, minWidth: 240, flexShrink: 0 }}>
-              <BTSPanel
-                execution={execution}
-                previewSpec={spec}
-                collapsed={false}
-                onToggleCollapse={() => setBtsCollapsed(true)}
-              />
-            </div>
-          </>
+          </div>
         )}
       </div>
 
@@ -192,7 +240,6 @@ export function SamplePage() {
           )}
         </div>
 
-        {/* Mobile action bar */}
         <div className="mobile-action-bar">
           <button
             className="mobile-action-btn run"

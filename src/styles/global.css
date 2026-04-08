@@ -250,6 +250,7 @@ body {
 /* ── Desktop panels (side-by-side) ────────────────────── */
 .main-body {
   flex: 1;
+  min-height: 0;  /* allow flex child to shrink */
   display: flex;
   overflow: hidden;
 }
@@ -258,26 +259,159 @@ body {
   display: flex;
 }
 
-/* 3-panel: code+result | drag handle | BTS */
+/* ── 2-panel: Left (Code/Flowchart) | Right (Result) ──── */
 .sample-3panel {
   display: flex;
   overflow: hidden;
+  height: 100%;
 }
 
-.sample-code-result {
+/* Left panel: code ↔ flowchart spec toggle */
+.sample-left-panel {
+  flex: 1;
+  min-width: 0;
   display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  transition: flex 0.4s ease, min-width 0.4s ease, max-width 0.4s ease;
+}
+.sample-left-panel--collapsed {
+  flex: 0 0 44px;
+  min-width: 44px;
+  max-width: 44px;
+}
+
+/* Collapsed code strip */
+.sample-collapsed-strip {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: background 0.15s;
+}
+.sample-collapsed-strip:hover {
+  background: var(--bg-secondary);
+}
+.sample-collapsed-icon {
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.sample-left-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+}
+
+.sample-left-tab {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.sample-left-tab:hover {
+  color: var(--text-primary);
+}
+.sample-left-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.sample-left-tab.disabled {
+  color: var(--text-muted);
+  opacity: 0.4;
+  cursor: default;
+}
+.sample-bts-tab {
+  margin-left: auto;
+  flex: none;
+  color: var(--accent) !important;
+  border-bottom-color: transparent !important;
+}
+
+.sample-left-content {
+  flex: 1;
+  min-height: 0;  /* critical: allows flex child to shrink below content size */
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
-.sample-drag-handle {
-  width: 6px;
-  cursor: col-resize;
-  background: transparent;
-  flex-shrink: 0;
-  transition: background 0.15s;
+/* CodePanel and BTSPanel inside left-content need to fill it */
+.sample-left-content > * {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
-.sample-drag-handle:hover {
-  background: rgba(124, 108, 240, 0.15);
+
+.sample-flowchart-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Spec preview (static flowchart blueprint) */
+.sample-spec-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sample-spec-empty {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Result panel */
+.sample-result-panel {
+  flex: 0 1 380px;
+  min-width: 280px;
+  max-width: 440px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* BTS panel — slides in after run, fills height */
+.sample-bts-panel {
+  flex: 1 1 auto;
+  min-width: 300px;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: sample-bts-enter 0.4s ease;
+}
+.sample-bts-panel > * {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+@keyframes sample-bts-enter {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 .mobile-panels {
