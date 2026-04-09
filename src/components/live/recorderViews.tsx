@@ -4,10 +4,8 @@
  * All 3 tabs (Tokens, Tools, Explain) are always visible.
  * Each updates progressively with the time-travel slider.
  *
- * How: render() receives { snapshots, selectedIndex } from ExplainableShell.
- * Each snapshot has a stageLabel (stage ID). We count how many LLM/tool stages
- * are at or before selectedIndex, then slice the recorder arrays accordingly.
- * Same pattern as Narrative — render-time filtering using data collected during traversal.
+ * Uses runtimeStageId from snapshots for O(1) recorder lookup.
+ * snapshots[selectedIndex].runtimeStageId → recorder.getByKey(id)
  *
  * Single entry point: createRecorderViews(recorders) → RecorderView[]
  */
@@ -16,28 +14,17 @@ import type { RecorderView, StageSnapshot } from 'footprint-explainable-ui';
 import { estimateTotalCost, formatCost } from '../../utils/estimateCost';
 import type { RecorderSnapshot } from '../../runner/executeCode';
 
-// ── Stage label patterns for correlation ──────────────────
-// Agent pipeline stages have known IDs from the flowchart builder.
-// These match stageLabel (= node.id from the execution tree).
+// ── Collect recorder entries up to selectedIndex ──────────
 
-// Stage IDs from buildAgentLoop — match both stageLabel (node.id) and stageName (display)
-const LLM_STAGE = /call-?llm/i;
-const TOOL_STAGE = /execute-?tool|tool-calls/i;
-const FINALIZE_STAGE = /^final$|finalize/i;
-
-/** Count how many snapshots[0..selectedIndex] match a pattern (checks both stageLabel and stageName). */
-function countStagesUpTo(snapshots: StageSnapshot[], selectedIndex: number, pattern: RegExp): number {
-  let count = 0;
+/** Collect all runtimeStageIds from snapshots[0..selectedIndex]. */
+function collectKeysUpTo(snapshots: StageSnapshot[], selectedIndex: number): Set<string> {
+  const keys = new Set<string>();
   const end = Math.min(selectedIndex + 1, snapshots.length);
   for (let i = 0; i < end; i++) {
-    if (pattern.test(snapshots[i].stageLabel) || pattern.test(snapshots[i].stageName)) count++;
+    const id = (snapshots[i] as any).runtimeStageId;
+    if (id) keys.add(id);
   }
-  return count;
-}
-
-/** Check if any stage up to selectedIndex matches a pattern. */
-function hasStageUpTo(snapshots: StageSnapshot[], selectedIndex: number, pattern: RegExp): boolean {
-  return countStagesUpTo(snapshots, selectedIndex, pattern) > 0;
+  return keys;
 }
 
 // ── Single entry point ────────────────────────────────────
@@ -73,16 +60,17 @@ function tokensView(final?: RecorderSnapshot): RecorderView {
       }
 
       const allCalls = tokens.calls ?? [];
-      // How many LLM calls happened by this point in the timeline?
-      const llmCount = countStagesUpTo(snapshots, selectedIndex, LLM_STAGE);
-      const calls = allCalls.slice(0, llmCount);
-      const inputTokens = calls.reduce((s, c) => s + c.inputTokens, 0);
-      const outputTokens = calls.reduce((s, c) => s + c.outputTokens, 0);
-      const cost = calls.length > 0 ? estimateTotalCost(calls) : 0;
+      // Progressive: only show calls whose runtimeStageId is at or before selectedIndex
+      const visibleKeys = collectKeysUpTo(snapshots, selectedIndex);
+      const calls = allCalls.filter((c) => c.runtimeStageId && visibleKeys.has(c.runtimeStageId));
 
       if (calls.length === 0) {
         return <EmptyState message="LLM call hasn't executed yet. Step forward." />;
       }
+
+      const inputTokens = calls.reduce((s, c) => s + c.inputTokens, 0);
+      const outputTokens = calls.reduce((s, c) => s + c.outputTokens, 0);
+      const cost = calls.length > 0 ? estimateTotalCost(calls) : 0;
 
       return (
         <div className="rv-panel">
@@ -147,8 +135,11 @@ function toolsView(final?: RecorderSnapshot): RecorderView {
         return <EmptyState message="No tool calls recorded." />;
       }
 
-      // Tools execute during execute-tools stages
-      if (!hasStageUpTo(snapshots, selectedIndex, TOOL_STAGE)) {
+      // Check if any tool execution stages are visible
+      const visibleKeys = collectKeysUpTo(snapshots, selectedIndex);
+      const hasToolStage = [...visibleKeys].some((k) => k.includes('execute-tool') || k.includes('tool-calls'));
+
+      if (!hasToolStage) {
         return <EmptyState message="Tool execution hasn't started yet. Step forward." />;
       }
 
@@ -209,18 +200,16 @@ function explainView(final?: RecorderSnapshot): RecorderView {
         return <EmptyState message="No grounding data. Run a sample with tools to see sources vs claims." />;
       }
 
-      // Progressive reveal: LLM call → decisions/sources → claims
-      const llmCount = countStagesUpTo(snapshots, selectedIndex, LLM_STAGE);
-      const toolCount = countStagesUpTo(snapshots, selectedIndex, TOOL_STAGE);
-      const hasFinal = hasStageUpTo(snapshots, selectedIndex, FINALIZE_STAGE);
+      const visibleKeys = collectKeysUpTo(snapshots, selectedIndex);
+      const hasLLM = [...visibleKeys].some((k) => k.includes('call-llm'));
+      const hasTool = [...visibleKeys].some((k) => k.includes('execute-tool') || k.includes('tool-calls'));
+      const hasFinal = [...visibleKeys].some((k) => k.includes('final'));
 
-      // Before any LLM call — nothing to show
-      if (llmCount === 0) {
+      if (!hasLLM) {
         return <EmptyState message="LLM hasn't been called yet. Step forward." />;
       }
 
-      // After LLM call but before tool execution — LLM decided to call tools
-      if (toolCount === 0 && explain.decisions.length > 0) {
+      if (!hasTool && explain.decisions.length > 0) {
         return (
           <div className="rv-panel">
             <div className="rv-stats">
@@ -237,8 +226,8 @@ function explainView(final?: RecorderSnapshot): RecorderView {
         );
       }
 
-      const sources = toolCount > 0 ? explain.sources : [];
-      const decisions = toolCount > 0 ? explain.decisions : [];
+      const sources = hasTool ? explain.sources : [];
+      const decisions = hasTool ? explain.decisions : [];
       const claims = hasFinal ? explain.claims : [];
 
       if (sources.length === 0 && claims.length === 0 && decisions.length === 0) {

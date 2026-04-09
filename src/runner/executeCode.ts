@@ -29,7 +29,7 @@ export interface RecorderSnapshot {
     totalCalls: number;
     totalInputTokens: number;
     totalOutputTokens: number;
-    calls?: Array<{ model: string; inputTokens: number; outputTokens: number; latencyMs: number }>;
+    calls?: Array<{ model: string; inputTokens: number; outputTokens: number; latencyMs: number; runtimeStageId?: string }>;
   };
   tools?: { totalCalls: number; byTool: Record<string, { calls: number; errors: number; averageLatencyMs?: number }> };
   cost?: number;
