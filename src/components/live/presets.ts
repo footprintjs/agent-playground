@@ -454,6 +454,121 @@ const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
 // Turn 2: verify_identity → verified
 // Turn 3: issue_refund now available!`,
   },
+
+  // ── Parallel Lookup (Tool Use) ─────────────────────────────
+  {
+    id: 'parallel-lookup',
+    label: 'Parallel Tool Lookup',
+    description: 'Fire 3 independent tools in one turn concurrently via Promise.all',
+    pattern: 'agent',
+    category: 'tool-use',
+    config: {
+      pattern: 'agent',
+      modelId: 'claude-sonnet-4-20250514',
+      provider: 'anthropic',
+      systemPrompt:
+        'You are a support agent. When gathering context about a customer, fire independent lookup tools (get_customer, get_orders, get_product) in the SAME turn so they run in parallel — not one after the other. Then summarize what you found.',
+      memoryStrategy: 'sliding-window',
+      memoryParam: 50,
+      enableTools: true,
+      enableStreaming: true,
+      parallelTools: true,
+      presetId: 'parallel-lookup',
+    },
+    suggestedMessage:
+      'Give me everything you know about customer cust-42 and product WIDGET-A in one shot.',
+    code: `import { Agent, defineTool, anthropic } from 'agentfootprint';
+
+const FETCH_DELAY = 250; // each tool sleeps 250ms
+
+const getCustomer = defineTool({
+  id: 'get_customer',
+  description: 'Fetch a customer record by ID.',
+  inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+  handler: async ({ id }) => { await sleep(FETCH_DELAY); return { content: '...' }; },
+});
+
+const getOrders = defineTool({
+  id: 'get_orders',
+  description: 'Fetch recent orders for a customer.',
+  inputSchema: { type: 'object', properties: { customerId: { type: 'string' } }, required: ['customerId'] },
+  handler: async ({ customerId }) => { await sleep(FETCH_DELAY); return { content: '...' }; },
+});
+
+const getProduct = defineTool({
+  id: 'get_product',
+  description: 'Fetch product info by SKU.',
+  inputSchema: { type: 'object', properties: { sku: { type: 'string' } }, required: ['sku'] },
+  handler: async ({ sku }) => { await sleep(FETCH_DELAY); return { content: '...' }; },
+});
+
+const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
+  .system('Fire independent lookups in parallel when gathering context.')
+  .tools([getCustomer, getOrders, getProduct])
+  .parallelTools(true)   // ← the toggle — concurrent within a turn
+  .build();
+
+// Sequential would be ~750ms (250ms × 3).
+// Parallel lands in ~260ms + LLM overhead.`,
+  },
+
+  // ── Escalation Gate (Dynamic Behavior) ─────────────────────
+  {
+    id: 'escalation-gate',
+    label: 'Escalation Gate',
+    description: 'Inject a user-defined routing branch — safety valve before default flow',
+    pattern: 'agent',
+    category: 'dynamic-behavior',
+    config: {
+      pattern: 'agent',
+      modelId: 'claude-sonnet-4-20250514',
+      provider: 'anthropic',
+      systemPrompt:
+        'You are a customer support agent. For routine questions, answer directly. If the customer is angry, threatening legal action, asking for a refund above $500, or otherwise needs human help, include the literal string [ESCALATE] in your response — the routing layer will take over and queue a human.',
+      memoryStrategy: 'sliding-window',
+      memoryParam: 50,
+      enableTools: false,
+      enableStreaming: true,
+      presetId: 'escalation-gate',
+    },
+    suggestedMessage:
+      "I've been waiting three weeks for a refund and no one is answering. I'm going to call my lawyer.",
+    code: `import { Agent, anthropic } from 'agentfootprint';
+import type { RunnerLike } from 'agentfootprint';
+
+// Any RunnerLike works — Agent, LLMCall, RAG, or a custom object with .run(input).
+const humanReviewAgent: RunnerLike = {
+  async run(input) {
+    return {
+      content: \`[ROUTED TO HUMAN REVIEW] Queued for support specialist. Followup within 1 business day.\`,
+      messages: [],
+    };
+  },
+};
+
+const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
+  .system(
+    'You are a support agent. Emit [ESCALATE] in your response for angry customers, ' +
+    'legal threats, or refunds > $500 — the router will take over.',
+  )
+  .route({
+    branches: [
+      {
+        id: 'escalate',
+        when: (s) =>
+          typeof s.parsedResponse?.content === 'string' &&
+          s.parsedResponse.content.includes('[ESCALATE]'),
+        runner: humanReviewAgent,
+      },
+    ],
+  })
+  .build();
+
+// Try: "I've been waiting 3 weeks for my refund and I'm calling my lawyer."
+//   → main LLM emits [ESCALATE]
+//   → router fires humanReviewAgent
+//   → that answer becomes the final response (loop breaks)`,
+  },
 ];
 
 export function getPresetsByPattern(): Map<PatternType, Preset[]> {

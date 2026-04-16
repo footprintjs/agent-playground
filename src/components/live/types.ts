@@ -67,6 +67,8 @@ export interface LiveConfig {
   memoryParam: number; // maxMessages for sliding-window, maxChars for char-budget
   enableTools: boolean;
   enableStreaming: boolean;
+  /** Run multiple tool calls within a single turn concurrently (Agent pattern only). */
+  parallelTools?: boolean;
   /** Active preset ID — determines which mock data/tools to use. */
   presetId?: string;
 }
@@ -80,6 +82,7 @@ export const DEFAULT_CONFIG: LiveConfig = {
   memoryParam: 50,
   enableTools: true,
   enableStreaming: true,
+  parallelTools: false,
 };
 
 // ── Chat Messages ─────────────────────────────────────────

@@ -316,6 +316,16 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
     return buildConditionalInstructionsRunner(config, provider, store);
   }
 
+  // Parallel Lookup preset — showcases .parallelTools(true) with 3 concurrent lookups
+  if (config.presetId === 'parallel-lookup') {
+    return buildParallelLookupRunner(config, provider, store);
+  }
+
+  // Escalation Gate preset — showcases .route({ branches }) with a human-review runner
+  if (config.presetId === 'escalation-gate') {
+    return buildEscalationGateRunner(config, provider, store);
+  }
+
   const builder = Agent.create({ provider, name: 'agent' })
     .system(config.systemPrompt)
     .maxIterations(10)
@@ -331,6 +341,9 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
     builder.tools(tools);
     // Always add ask_human — enables human-in-the-loop for any agent
     builder.tool(askHuman());
+    // Wire the .parallelTools() builder option — Agent executes independent tool calls
+    // in a single turn concurrently via Promise.all.
+    if (config.parallelTools) builder.parallelTools(true);
   }
   const obs = agentObservability();
   builder.recorder(obs);
@@ -556,6 +569,157 @@ function buildConditionalInstructionsRunner(config: LiveConfig, provider: LLMPro
     .pattern(AgentPattern.Dynamic)
     .streaming(config.enableStreaming)
     .maxIterations(10);
+
+  const obs = agentObservability();
+  builder.recorder(obs);
+  if (memoryConfig) builder.memory(memoryConfig);
+  const runner = builder.build();
+
+  return wrapRunner(runner, store, obs);
+}
+
+// ── Parallel Lookup Preset ──────────────────────────────────
+//
+// Demonstrates Agent.parallelTools(true). Three independent "fetch" tools each
+// sleep ~200ms. Sequential would be ~600ms; parallel lands in ~220ms.
+
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function createParallelLookupTools(): ToolDefinition[] {
+  const FETCH_DELAY = 250;
+  const customers: Record<string, unknown> = {
+    'cust-42': { id: 'cust-42', name: 'Alice Chen', tier: 'premium', joinedAt: '2022-03-15' },
+    'cust-99': { id: 'cust-99', name: 'Bob Martinez', tier: 'standard', joinedAt: '2024-08-02' },
+  };
+  const orders: Record<string, unknown> = {
+    'cust-42': [{ id: 'ORD-1003', amount: 129.99, status: 'shipped' }],
+    'cust-99': [{ id: 'ORD-1042', amount: 49.99, status: 'pending' }],
+  };
+  const products: Record<string, unknown> = {
+    'WIDGET-A': { sku: 'WIDGET-A', price: 49.99, stock: 42, title: 'Premium Widget' },
+    'GADGET-B': { sku: 'GADGET-B', price: 99.99, stock: 0, title: 'Pro Gadget' },
+  };
+
+  return [
+    defineTool({
+      id: 'get_customer',
+      description: 'Fetch a customer record by ID (e.g. cust-42).',
+      inputSchema: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'Customer ID' } },
+        required: ['id'],
+      },
+      handler: async ({ id }: { id: string }) => {
+        await delay(FETCH_DELAY);
+        const data = customers[id];
+        return {
+          content: data ? JSON.stringify(data) : JSON.stringify({ error: 'not found' }),
+        };
+      },
+    }),
+    defineTool({
+      id: 'get_orders',
+      description: 'Fetch recent orders for a customer.',
+      inputSchema: {
+        type: 'object',
+        properties: { customerId: { type: 'string' } },
+        required: ['customerId'],
+      },
+      handler: async ({ customerId }: { customerId: string }) => {
+        await delay(FETCH_DELAY);
+        const list = orders[customerId] ?? [];
+        return { content: JSON.stringify({ orders: list }) };
+      },
+    }),
+    defineTool({
+      id: 'get_product',
+      description: 'Fetch product info by SKU (e.g. WIDGET-A).',
+      inputSchema: {
+        type: 'object',
+        properties: { sku: { type: 'string' } },
+        required: ['sku'],
+      },
+      handler: async ({ sku }: { sku: string }) => {
+        await delay(FETCH_DELAY);
+        const data = products[sku];
+        return {
+          content: data ? JSON.stringify(data) : JSON.stringify({ error: 'not found' }),
+        };
+      },
+    }),
+  ];
+}
+
+function buildParallelLookupRunner(
+  config: LiveConfig,
+  provider: LLMProvider,
+  store: InMemoryStore,
+): LiveRunner {
+  const memoryConfig = buildMemoryConfig(config, store);
+
+  const builder = Agent.create({ provider, name: 'parallel-lookup' })
+    .system(
+      config.systemPrompt ||
+        'You are a support agent. When gathering context about a customer, fire independent lookup tools (get_customer, get_orders, get_product) in the SAME turn so they run in parallel — not one after the other. Then summarize.',
+    )
+    .tools(createParallelLookupTools())
+    .parallelTools(true)
+    .maxIterations(5)
+    .streaming(config.enableStreaming);
+
+  const obs = agentObservability();
+  builder.recorder(obs);
+  if (memoryConfig) builder.memory(memoryConfig);
+  const runner = builder.build();
+
+  return wrapRunner(runner, store, obs);
+}
+
+// ── Escalation Gate Preset ──────────────────────────────────
+//
+// Demonstrates Agent.route({ branches }). When the main agent emits the
+// [ESCALATE] keyword in its response, a second runner (mocked here as a
+// human-review stub) takes over and produces the final answer — without
+// looping back through the LLM. This is the "safety valve" pattern.
+
+function buildEscalationGateRunner(
+  config: LiveConfig,
+  provider: LLMProvider,
+  store: InMemoryStore,
+): LiveRunner {
+  const memoryConfig = buildMemoryConfig(config, store);
+
+  // Minimal runner — any RunnerLike works: Agent, LLMCall, RAG, or a bespoke object.
+  const humanReviewAgent = {
+    async run(input: string) {
+      return {
+        content:
+          `[ROUTED TO HUMAN REVIEW]\n\n` +
+          `Your message has been queued for a human support specialist and they will respond within 1 business day.\n\n` +
+          `We'll follow up on: "${input.slice(0, 120)}${input.length > 120 ? '…' : ''}"`,
+        messages: [],
+      };
+    },
+  };
+
+  const builder = Agent.create({ provider, name: 'escalation-agent' })
+    .system(
+      config.systemPrompt ||
+        'You are a customer support agent. For routine questions, answer directly. If the customer is angry, threatening legal action, asking for a refund above $500, or otherwise needs human help, include the literal string [ESCALATE] in your response — the routing layer will take over and queue a human.',
+    )
+    .route({
+      branches: [
+        {
+          id: 'escalate',
+          when: (s: any) =>
+            typeof s.parsedResponse?.content === 'string' &&
+            s.parsedResponse.content.includes('[ESCALATE]'),
+          runner: humanReviewAgent,
+        },
+      ],
+    })
+    .maxIterations(5)
+    .streaming(config.enableStreaming);
 
   const obs = agentObservability();
   builder.recorder(obs);

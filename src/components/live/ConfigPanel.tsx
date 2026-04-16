@@ -135,6 +135,17 @@ export function ConfigPanel({ config, onChange, onReset, collapsed, onToggleColl
                 />
                 <span>Enable tools (calculator, datetime, web search)</span>
               </label>
+              {config.pattern === 'agent' && config.enableTools && (
+                <label className="live-toggle" style={{ marginTop: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!config.parallelTools}
+                    onChange={(e) => update('parallelTools', e.target.checked)}
+                    disabled={running}
+                  />
+                  <span>Run independent tool calls in parallel (per turn)</span>
+                </label>
+              )}
             </Section>
           )}
 
