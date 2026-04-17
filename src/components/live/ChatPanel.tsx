@@ -56,7 +56,18 @@ export function ChatPanel({ messages, running, input, streamingContent, onInputC
                 disabled={running}
               />
             ) : (
-              <div className="live-msg-content">{msg.content}</div>
+              <>
+                {msg.maxIterationsReached && (
+                  <div className="live-max-iter-banner" role="alert">
+                    <span className="live-max-iter-icon">{'\u26A0\uFE0F'}</span>
+                    <span className="live-max-iter-text">
+                      Agent hit the iteration cap before finishing. It may have been stuck
+                      retrying a failing tool call — check Behind the Scenes for details.
+                    </span>
+                  </div>
+                )}
+                <div className="live-msg-content">{msg.content}</div>
+              </>
             )}
             {msg.execution && (
               <button

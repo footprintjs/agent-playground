@@ -40,6 +40,13 @@ export interface LiveRunner {
   reset(): void;
   /** Get the spec for BTS visualization. */
   getSpec(): unknown;
+  /**
+   * Capture current execution state (snapshot + narrative + spec). Safe to
+   * call even after `run()` THREW — returns whatever the executor recorded
+   * up to the failure point. Used by the UI's error path so Behind the
+   * Scenes shows WHERE it broke, not just the static flowchart.
+   */
+  getCapture(): CapturedExecution;
 }
 
 export interface LiveTurnResult {
@@ -51,6 +58,12 @@ export interface LiveTurnResult {
   paused?: boolean;
   /** The question the agent is asking the human. */
   pauseQuestion?: string;
+  /**
+   * When true, the agent ran out of iterations before finishing — safeDecider
+   * force-finalized at the cap. The UI should render a distinct banner so the
+   * user sees this isn't a normal completion.
+   */
+  maxIterationsReached?: boolean;
 }
 
 /**
@@ -299,6 +312,7 @@ function buildLLMCallRunner(config: LiveConfig, provider: LLMProvider): LiveRunn
     },
     reset: () => { history.length = 0; },
     getSpec: () => runner.getSpec(),
+    getCapture: () => captureExecution(runner),
   };
 }
 
@@ -385,6 +399,7 @@ function buildRAGRunner(config: LiveConfig, provider: LLMProvider): LiveRunner {
     },
     reset: () => { /* RAG is stateless per turn */ },
     getSpec: () => runner.getSpec(),
+    getCapture: () => captureExecution(runner),
   };
 }
 
@@ -420,6 +435,7 @@ function buildSwarmRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
     },
     reset: () => { swarm.resetConversation(); },
     getSpec: () => swarm.getSpec(),
+    getCapture: () => captureExecution(swarm),
   };
 }
 
@@ -771,6 +787,7 @@ function wrapRunner(runner: AgentRunner, store: InMemoryStore, obs?: AgentObserv
         content: result.content,
         execution,
         durationMs: Date.now() - start,
+        ...(result.maxIterationsReached && { maxIterationsReached: true }),
       };
     },
     resume: async (humanResponse: string) => {
@@ -790,11 +807,13 @@ function wrapRunner(runner: AgentRunner, store: InMemoryStore, obs?: AgentObserv
         content: result.content,
         execution,
         durationMs: Date.now() - start,
+        ...(result.maxIterationsReached && { maxIterationsReached: true }),
       };
     },
     reset: () => {
       runner.resetConversation();
     },
     getSpec: () => runner.getSpec(),
+    getCapture: () => captureExecution(runner, obs),
   };
 }

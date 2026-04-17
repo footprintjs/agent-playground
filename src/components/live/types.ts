@@ -102,4 +102,10 @@ export interface ChatMessage {
   readonly paused?: boolean;
   /** The question the agent is asking. */
   readonly pauseQuestion?: string;
+  /**
+   * True when the agent ran out of iterations without a clean finish. Rendered
+   * with a distinct banner so the user isn't left wondering why the response
+   * looks empty or truncated.
+   */
+  readonly maxIterationsReached?: boolean;
 }

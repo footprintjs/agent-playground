@@ -161,6 +161,7 @@ export function LiveChatPage() {
           timestamp: Date.now(),
           execution: result.execution,
           durationMs: result.durationMs,
+          ...(result.maxIterationsReached && { maxIterationsReached: true }),
         };
         setMessages((prev) => [...prev, assistantMsg]);
         setSelectedBTSId(assistantMsg.id);
@@ -169,13 +170,21 @@ export function LiveChatPage() {
       const errMsg = (e as Error).message;
       setError(errMsg);
 
-      // Try to capture partial execution even on error — shows WHERE it broke in BTS
+      // Try to capture FULL execution even on error — shows WHERE it broke
+      // in BTS (snapshot, narrative, entries), not just the static spec.
+      // `getCapture()` is safe to call after a thrown run — it reads from the
+      // underlying executor's accumulated state up to the failure point.
       let partialExecution: CapturedExecution | undefined;
       if (currentRunner) {
         try {
-          const spec = currentRunner.getSpec();
-          if (spec) partialExecution = { spec };
-        } catch {}
+          partialExecution = currentRunner.getCapture();
+        } catch {
+          // Fall back to spec-only if full capture fails for any reason
+          try {
+            const spec = currentRunner.getSpec();
+            if (spec) partialExecution = { spec };
+          } catch {}
+        }
       }
 
       const errorMsgId = `error-${Date.now()}`;
@@ -242,6 +251,7 @@ export function LiveChatPage() {
           timestamp: Date.now(),
           execution: result.execution,
           durationMs: result.durationMs,
+          ...(result.maxIterationsReached && { maxIterationsReached: true }),
         };
         setMessages((prev) => [...prev, assistantMsg]);
         setSelectedBTSId(assistantMsg.id);

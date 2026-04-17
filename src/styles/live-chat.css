@@ -406,6 +406,35 @@
   word-break: break-word;
 }
 
+/* Max-iterations-reached banner — shown when the agent gave up after the cap */
+.live-max-iter-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  color: #92400e;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.live-max-iter-icon {
+  flex-shrink: 0;
+}
+
+.live-max-iter-text {
+  flex: 1;
+}
+
+[data-theme='dark'] .live-max-iter-banner {
+  background: rgba(234, 179, 8, 0.15);
+  border-color: rgba(234, 179, 8, 0.5);
+  color: #fbbf24;
+}
+
 /* BTS Badge on messages */
 .live-bts-badge {
   margin-top: 6px;

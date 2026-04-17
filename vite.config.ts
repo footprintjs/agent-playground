@@ -16,4 +16,7 @@ export default defineConfig({
       allow: ['..'],
     },
   },
+  optimizeDeps: {
+    exclude: ['footprintjs', 'agentfootprint', 'footprint-explainable-ui', 'agent-explainable-ui'],
+  },
 });
