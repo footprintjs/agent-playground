@@ -569,6 +569,56 @@ const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
 //   → router fires humanReviewAgent
 //   → that answer becomes the final response (loop breaks)`,
   },
+
+  // ── Conditional Triage (Dynamic Behavior) ───────────────
+  {
+    id: 'conditional-triage',
+    label: 'Conditional Triage',
+    description:
+      'Rule-based routing between two agents with ZERO LLM calls at the branching step',
+    pattern: 'agent',
+    category: 'dynamic-behavior',
+    config: {
+      pattern: 'agent',
+      modelId: 'claude-sonnet-4-20250514',
+      provider: 'anthropic',
+      systemPrompt: 'You are general customer support. Answer clearly and concisely.',
+      memoryStrategy: 'sliding-window',
+      memoryParam: 50,
+      enableTools: false,
+      enableStreaming: false,
+      presetId: 'conditional-triage',
+    },
+    suggestedMessage: 'I need a refund for order #42',
+    code: `import { Agent, Conditional, anthropic } from 'agentfootprint';
+
+// Specialist for one job.
+const refundAgent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
+  .system('You are a refund specialist. Handle refund requests precisely.')
+  .build();
+
+// Fallback for everything else.
+const generalAgent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
+  .system('You are general support. Answer clearly and concisely.')
+  .build();
+
+// Rule-based triage — NO LLM call at the routing step.
+// Predicates are synchronous; first match wins; .otherwise() is required.
+const triage = Conditional.create({ name: 'triage' })
+  .when((input) => /refund|money back|chargeback/i.test(input), refundAgent, {
+    id: 'refund',
+    name: 'Refund Specialist',
+  })
+  .otherwise(generalAgent, { name: 'General Support' })
+  .build();
+
+// Try: "I need a refund for order #42" → refund path
+// Try: "How do I reset my password?"    → general path
+//
+// Conditional differs from Agent.route():
+//   - Agent.route() branches INSIDE a ReAct loop (after LLM decides)
+//   - Conditional branches at the TOP LEVEL before any LLM fires`,
+  },
 ];
 
 export function getPresetsByPattern(): Map<PatternType, Preset[]> {

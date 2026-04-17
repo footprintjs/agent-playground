@@ -10,6 +10,7 @@ import {
   LLMCall,
   RAG, RAGRunner,
   Swarm, SwarmRunner,
+  Conditional,
   BrowserAnthropicAdapter, BrowserOpenAIAdapter,
   defineTool,
   askHuman,
@@ -338,6 +339,13 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
   // Escalation Gate preset — showcases .route({ branches }) with a human-review runner
   if (config.presetId === 'escalation-gate') {
     return buildEscalationGateRunner(config, provider, store);
+  }
+
+  // Conditional Triage preset — showcases the Conditional concept routing
+  // between two full runners WITHOUT an LLM at the routing step. Zero-cost
+  // triage before any model is called.
+  if (config.presetId === 'conditional-triage') {
+    return buildConditionalTriageRunner(config, provider, store);
   }
 
   const builder = Agent.create({ provider, name: 'agent' })
@@ -743,6 +751,79 @@ function buildEscalationGateRunner(
   const runner = builder.build();
 
   return wrapRunner(runner, store, obs);
+}
+
+// ── Conditional Triage — rule-based routing between runners ─
+//
+// Demonstrates the Conditional concept: a predicate (no LLM) picks the
+// downstream runner. The benefit over Agent.route(): no LLM call fires if
+// the predicate can answer first — useful for obvious fast-paths (refunds,
+// spam, known intents).
+
+function buildConditionalTriageRunner(
+  config: LiveConfig,
+  provider: LLMProvider,
+  store: InMemoryStore,
+): LiveRunner {
+  const memoryConfig = buildMemoryConfig(config, store);
+
+  // Branch 1: refund specialist — focused system prompt, narrow remit.
+  const refundBuilder = Agent.create({ provider, name: 'refund-specialist' })
+    .system(
+      'You are a refund specialist. Only handle refund requests. Be precise about amounts, timelines, and policy.',
+    )
+    .maxIterations(3)
+    .streaming(config.enableStreaming);
+  if (memoryConfig) refundBuilder.memory(memoryConfig);
+  const refundAgent = refundBuilder.build();
+
+  // Branch 2: general support — the fallback.
+  const generalBuilder = Agent.create({ provider, name: 'general-support' })
+    .system(
+      config.systemPrompt ||
+        'You are general customer support. Answer clearly and concisely.',
+    )
+    .maxIterations(3)
+    .streaming(config.enableStreaming);
+  if (memoryConfig) generalBuilder.memory(memoryConfig);
+  const generalAgent = generalBuilder.build();
+
+  // Rule-based router — zero LLM calls at the branching step.
+  const router = Conditional.create({ name: 'triage' })
+    .when((input) => /refund|money back|chargeback/i.test(input), refundAgent, {
+      id: 'refund',
+      name: 'Refund Specialist',
+    })
+    .otherwise(generalAgent, { name: 'General Support' })
+    .build();
+
+  // ConditionalRunner has a different `run` signature than AgentRunner, so
+  // we can't reuse `wrapRunner` (which assumes onToken streaming etc.). Inline
+  // a small adapter — snapshot/narrative/spec map through `captureExecution`.
+  let lastCapture: CapturedExecution = {};
+  return {
+    run: async (message: string) => {
+      const start = Date.now();
+      try {
+        const result = await router.run(message);
+        lastCapture = captureExecution(router);
+        return {
+          content: result.content,
+          execution: lastCapture,
+          durationMs: Date.now() - start,
+        };
+      } catch (err) {
+        lastCapture = captureExecution(router);
+        throw err;
+      }
+    },
+    reset: () => {
+      store.clear();
+      lastCapture = {};
+    },
+    getSpec: () => router.getSpec(),
+    getCapture: () => lastCapture,
+  };
 }
 
 // ── Shared Helpers ──────────────────────────────────────────
