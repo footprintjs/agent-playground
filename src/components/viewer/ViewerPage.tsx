@@ -1,97 +1,53 @@
 /**
  * ViewerPage — paste an `AgentfootprintTrace` JSON and explore it visually.
  *
- * Production users capture traces with `agentfootprint.exportTrace(runner)`,
- * paste the JSON here, and see the same Behind-the-Scenes view they'd get
- * from running the agent live — flowchart topology, narrative timeline,
- * snapshot state, recorder data — without re-executing anything.
+ * Thin shell over `<TraceViewer>` from `footprint-explainable-ui` (0.17+).
+ * The viewer component handles parse + validation + rendering. This page
+ * adds the playground's UX chrome: privacy warnings, file load, status
+ * sidebar, "What now?" empty state.
  *
- * Privacy: this page is **client-side only**. Pasted traces never leave the
- * browser. Trace JSON contains scope state which may include PII; users
- * should configure `setRedactionPolicy` upstream so `sharedState` arrives
- * as 'REDACTED' in the export. Default `exportTrace(runner)` requests the
- * redacted mirror — but only works if the runner had a policy set.
+ * Privacy: this page is **client-side only**. Pasted traces never leave
+ * the browser. Trace JSON may contain PII — configure `setRedactionPolicy`
+ * upstream so `sharedState` arrives scrubbed before sharing externally.
  */
-import React, { useMemo, useState } from 'react';
-import { BTSPanel } from '../live/BTSPanel';
-import type { CapturedExecution } from '../../runner/executeCode';
-
-interface AgentfootprintTrace {
-  schemaVersion: number;
-  exportedAt?: string;
-  redacted?: boolean;
-  snapshot?: unknown;
-  narrativeEntries?: unknown[];
-  narrative?: string[];
-  spec?: unknown;
-}
-
-type ParseResult =
-  | { ok: true; trace: AgentfootprintTrace; warnings: string[] }
-  | { ok: false; error: string };
-
-function parseTrace(raw: string): ParseResult {
-  if (!raw.trim()) return { ok: false, error: 'Paste a trace JSON to begin.' };
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (err) {
-    return { ok: false, error: `Not valid JSON: ${(err as Error).message}` };
-  }
-
-  if (!parsed || typeof parsed !== 'object') {
-    return { ok: false, error: 'Trace must be a JSON object, not a primitive or array.' };
-  }
-
-  const t = parsed as AgentfootprintTrace;
-  const warnings: string[] = [];
-
-  if (typeof t.schemaVersion !== 'number') {
-    return {
-      ok: false,
-      error: 'Missing required field: `schemaVersion`. Did you paste an exportTrace() output?',
-    };
-  }
-  if (t.schemaVersion !== 1) {
-    return {
-      ok: false,
-      error: `Unsupported schemaVersion: ${t.schemaVersion}. This viewer renders schemaVersion 1.`,
-    };
-  }
-
-  if (t.redacted === false) {
-    warnings.push(
-      'Trace is NOT redacted (sharedState contains raw values). Configure setRedactionPolicy upstream and re-export before sharing externally.',
-    );
-  }
-  if (!t.snapshot && !t.narrative && !t.narrativeEntries && !t.spec) {
-    warnings.push('Trace has no snapshot, narrative, or spec — nothing to render. Was the run empty?');
-  }
-
-  return { ok: true, trace: t, warnings };
-}
+import React, { useState } from 'react';
+import { TraceViewer } from 'footprint-explainable-ui';
+import type { TraceParseError } from 'footprint-explainable-ui';
 
 export function ViewerPage() {
   const [raw, setRaw] = useState('');
-  const parsed = useMemo(() => parseTrace(raw), [raw]);
-
-  const execution: CapturedExecution | null = useMemo(() => {
-    if (!parsed.ok) return null;
-    return {
-      snapshot: parsed.trace.snapshot,
-      narrativeEntries: parsed.trace.narrativeEntries,
-      narrative: parsed.trace.narrative,
-      spec: parsed.trace.spec,
-    };
-  }, [parsed]);
+  const [error, setError] = useState<TraceParseError | null>(null);
+  const [meta, setMeta] = useState<{ schemaVersion?: number; exportedAt?: string; redacted?: boolean } | null>(null);
 
   const onPasteFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    setRaw(text);
+    setRaw(await file.text());
   };
+
+  // Parse a meta header from the input for the sidebar (purely informational —
+  // TraceViewer does its own validation independently). Best-effort, fail-quiet.
+  React.useEffect(() => {
+    if (!raw.trim()) {
+      setMeta(null);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        setMeta({
+          schemaVersion: parsed.schemaVersion,
+          exportedAt: parsed.exportedAt,
+          redacted: parsed.redacted,
+        });
+      }
+    } catch {
+      setMeta(null);
+    }
+  }, [raw]);
+
+  const isInvalidPaste = !!error && raw.trim().length > 0;
+  const showRedactionWarning = meta?.redacted === false;
 
   return (
     <div style={{ display: 'flex', height: '100vh', flexDirection: 'column', background: '#0d1117' }}>
@@ -154,7 +110,7 @@ export function ViewerPage() {
               resize: 'none',
             }}
           />
-          {!parsed.ok && raw.trim() && (
+          {isInvalidPaste && (
             <div
               style={{
                 background: '#3a1d1d',
@@ -164,10 +120,10 @@ export function ViewerPage() {
                 fontSize: 12,
               }}
             >
-              {parsed.error}
+              {error!.message}
             </div>
           )}
-          {parsed.ok && parsed.warnings.length > 0 && (
+          {showRedactionWarning && (
             <div
               style={{
                 background: '#3a2f1a',
@@ -177,16 +133,15 @@ export function ViewerPage() {
                 fontSize: 12,
               }}
             >
-              {parsed.warnings.map((w, i) => (
-                <div key={i}>{'\u26A0\uFE0F'} {w}</div>
-              ))}
+              {'\u26A0\uFE0F'} Trace is NOT redacted. Configure setRedactionPolicy
+              upstream and re-export before sharing externally.
             </div>
           )}
-          {parsed.ok && (
+          {meta && !isInvalidPaste && (
             <div style={{ fontSize: 11, color: '#8b949e' }}>
-              <div>schemaVersion: {parsed.trace.schemaVersion}</div>
-              {parsed.trace.exportedAt && <div>exportedAt: {parsed.trace.exportedAt}</div>}
-              <div>redacted: {String(parsed.trace.redacted ?? false)}</div>
+              {meta.schemaVersion !== undefined && <div>schemaVersion: {meta.schemaVersion}</div>}
+              {meta.exportedAt && <div>exportedAt: {meta.exportedAt}</div>}
+              {meta.redacted !== undefined && <div>redacted: {String(meta.redacted)}</div>}
             </div>
           )}
           <button
@@ -207,39 +162,40 @@ export function ViewerPage() {
           </button>
         </div>
 
-        {/* Right: BTS view */}
-        <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-          {execution ? (
-            <BTSPanel
-              execution={execution}
-              collapsed={false}
-              onToggleCollapse={() => {
-                /* always-open in viewer mode */
-              }}
-              style={{ height: '100%', borderLeft: 'none' }}
-            />
-          ) : (
-            <div
-              style={{
-                color: '#8b949e',
-                padding: 40,
-                fontSize: 14,
-                lineHeight: 1.6,
-              }}
-            >
-              <p>
-                Capture a trace in your code:
-              </p>
-              <pre
-                style={{
-                  background: '#161b22',
-                  padding: 12,
-                  borderRadius: 4,
-                  fontSize: 12,
-                  color: '#c9d1d9',
-                }}
-              >
-                {`import { Agent, exportTrace, anthropic } from 'agentfootprint';
+        {/* Right: drop in the viewer component — it does parse + render */}
+        <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'auto' }}>
+          <TraceViewer
+            trace={raw}
+            onError={setError}
+            fallback={<EmptyState />}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div
+      style={{
+        color: '#8b949e',
+        padding: 40,
+        fontSize: 14,
+        lineHeight: 1.6,
+      }}
+    >
+      <p>Capture a trace in your code:</p>
+      <pre
+        style={{
+          background: '#161b22',
+          padding: 12,
+          borderRadius: 4,
+          fontSize: 12,
+          color: '#c9d1d9',
+        }}
+      >
+        {`import { Agent, exportTrace, anthropic } from 'agentfootprint';
 
 const agent = Agent.create({ provider: anthropic('claude-sonnet-4') })
   .system('...')
@@ -248,14 +204,9 @@ const agent = Agent.create({ provider: anthropic('claude-sonnet-4') })
 await agent.run('hello');
 
 const trace = exportTrace(agent);
-console.log(JSON.stringify(trace));   // copy this
-// or: fs.writeFileSync('trace.json', JSON.stringify(trace, null, 2));`}
-              </pre>
-              <p>Then paste the JSON in the textarea on the left.</p>
-            </div>
-          )}
-        </div>
-      </div>
+console.log(JSON.stringify(trace));   // copy this`}
+      </pre>
+      <p>Then paste the JSON in the textarea on the left.</p>
     </div>
   );
 }
