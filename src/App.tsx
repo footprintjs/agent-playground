@@ -4,6 +4,7 @@ import { SamplePage } from './components/SamplePage';
 import { Welcome } from './components/Welcome';
 import { Sidebar } from './components/Sidebar';
 import { LiveChatPage } from './components/live/LiveChatPage';
+import { ViewerPage } from './components/viewer/ViewerPage';
 import { SettingsPanel, loadApiKeys } from './components/SettingsPanel';
 import '@xyflow/react/dist/style.css';
 import './styles/global.css';
@@ -90,6 +91,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/live" element={<LiveChatPage />} />
+        <Route path="/viewer" element={<ViewerPage />} />
         <Route
           path="/samples/:sampleId"
           element={<SamplesLayout onOpenSettings={() => setShowSettings(true)} />}

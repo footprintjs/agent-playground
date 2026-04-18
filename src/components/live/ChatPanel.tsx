@@ -70,12 +70,47 @@ export function ChatPanel({ messages, running, input, streamingContent, onInputC
               </>
             )}
             {msg.execution && (
-              <button
-                className={`live-bts-badge ${selectedBTSId === msg.id ? 'active' : ''}`}
-                onClick={() => onViewBTS(msg.id)}
-              >
-                {'\uD83D\uDD0D'} Behind the Scenes
-              </button>
+              <>
+                <button
+                  className={`live-bts-badge ${selectedBTSId === msg.id ? 'active' : ''}`}
+                  onClick={() => onViewBTS(msg.id)}
+                >
+                  {'\uD83D\uDD0D'} Behind the Scenes
+                </button>
+                <button
+                  className="live-bts-badge"
+                  title="Copy this run as a trace JSON — paste into /viewer to inspect later or share with support"
+                  onClick={async () => {
+                    // Wrap the captured execution in the AgentfootprintTrace
+                    // schema (v1) so the /viewer page can read it directly.
+                    const trace = {
+                      schemaVersion: 1,
+                      exportedAt: new Date().toISOString(),
+                      // We can't tell from here whether the run had a redaction
+                      // policy — assume false to be safe; the viewer will warn.
+                      redacted: false,
+                      snapshot: msg.execution!.snapshot,
+                      narrativeEntries: msg.execution!.narrativeEntries,
+                      narrative: msg.execution!.narrative,
+                      spec: msg.execution!.spec,
+                    };
+                    try {
+                      await navigator.clipboard.writeText(JSON.stringify(trace));
+                    } catch {
+                      // Older browsers / non-secure contexts: surface a fallback
+                      // by stuffing the trace into a temporary textarea.
+                      const ta = document.createElement('textarea');
+                      ta.value = JSON.stringify(trace);
+                      document.body.appendChild(ta);
+                      ta.select();
+                      document.execCommand('copy');
+                      document.body.removeChild(ta);
+                    }
+                  }}
+                >
+                  {'\uD83D\uDCCB'} Copy Trace
+                </button>
+              </>
             )}
           </div>
         ))}

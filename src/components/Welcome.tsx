@@ -34,6 +34,14 @@ const CARDS = [
     cta: 'Try with your key',
     to: '/live',
   },
+  {
+    phase: 'observe' as const,
+    icon: '\uD83D\uDD0E',
+    title: 'Trace Viewer',
+    desc: 'Paste an exportTrace() JSON from your code or a Live Chat run \u2014 see the full Behind the Scenes view without re-executing.',
+    cta: 'Open viewer',
+    to: '/viewer',
+  },
 ];
 
 const PHASE_COLORS: Record<string, { color: string; dim: string; border: string }> = {
