@@ -93,6 +93,38 @@ export function ViewerPage() {
               style={{ display: 'block', marginTop: 4, color: '#c9d1d9' }}
             />
           </label>
+          <button
+            type="button"
+            onClick={async () => {
+              // Sample trace lives under public/ so Vite serves it at the
+              // base URL. Fetch + paste to give first-time users a working
+              // example without hunting for one.
+              const url = `${import.meta.env.BASE_URL}sample-traces/calculator.json`;
+              try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                setRaw(await res.text());
+              } catch (err) {
+                setRaw(
+                  JSON.stringify({
+                    schemaVersion: 1,
+                    error: `Failed to load sample: ${(err as Error).message}`,
+                  }),
+                );
+              }
+            }}
+            style={{
+              padding: '6px 12px',
+              background: '#1f6feb',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            {'\uD83D\uDCC4'} Load sample trace (calculator agent)
+          </button>
           <textarea
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
