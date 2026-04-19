@@ -619,6 +619,67 @@ const triage = Conditional.create({ name: 'triage' })
 //   - Agent.route() branches INSIDE a ReAct loop (after LLM decides)
 //   - Conditional branches at the TOP LEVEL before any LLM fires`,
   },
+
+  // ── Memory Pipeline (Dynamic Behavior) ──────────────────
+  {
+    id: 'memory-pipeline',
+    label: 'Memory Pipeline',
+    description:
+      'Cross-turn memory via .memoryPipeline() — load / pick / format / persist as visible flowchart subflows',
+    pattern: 'agent',
+    category: 'dynamic-behavior',
+    config: {
+      pattern: 'agent',
+      modelId: 'claude-sonnet-4-20250514',
+      provider: 'anthropic',
+      systemPrompt:
+        'You are a helpful assistant. You remember what the user tells you across turns.',
+      memoryStrategy: 'sliding-window', // ignored by this preset — it uses memoryPipeline()
+      memoryParam: 0,
+      enableTools: false,
+      enableStreaming: false,
+      presetId: 'memory-pipeline',
+    },
+    suggestedMessage: 'My name is Alice and I live in San Francisco.',
+    code: `import { Agent, anthropic } from 'agentfootprint';
+import { defaultPipeline, InMemoryStore } from 'agentfootprint/memory';
+
+// Build a memory pipeline ONCE at app startup — it's a compiled FlowChart.
+// Swap InMemoryStore for RedisStore / PostgresStore without changing the
+// agent or the pipeline composition.
+const store = new InMemoryStore();
+const pipeline = defaultPipeline({
+  store,
+  loadCount: 20,         // how many recent entries to load per turn
+  reserveTokens: 512,    // budget reserved for system prompt + new user msg
+  // writeTier: 'hot',   // optional — mark entries as hot for tier-filtered reads
+});
+
+const agent = Agent.create({ provider: anthropic('claude-sonnet-4-20250514') })
+  .system('You remember what the user tells you across turns.')
+  .memoryPipeline(pipeline)   // ← the one line that adds memory
+  .build();
+
+// Same agent instance — per-run identity keeps many users isolated.
+await agent.run('My name is Alice.', {
+  identity: { conversationId: 'alice-chat', principal: 'user-42' },
+});
+
+await agent.run("What's my name?", {
+  identity: { conversationId: 'alice-chat', principal: 'user-42' },
+});
+// → LLM prompt now contains <memory turn="1">Alice's message</memory>
+// → agent answers "Your name is Alice."
+
+// Cross-turn behavior:
+//   - Load Memory subflow reads prior entries, picks what fits the budget,
+//     formats them as a <memory> tagged system message
+//   - AssemblePrompt prepends memory BEFORE the current user message
+//   - Save Memory subflow persists the turn's messages at turn end
+//
+// Every load / pick / format / write appears in the BTS narrative —
+// no guessing what the agent "remembers."`,
+  },
 ];
 
 export function getPresetsByPattern(): Map<PatternType, Preset[]> {

@@ -23,6 +23,10 @@ import type { AgentObservabilityRecorder } from 'agentfootprint/observe';
 import { defineInstruction, AgentPattern } from 'agentfootprint/instructions';
 import type { AgentInstruction } from 'agentfootprint/instructions';
 import {
+  defaultPipeline,
+  InMemoryStore as PipelineStore,
+} from 'agentfootprint/memory';
+import {
   createEcommerceTools, createHRTools,
   PRODUCT_DOCS_CHUNKS, HR_DOCS_CHUNKS,
 } from './mockData';
@@ -346,6 +350,14 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
   // triage before any model is called.
   if (config.presetId === 'conditional-triage') {
     return buildConditionalTriageRunner(config, provider, store);
+  }
+
+  // Memory Pipeline preset — demonstrates .memoryPipeline() with an in-memory
+  // store. Turn N reads from turns 1..N-1 via the read subflow; at turn end
+  // the write subflow persists the new messages. Every memory decision
+  // visible in the BTS narrative.
+  if (config.presetId === 'memory-pipeline') {
+    return buildMemoryPipelineRunner(config, provider, store);
   }
 
   const builder = Agent.create({ provider, name: 'agent' })
@@ -823,6 +835,105 @@ function buildConditionalTriageRunner(
     },
     getSpec: () => router.getSpec(),
     getCapture: () => lastCapture,
+  };
+}
+
+// ── Memory Pipeline — demonstrates .memoryPipeline() + InMemoryStore ──
+//
+// The playground preset showcases agentfootprint 1.11.0's memory system:
+//   - defaultPipeline composes loadRecent → pickByBudget → formatDefault
+//     for reads, and writeMessages for persists
+//   - InMemoryStore is the reference adapter; swap for Redis/Postgres/etc.
+//     via the MemoryStore interface without touching the agent
+//   - Every load / pick / format / write is visible in the BTS narrative
+//
+// Chat flow:
+//   Turn 1: User says "My name is Alice" → write subflow persists
+//   Turn 2: User asks "What's my name?" → read subflow injects "Alice" into
+//           the prompt; the LLM answers using the injected context
+//
+// Cross-session isolation: each conversationId has its own namespace.
+
+function buildMemoryPipelineRunner(
+  config: LiveConfig,
+  provider: LLMProvider,
+  _legacyStore: InMemoryStore,
+): LiveRunner {
+  // Use the NEW agentfootprint/memory InMemoryStore — it implements the
+  // MemoryStore interface (the legacy store imported above is the older
+  // ConversationStore shape for the .memory() API).
+  const store = new PipelineStore();
+  const pipeline = defaultPipeline({ store });
+
+  const builder = Agent.create({ provider, name: 'memory-agent' })
+    .system(
+      config.systemPrompt ||
+        'You are a helpful assistant. You remember what the user tells you across turns.',
+    )
+    .memoryPipeline(pipeline)
+    .maxIterations(5)
+    .streaming(config.enableStreaming);
+
+  const obs = agentObservability();
+  builder.recorder(obs);
+  const runner = builder.build();
+
+  // The Live Chat UI threads messages one at a time; conversationId is
+  // stable across turns in a single session, tied to the preset instance.
+  // Use a simple session id so turns share memory; resetting the chat
+  // (UI-level reset) creates a new preset instance → new session id.
+  const conversationId = `playground-session-${Date.now()}`;
+
+  return wrapRunnerWithMemory(runner, store, obs, conversationId);
+}
+
+/**
+ * Thin wrapper — same shape as `wrapRunner`, but threads the per-run
+ * `identity` option into `agent.run(msg, { identity })` for the memory
+ * pipeline. Generic enough to reuse if more memory-pipeline presets land.
+ */
+function wrapRunnerWithMemory(
+  runner: AgentRunner,
+  store: PipelineStore,
+  obs: AgentObservabilityRecorder | undefined,
+  conversationId: string,
+): LiveRunner {
+  let turnNumber = 0;
+  return {
+    run: async (message: string, options?: { onToken?: (token: string) => void }) => {
+      const start = Date.now();
+      turnNumber++;
+      const result = await runner.run(message, {
+        onToken: options?.onToken,
+        identity: { conversationId },
+        turnNumber,
+      });
+      const execution = captureExecution(runner, obs);
+      if (result.paused) {
+        return {
+          content: '',
+          execution,
+          durationMs: Date.now() - start,
+          paused: true,
+          pauseQuestion: result.pauseData?.question,
+        };
+      }
+      return {
+        content: result.content,
+        execution,
+        durationMs: Date.now() - start,
+        ...(result.maxIterationsReached && { maxIterationsReached: true }),
+      };
+    },
+    resume: async () => {
+      throw new Error('Memory pipeline preset does not support pause/resume yet.');
+    },
+    reset: () => {
+      void store.forget({ conversationId });
+      turnNumber = 0;
+    },
+    getSpec: () => runner.getSpec(),
+    getCapture: () => captureExecution(runner, obs),
   };
 }
 
