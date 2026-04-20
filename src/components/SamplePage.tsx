@@ -5,6 +5,7 @@ import { CodePanel } from './CodePanel';
 import { ResultPanel } from './ResultPanel';
 import { BTSPanel } from './live/BTSPanel';
 import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
+import { Lens } from 'agentfootprint-lens';
 import { executeCode } from '../runner/executeCode';
 import { loadApiKeys } from './SettingsPanel';
 import type { ChatTurn } from './ResultPanel';
@@ -132,14 +133,14 @@ export function SamplePage() {
                 >
                   Flowchart
                 </button>
-                {execution && !btsOpen && (
+                {execution && !btsOpen ? (
                   <button
                     className="sample-left-tab sample-bts-tab"
                     onClick={() => { setCodeCollapsed(true); setBtsOpen(true); }}
                   >
                     BTS
                   </button>
-                )}
+                ) : null}
               </div>
               <div className="sample-left-content">
                 {leftView === 'code' ? (
@@ -166,29 +167,30 @@ export function SamplePage() {
           )}
         </div>
 
-        {/* Result panel */}
         <div className="sample-result-panel">
           <ResultPanel
             history={chatHistory}
             running={running}
             pendingInput={input}
             onRun={handleRun}
-            onInputChange={setInput}
+            onInputChange={(v: string) => setInput(v)}
             onClear={() => setChatHistory([])}
           />
         </div>
 
-        {/* BTS panel — slides in after run */}
-        {btsOpen && execution && (
+        {/* Lens panel — slides in after run. Replaces BTSPanel for
+            the desktop layout: Lens shows agent-centric view + full
+            Explainable Trace in one tabbed surface. BTSPanel is
+            still used on mobile until we verify Lens is a full
+            drop-in replacement across every sample. */}
+        {btsOpen && execution?.snapshot ? (
           <div className="sample-bts-panel">
-            <BTSPanel
-              execution={execution}
-              previewSpec={spec}
-              collapsed={false}
-              onToggleCollapse={() => { setBtsOpen(false); setCodeCollapsed(false); }}
+            <Lens
+              appName="Agent Playground"
+              runtimeSnapshot={execution.snapshot as any}
             />
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Mobile: tab bar + single panel */}

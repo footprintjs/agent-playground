@@ -14,7 +14,6 @@ import {
   BrowserAnthropicAdapter, BrowserOpenAIAdapter,
   defineTool,
   askHuman,
-  InMemoryStore,
   mockRetriever,
 } from 'agentfootprint';
 import type { ToolProvider, PromptProvider } from 'agentfootprint';
@@ -22,10 +21,19 @@ import { agentObservability } from 'agentfootprint/observe';
 import type { AgentObservabilityRecorder } from 'agentfootprint/observe';
 import { defineInstruction, AgentPattern } from 'agentfootprint/instructions';
 import type { AgentInstruction } from 'agentfootprint/instructions';
+// `InMemoryStore` now lives only at the `/memory` subpath — the root
+// export was dropped. Import from there and also alias it to
+// `PipelineStore` for the one call site below that uses both names.
 import {
   defaultPipeline,
-  InMemoryStore as PipelineStore,
+  InMemoryStore,
 } from 'agentfootprint/memory';
+// Dual alias — TypeScript keeps type and value namespaces separate, so we
+// need both an `import` (the class as a value) and a `type` re-export
+// (the instance type) for `PipelineStore` to work as `new PipelineStore()`
+// AND as a type annotation like `store: PipelineStore`.
+const PipelineStore = InMemoryStore;
+type PipelineStore = InMemoryStore;
 import {
   createEcommerceTools, createHRTools,
   PRODUCT_DOCS_CHUNKS, HR_DOCS_CHUNKS,
@@ -114,28 +122,27 @@ function createProvider(
   }
 }
 
-// ── Memory Config ───────────────────────────────────────────
+// ── Memory Pipeline ─────────────────────────────────────────
+//
+// The legacy `.memory({ store, conversationId, strategy })` builder API was
+// removed in agentfootprint. Memory is now expressed as a `MemoryPipeline`
+// built once (typically at startup) via `defaultPipeline({ store, ... })`
+// and passed in at build time via `.memoryPipeline(pipeline)`. The
+// `conversationId` migrated from the build-time config to a per-run
+// `identity: { conversationId }` option threaded through `runner.run()`.
+//
+// Mapping from the old `memoryParam` (sliding-window N) → defaultPipeline
+// `loadCount`: same intent — limit how many recent entries get loaded into
+// the prompt each turn.
 
-function buildMemoryConfig(config: LiveConfig, store: InMemoryStore) {
+const LIVE_CHAT_CONVERSATION_ID = 'live-chat';
+
+function buildMemoryPipeline(config: LiveConfig, store: InMemoryStore) {
   if (config.memoryStrategy === 'none') return undefined;
-
-  // Build MessageStrategy inline — the main export `slidingWindow` is a helper function,
-  // not the strategy factory. We construct the strategy object directly.
-  const maxN = config.memoryParam;
-  const strategy = {
-    prepare: (history: any[]) => {
-      if (history.length <= maxN) return { value: history, chosen: 'sliding-window' };
-      const system = history.filter((m: any) => m.role === 'system');
-      const rest = history.filter((m: any) => m.role !== 'system');
-      return { value: [...system, ...rest.slice(-maxN)], chosen: 'sliding-window' };
-    },
-  };
-
-  return {
+  return defaultPipeline({
     store,
-    conversationId: 'live-chat',
-    strategy,
-  };
+    loadCount: config.memoryParam,
+  });
 }
 
 // ── footprintjs-Powered Tools ───────────────────────────────
@@ -323,7 +330,7 @@ function buildLLMCallRunner(config: LiveConfig, provider: LLMProvider): LiveRunn
 
 function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner {
   const store = new InMemoryStore();
-  const memoryConfig = buildMemoryConfig(config, store);
+  const memoryPipeline = buildMemoryPipeline(config, store);
 
   // Dynamic ReAct preset — use .toolProvider() and .promptProvider()
   if (config.presetId === 'dynamic-support') {
@@ -381,7 +388,7 @@ function buildAgentRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
   }
   const obs = agentObservability();
   builder.recorder(obs);
-  if (memoryConfig) builder.memory(memoryConfig);
+  if (memoryPipeline) builder.memoryPipeline(memoryPipeline);
   const runner = builder.build();
 
   return wrapRunner(runner, store, obs);
@@ -462,7 +469,7 @@ function buildSwarmRunner(config: LiveConfig, provider: LLMProvider): LiveRunner
 // ── Dynamic ReAct: Progressive Authorization ────────────────
 
 function buildDynamicSupportRunner(config: LiveConfig, provider: LLMProvider, store: InMemoryStore): LiveRunner {
-  const memoryConfig = buildMemoryConfig(config, store);
+  const memoryPipeline = buildMemoryPipeline(config, store);
 
   // Basic tools — always available
   const basicTools = createEcommerceTools();
@@ -555,7 +562,7 @@ function buildDynamicSupportRunner(config: LiveConfig, provider: LLMProvider, st
 
   const obs = agentObservability();
   builder.recorder(obs);
-  if (memoryConfig) builder.memory(memoryConfig);
+  if (memoryPipeline) builder.memoryPipeline(memoryPipeline);
   const runner = builder.build();
 
   return wrapRunner(runner, store, obs);
@@ -564,7 +571,7 @@ function buildDynamicSupportRunner(config: LiveConfig, provider: LLMProvider, st
 // ── Conditional Instructions: Decision Scope ───────────────
 
 function buildConditionalInstructionsRunner(config: LiveConfig, provider: LLMProvider, store: InMemoryStore): LiveRunner {
-  const memoryConfig = buildMemoryConfig(config, store);
+  const memoryPipeline = buildMemoryPipeline(config, store);
 
   const ecommerceTools = createEcommerceTools();
 
@@ -608,7 +615,7 @@ function buildConditionalInstructionsRunner(config: LiveConfig, provider: LLMPro
 
   const obs = agentObservability();
   builder.recorder(obs);
-  if (memoryConfig) builder.memory(memoryConfig);
+  if (memoryPipeline) builder.memoryPipeline(memoryPipeline);
   const runner = builder.build();
 
   return wrapRunner(runner, store, obs);
@@ -691,7 +698,7 @@ function buildParallelLookupRunner(
   provider: LLMProvider,
   store: InMemoryStore,
 ): LiveRunner {
-  const memoryConfig = buildMemoryConfig(config, store);
+  const memoryPipeline = buildMemoryPipeline(config, store);
 
   const builder = Agent.create({ provider, name: 'parallel-lookup' })
     .system(
@@ -705,7 +712,7 @@ function buildParallelLookupRunner(
 
   const obs = agentObservability();
   builder.recorder(obs);
-  if (memoryConfig) builder.memory(memoryConfig);
+  if (memoryPipeline) builder.memoryPipeline(memoryPipeline);
   const runner = builder.build();
 
   return wrapRunner(runner, store, obs);
@@ -723,7 +730,7 @@ function buildEscalationGateRunner(
   provider: LLMProvider,
   store: InMemoryStore,
 ): LiveRunner {
-  const memoryConfig = buildMemoryConfig(config, store);
+  const memoryPipeline = buildMemoryPipeline(config, store);
 
   // Minimal runner — any RunnerLike works: Agent, LLMCall, RAG, or a bespoke object.
   const humanReviewAgent = {
@@ -759,7 +766,7 @@ function buildEscalationGateRunner(
 
   const obs = agentObservability();
   builder.recorder(obs);
-  if (memoryConfig) builder.memory(memoryConfig);
+  if (memoryPipeline) builder.memoryPipeline(memoryPipeline);
   const runner = builder.build();
 
   return wrapRunner(runner, store, obs);
@@ -777,7 +784,7 @@ function buildConditionalTriageRunner(
   provider: LLMProvider,
   store: InMemoryStore,
 ): LiveRunner {
-  const memoryConfig = buildMemoryConfig(config, store);
+  const memoryPipeline = buildMemoryPipeline(config, store);
 
   // Branch 1: refund specialist — focused system prompt, narrow remit.
   const refundBuilder = Agent.create({ provider, name: 'refund-specialist' })
@@ -786,7 +793,7 @@ function buildConditionalTriageRunner(
     )
     .maxIterations(3)
     .streaming(config.enableStreaming);
-  if (memoryConfig) refundBuilder.memory(memoryConfig);
+  if (memoryPipeline) refundBuilder.memoryPipeline(memoryPipeline);
   const refundAgent = refundBuilder.build();
 
   // Branch 2: general support — the fallback.
@@ -797,7 +804,7 @@ function buildConditionalTriageRunner(
     )
     .maxIterations(3)
     .streaming(config.enableStreaming);
-  if (memoryConfig) generalBuilder.memory(memoryConfig);
+  if (memoryPipeline) generalBuilder.memoryPipeline(memoryPipeline);
   const generalAgent = generalBuilder.build();
 
   // Rule-based router — zero LLM calls at the branching step.
@@ -830,7 +837,9 @@ function buildConditionalTriageRunner(
       }
     },
     reset: () => {
-      store.clear();
+      // Old InMemoryStore had a global `.clear()`. New one is keyed by
+      // MemoryIdentity — wipe only the live-chat session's namespace.
+      void store.forget({ conversationId: LIVE_CHAT_CONVERSATION_ID });
       lastCapture = {};
     },
     getSpec: () => router.getSpec(),
@@ -964,7 +973,12 @@ function wrapRunner(runner: AgentRunner, store: InMemoryStore, obs?: AgentObserv
   return {
     run: async (message: string, options?: { onToken?: (token: string) => void }) => {
       const start = Date.now();
-      const result = await runner.run(message, { onToken: options?.onToken });
+      // Always thread the live-chat identity. Runners without a memory
+      // pipeline ignore it; runners with one use it to namespace memory.
+      const result = await runner.run(message, {
+        onToken: options?.onToken,
+        identity: { conversationId: LIVE_CHAT_CONVERSATION_ID },
+      });
       const execution = captureExecution(runner, obs);
       if (result.paused) {
         return {
@@ -1004,6 +1018,9 @@ function wrapRunner(runner: AgentRunner, store: InMemoryStore, obs?: AgentObserv
     },
     reset: () => {
       runner.resetConversation();
+      // Also wipe the live-chat memory namespace so persisted entries from
+      // a prior chat don't leak into the next one.
+      void store.forget({ conversationId: LIVE_CHAT_CONVERSATION_ID });
     },
     getSpec: () => runner.getSpec(),
     getCapture: () => captureExecution(runner, obs),

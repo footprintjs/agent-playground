@@ -63,10 +63,17 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
   const captured: CapturedExecution = {};
 
   try {
-    // Strip imports — we inject modules
+    // Strip imports — we inject modules via function scope instead.
+    // Handle single-line, multi-line `{ ... }`, default, namespace, and
+    // `import type` forms. `[\s\S]*?` matches across newlines (plain `.`
+    // doesn't span newlines by default).
     const stripped = code
-      .replace(/^import\s+.*from\s+['"].*['"];?\s*$/gm, '')
-      .replace(/^import\s+{[^}]*}\s+from\s+['"].*['"];?\s*$/gm, '')
+      // Named / type / multi-line: `import { A, B, type C } from 'x';`
+      .replace(/import\s+(?:type\s+)?\{[\s\S]*?\}\s+from\s+['"][^'"]+['"];?/g, '')
+      // Default / type-default / namespace: `import X from 'y';`, `import * as X from 'y';`
+      .replace(/import\s+(?:type\s+)?(?:\*\s+as\s+)?\w+\s+from\s+['"][^'"]+['"];?/g, '')
+      // Bare side-effect imports: `import 'x';`
+      .replace(/import\s+['"][^'"]+['"];?/g, '')
       .trim();
 
     // Transpile TS → JS

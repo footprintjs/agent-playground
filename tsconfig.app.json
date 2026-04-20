@@ -21,7 +21,7 @@
 
     /* Paths */
     "paths": {
-      "@samples/*": ["../agent-samples/examples/*"]
+      "@samples/*": ["../agentfootprint/examples/*"]
     }
   },
   "include": ["src"]

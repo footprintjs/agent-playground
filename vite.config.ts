@@ -7,12 +7,14 @@ export default defineConfig({
   base: '/agent-playground/',
   resolve: {
     alias: {
-      '@samples': path.resolve(__dirname, '../agent-samples/examples'),
+      // Single source of truth: examples live in the agentfootprint library itself.
+      // Mirrors footprint-playground's pattern (which symlinks into footPrint/examples).
+      '@samples': path.resolve(__dirname, '../agentfootprint/examples'),
     },
   },
   server: {
     fs: {
-      // Allow serving files from agent-samples (sibling directory)
+      // Allow serving files from agentfootprint (sibling directory)
       allow: ['..'],
     },
   },
