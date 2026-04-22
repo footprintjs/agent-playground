@@ -19,6 +19,15 @@ interface ResultPanelProps {
    *  while a Run is in flight. Cleared once the run finalizes and
    *  the full turn lands in `history`. Empty string = no live bubble. */
   streamingResponse?: string;
+  /**
+   * ThinkKit content rendered inside the in-flight assistant bubble
+   * while `running` is true AND no tokens have streamed yet. Renders
+   * the humanized status / activity breadcrumb driven by
+   * `recorder.selectStatus()` + `selectActivities()`. Pattern mirrors
+   * NEO's ChatFeed typing-bubble — users see "Running add..." / "Got
+   * result" live in the chat, not only in the side panel.
+   */
+  thinkKit?: React.ReactNode;
 }
 
 function extractContent(output: unknown): string | null {
@@ -108,7 +117,7 @@ function TurnView({ turn }: { turn: ChatTurn }) {
   );
 }
 
-export function ResultPanel({ history, running, pendingInput, onRun, onInputChange, onClear, providerPicker, streamingResponse }: ResultPanelProps) {
+export function ResultPanel({ history, running, pendingInput, onRun, onInputChange, onClear, providerPicker, streamingResponse, thinkKit }: ResultPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -164,6 +173,8 @@ export function ResultPanel({ history, running, pendingInput, onRun, onInputChan
                   {streamingResponse}
                   <span className="chat-stream-cursor">▍</span>
                 </div>
+              ) : thinkKit ? (
+                <div className="chat-bubble__body chat-thinkkit">{thinkKit}</div>
               ) : (
                 <div className="chat-typing">
                   <span /><span /><span />

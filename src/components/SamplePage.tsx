@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { samples } from '../samples/catalog';
 import { CodePanel } from './CodePanel';
 import { ResultPanel } from './ResultPanel';
+import { ChatThinkKit } from './ChatThinkKit';
 import { SampleExplainer } from './SampleExplainer';
 import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
 import type { ThemeTokens } from 'footprint-explainable-ui';
@@ -176,15 +177,24 @@ export function SamplePage() {
       const res = await executeCode(code, capturedInput, apiKeys, built.provider, {
         onStreamToken: (token) => setStreamingResponse((prev) => prev + token),
         onLiveSnapshot: (snap) => setLiveSnapshot(snap),
-        // Events flow via the proven observe → ingest path.
-        onAgentEvent: (event) => lens.ingest(event),
-        // Attach the real lens recorder to the runner. agentfootprint v2
-        // routes FlowRecorder events (onSubflowEntry/Exit/Fork/Decision/
-        // Loop) through `forwardEmitRecorders` into the recorder's
-        // composed TopologyRecorder automatically — no setComposition
-        // handshake needed. Multi-agent shape is discovered at runtime
-        // from the executor's traversal.
+        // Attach the Lens recorder directly → executor routes rich
+        // EmitEvents (real runtimeStageId + subflowPath) + FlowRecorder
+        // events (onSubflowEntry/Fork/Decision/Loop) via
+        // `forwardEmitRecorders` → `attachCombinedRecorder`.
         lensRecorder: lens.recorder,
+        // HYBRID: attach handles llm/tool/subflow/fork/decision via the
+        // emit+flow channels. Turn boundaries (turn_start / turn_end)
+        // are NOT on the emit channel (see StreamEventRecorder.ts) — they
+        // flow only through observe. Feed JUST those via ingest; every
+        // other event is already in the recorder via attach.
+        onAgentEvent: (event) => {
+          const type = (event as { type?: string })?.type;
+          if (type === 'turn_start' || type === 'turn_end') {
+            lens.ingest(event);
+          } else {
+            lens.sync();
+          }
+        },
       });
       setStreamingResponse('');
       setChatHistory((prev) => [...prev, { input: capturedInput, result: res }]);
@@ -365,6 +375,7 @@ export function SamplePage() {
                   onInputChange={(v: string) => setInput(v)}
                   onClear={() => setChatHistory([])}
                   streamingResponse={streamingResponse}
+                  thinkKit={<ChatThinkKit recorder={lens.recorder} version={lens.timeline.turns.length + lens.timeline.tools.length} />}
                   providerPicker={
                     <ProviderPicker value={providerKind} onChange={setProviderKind} />
                   }
@@ -462,6 +473,7 @@ export function SamplePage() {
               onRun={handleRun}
               onInputChange={setInput}
               onClear={() => setChatHistory([])}
+              thinkKit={<ChatThinkKit recorder={lens.recorder} version={lens.timeline.turns.length + lens.timeline.tools.length} />}
             />
           )}
         </div>

@@ -5,16 +5,24 @@
  * `AgentTimelineRecorder`. The recorder owns every derivation; each
  * panel is a pure renderer over the typed selector surface:
  *
- *   Flowchart panel     → recorder.selectTopology()    (engineer view)
- *   Commentary panel    → recorder.selectCommentary()  (analyst view)
- *   ThinkKit panel      → recorder.selectActivities()
- *                       + recorder.selectStatus()      (end-user view)
+ *   ENGINEER view    → <AgentLens> (StageFlow + MessagesPanel)
+ *                      powered by recorder.selectTopology() + selectTurns()
+ *   ANALYST view     → <CommentaryPanel>
+ *                      powered by recorder.selectContextBySource() + selectCommentary()
+ *   END-USER view    → <ThinkKitPanel>
+ *                      powered by recorder.selectActivities() + selectStatus()
  *
  * A Vue / Angular / CLI consumer would render the same three audiences
  * over the same three selectors — the library shape is framework-agnostic.
  */
 import React from 'react';
 import type { AgentTimelineRecorder } from 'agentfootprint';
+import {
+  AgentLens,
+  CommentaryPanel,
+  ThinkKitPanel,
+  timelineFromRecorder,
+} from 'agentfootprint-lens';
 
 export interface ThreeRenderersDemoProps {
   readonly recorder: AgentTimelineRecorder;
@@ -24,76 +32,42 @@ export interface ThreeRenderersDemoProps {
 }
 
 export function ThreeRenderersDemo({ recorder, version }: ThreeRenderersDemoProps) {
-  // Version-keyed so selector memoization invalidates between renders
-  // when new events arrive.
-  void version;
-
-  const topology = recorder.selectTopology();
-  const commentary = recorder.selectCommentary();
-  const activities = recorder.selectActivities();
-  const status = recorder.selectStatus();
+  // Bundle selectors into the Lens's render shape for AgentLens.
+  const timeline = timelineFromRecorder(recorder);
+  // Run summary powers the footer totals line.
   const runSummary = recorder.selectRunSummary();
 
   return (
     <div style={styles.root}>
       <div style={styles.banner}>
-        <strong>One shape, many renderers.</strong> All three panels below
-        read from the same <code>AgentTimelineRecorder</code>. No per-view
-        transformation logic — every shape comes from a typed selector.
+        <strong>One shape, many renderers.</strong> All three panels below read
+        from the same <code>AgentTimelineRecorder</code>. No per-view derivation
+        logic — every shape comes from a typed selector. Vue / Angular / CLI
+        consumers render the same audiences over the same selectors.
       </div>
 
       <div style={styles.grid}>
-        {/* ── Engineer view: Flowchart (composition topology) ── */}
+        {/* ── Engineer view: Flowchart ── */}
         <section style={styles.panel}>
           <header style={styles.panelHeader}>
             <span style={styles.panelAudience}>ENGINEER</span>
             <h3 style={styles.panelTitle}>Flowchart</h3>
-            <code style={styles.selector}>selectTopology()</code>
+            <code style={styles.selector}>selectTopology() + selectTurns()</code>
           </header>
           <div style={styles.panelBody}>
-            {topology.nodes.length === 0 ? (
-              <Empty text="No composition yet — run an agent" />
-            ) : (
-              <ul style={styles.topologyList}>
-                {topology.nodes.map((n) => (
-                  <li key={n.id} style={{ paddingLeft: n.depth * 12 }}>
-                    <span style={kindBadge(n.kind)}>{n.kind}</span>
-                    <strong>{n.name}</strong>
-                    <span style={styles.edges}>
-                      {n.incomingKind !== 'root' && ` ← ${n.incomingKind}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {topology.edges.length > 0 && (
-              <div style={styles.edges}>
-                {topology.edges.length} edge{topology.edges.length === 1 ? '' : 's'}
-              </div>
-            )}
+            <AgentLens timeline={timeline} agentName={timeline.agent.name} />
           </div>
         </section>
 
-        {/* ── Analyst view: Commentary (human narrative) ── */}
+        {/* ── Analyst view: Commentary + context ledger ── */}
         <section style={styles.panel}>
           <header style={styles.panelHeader}>
             <span style={styles.panelAudience}>ANALYST</span>
             <h3 style={styles.panelTitle}>Commentary</h3>
-            <code style={styles.selector}>selectCommentary()</code>
+            <code style={styles.selector}>selectContextBySource() + selectCommentary()</code>
           </header>
           <div style={styles.panelBody}>
-            {commentary.length === 0 ? (
-              <Empty text="No events yet" />
-            ) : (
-              <ol style={styles.commentaryList}>
-                {commentary.map((c, i) => (
-                  <li key={i} style={styles.commentaryItem}>
-                    <span style={kindBadge(c.kind)}>{c.kind}</span>
-                    <span>{c.text}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
+            <CommentaryPanel recorder={recorder} version={version} />
           </div>
         </section>
 
@@ -105,73 +79,21 @@ export function ThreeRenderersDemo({ recorder, version }: ThreeRenderersDemoProp
             <code style={styles.selector}>selectActivities() + selectStatus()</code>
           </header>
           <div style={styles.panelBody}>
-            <div style={styles.statusPill}>
-              <span style={styles.statusDot(status.kind)} />
-              {status.text || 'Idle'}
-            </div>
-            {activities.length === 0 ? (
-              <Empty text="No activity yet" />
-            ) : (
-              <ul style={styles.activityList}>
-                {activities.map((a) => (
-                  <li key={a.id} style={styles.activityItem}>
-                    <span style={styles.activityCheck(a.done)}>{a.done ? '✓' : '◯'}</span>
-                    <span style={{ flex: 1 }}>
-                      <strong>{a.label}</strong>
-                      {a.meta && <span style={styles.activityMeta}> — {a.meta}</span>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ThinkKitPanel recorder={recorder} version={version} />
           </div>
         </section>
       </div>
 
-      {/* ── Aggregates banner ── */}
       <div style={styles.summary}>
-        <strong>selectRunSummary():</strong>
-        {' '}
-        {runSummary.turnCount} turn{runSummary.turnCount === 1 ? '' : 's'}, {' '}
-        {runSummary.iterationCount} iteration{runSummary.iterationCount === 1 ? '' : 's'}, {' '}
-        {runSummary.toolCallCount} tool call{runSummary.toolCallCount === 1 ? '' : 's'}, {' '}
-        {runSummary.inputTokens + runSummary.outputTokens} tokens, {' '}
-        {Math.round(runSummary.totalDurationMs)}ms
+        <strong>selectRunSummary():</strong>{' '}
+        {runSummary.turnCount} turn{runSummary.turnCount === 1 ? '' : 's'}, {runSummary.iterationCount} iteration{runSummary.iterationCount === 1 ? '' : 's'}, {runSummary.toolCallCount} tool call{runSummary.toolCallCount === 1 ? '' : 's'}, {runSummary.inputTokens + runSummary.outputTokens} tokens, {Math.round(runSummary.totalDurationMs)}ms
       </div>
     </div>
   );
 }
 
-function Empty({ text }: { text: string }) {
-  return <div style={{ opacity: 0.5, fontStyle: 'italic', padding: '1em 0' }}>{text}</div>;
-}
-
-function kindBadge(kind: string): React.CSSProperties {
-  const colors: Record<string, string> = {
-    llm: '#4a90e2',
-    tool: '#7cbd5a',
-    turn: '#b07cd4',
-    context: '#e2a050',
-    subflow: '#4a90e2',
-    'fork-branch': '#7cbd5a',
-    'decision-branch': '#e2a050',
-  };
-  return {
-    display: 'inline-block',
-    padding: '2px 6px',
-    marginRight: 8,
-    fontSize: 10,
-    fontWeight: 600,
-    borderRadius: 3,
-    background: colors[kind] ?? '#888',
-    color: 'white',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.4,
-  };
-}
-
 const styles = {
-  root: { display: 'flex', flexDirection: 'column' as const, gap: 12, padding: 16 },
+  root: { display: 'flex', flexDirection: 'column' as const, gap: 12, padding: 16, height: '100%' },
   banner: {
     padding: '10px 14px',
     background: 'var(--bg-tertiary, #f0f4f8)',
@@ -182,8 +104,10 @@ const styles = {
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(240px, 1fr))',
+    gridTemplateColumns: 'minmax(300px, 1.2fr) minmax(240px, 1fr) minmax(240px, 1fr)',
     gap: 12,
+    flex: 1,
+    minHeight: 0,
   },
   panel: {
     display: 'flex',
@@ -192,12 +116,13 @@ const styles = {
     border: '1px solid var(--border, #d0d7de)',
     borderRadius: 6,
     overflow: 'hidden',
-    minHeight: 320,
+    minHeight: 400,
   },
   panelHeader: {
     padding: '10px 12px',
     borderBottom: '1px solid var(--border, #d0d7de)',
     background: 'var(--bg-tertiary, #f6f8fa)',
+    flex: '0 0 auto',
   },
   panelAudience: {
     display: 'block',
@@ -208,52 +133,14 @@ const styles = {
   },
   panelTitle: { margin: '4px 0 4px 0', fontSize: 16 },
   selector: {
-    fontSize: 11,
+    fontSize: 10,
     color: 'var(--text-muted, #666)',
     background: 'var(--bg-primary, white)',
     padding: '2px 6px',
     borderRadius: 3,
+    display: 'inline-block',
   },
-  panelBody: { padding: 12, overflow: 'auto', flex: 1, fontSize: 13 },
-  topologyList: { listStyle: 'none', padding: 0, margin: 0 },
-  edges: { marginTop: 10, fontSize: 11, color: 'var(--text-muted, #666)' },
-  commentaryList: { listStyle: 'none', padding: 0, margin: 0 },
-  commentaryItem: {
-    padding: '4px 0',
-    borderBottom: '1px dashed var(--border, #eee)',
-    display: 'flex',
-    alignItems: 'flex-start',
-  },
-  statusPill: {
-    padding: '6px 10px',
-    marginBottom: 10,
-    background: 'var(--bg-primary, #eef6ff)',
-    border: '1px solid var(--border, #d0d7de)',
-    borderRadius: 14,
-    fontSize: 12,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  },
-  statusDot: (kind: string): React.CSSProperties => ({
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    background: { llm: '#4a90e2', tool: '#7cbd5a', turn: '#b07cd4', idle: '#aaa' }[kind] ?? '#aaa',
-    animation: kind !== 'idle' ? 'pulse 1.2s infinite' : 'none',
-  }),
-  activityList: { listStyle: 'none', padding: 0, margin: 0 },
-  activityItem: {
-    display: 'flex',
-    gap: 8,
-    alignItems: 'flex-start',
-    padding: '4px 0',
-  },
-  activityCheck: (done: boolean): React.CSSProperties => ({
-    color: done ? '#7cbd5a' : '#bbb',
-    fontFamily: 'monospace',
-  }),
-  activityMeta: { color: 'var(--text-muted, #777)', fontSize: 12 },
+  panelBody: { flex: 1, overflow: 'auto', minHeight: 0 },
   summary: {
     padding: '8px 12px',
     background: 'var(--bg-tertiary, #f6f8fa)',
@@ -261,5 +148,6 @@ const styles = {
     borderRadius: 6,
     fontSize: 12,
     fontFamily: 'var(--font-mono, monospace)',
+    flex: '0 0 auto',
   },
 } as const;
