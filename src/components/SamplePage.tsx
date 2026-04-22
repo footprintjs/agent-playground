@@ -7,6 +7,7 @@ import { SampleExplainer } from './SampleExplainer';
 import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
 import type { ThemeTokens } from 'footprint-explainable-ui';
 import { Lens, useLiveTimeline } from 'agentfootprint-lens';
+import { ThreeRenderersDemo } from './ThreeRenderersDemo';
 
 // Theme tokens built from the playground's own CSS vars so Lens renders
 // on the same cream/navy palette as the rest of the app (not the default
@@ -41,7 +42,7 @@ import { buildProvider } from '../runner/buildProvider';
 import type { ChatTurn } from './ResultPanel';
 
 type MobileTab = 'code' | 'output';
-type LeftView = 'code' | 'flowchart' | 'explain';
+type LeftView = 'code' | 'flowchart' | 'explain' | '3renderers';
 
 export function SamplePage() {
   const { sampleId } = useParams<{ sampleId: string }>();
@@ -175,7 +176,15 @@ export function SamplePage() {
       const res = await executeCode(code, capturedInput, apiKeys, built.provider, {
         onStreamToken: (token) => setStreamingResponse((prev) => prev + token),
         onLiveSnapshot: (snap) => setLiveSnapshot(snap),
+        // Events flow via the proven observe → ingest path.
         onAgentEvent: (event) => lens.ingest(event),
+        // Attach the real lens recorder to the runner. agentfootprint v2
+        // routes FlowRecorder events (onSubflowEntry/Exit/Fork/Decision/
+        // Loop) through `forwardEmitRecorders` into the recorder's
+        // composed TopologyRecorder automatically — no setComposition
+        // handshake needed. Multi-agent shape is discovered at runtime
+        // from the executor's traversal.
+        lensRecorder: lens.recorder,
       });
       setStreamingResponse('');
       setChatHistory((prev) => [...prev, { input: capturedInput, result: res }]);
@@ -250,6 +259,13 @@ export function SamplePage() {
                     Flowchart
                   </button>
                   <button
+                    className={`sample-left-tab ${leftView === '3renderers' ? 'active' : ''}`}
+                    onClick={() => setLeftView('3renderers')}
+                    title="One recorder, three renderers — engineer/analyst/user views"
+                  >
+                    3 Views
+                  </button>
+                  <button
                     className={`sample-left-tab ${leftView === 'code' ? 'active' : ''}`}
                     onClick={() => setLeftView('code')}
                   >
@@ -290,6 +306,14 @@ export function SamplePage() {
                   )}
                   {leftView === 'explain' && sample.explainer && (
                     <SampleExplainer markdown={sample.explainer} />
+                  )}
+                  {leftView === '3renderers' && (
+                    <ThreeRenderersDemo
+                      recorder={lens.recorder}
+                      // `lens.timeline` reference changes after every event
+                      // ingest, forcing this component to re-read selectors.
+                      version={lens.timeline.turns.length + lens.timeline.tools.length}
+                    />
                   )}
                 </div>
               </div>
