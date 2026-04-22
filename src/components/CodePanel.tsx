@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
+import { useTheme } from '../hooks/useTheme';
 
 interface CodePanelProps {
   code: string;
@@ -55,6 +56,8 @@ function highlightTS(src: string): string {
 
 export function CodePanel({ code, onChange }: CodePanelProps) {
   const isMobile = useIsMobile();
+  const theme = useTheme();
+  const isLight = theme === 'light';
 
   return (
     <div className="code-panel">
@@ -88,8 +91,8 @@ export function CodePanel({ code, onChange }: CodePanelProps) {
               fontSize: 12,
               lineHeight: 1.6,
               fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-              color: '#d4d4d4',
-              background: '#1e1e1e',
+              color: isLight ? '#1e1e1e' : '#d4d4d4',
+              background: isLight ? '#fafafa' : '#1e1e1e',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
             }}
@@ -99,7 +102,7 @@ export function CodePanel({ code, onChange }: CodePanelProps) {
           <Editor
             height="100%"
             language="typescript"
-            theme="vs-dark"
+            theme={isLight ? 'vs' : 'vs-dark'}
             value={code}
             onChange={(v) => onChange?.(v ?? '')}
             options={{

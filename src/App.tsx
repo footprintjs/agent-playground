@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { SamplePage } from './components/SamplePage';
 import { Welcome } from './components/Welcome';
 import { Sidebar } from './components/Sidebar';
 import { LiveChatPage } from './components/live/LiveChatPage';
 import { ViewerPage } from './components/viewer/ViewerPage';
 import { SettingsPanel, loadApiKeys } from './components/SettingsPanel';
+import { samples } from './samples/catalog';
 import '@xyflow/react/dist/style.css';
 import './styles/global.css';
 
@@ -21,13 +22,19 @@ function AutoOpenSettings({ onOpen }: { onOpen: () => void }) {
   return null;
 }
 
-/** Samples layout — sidebar + sample page */
+/** Samples layout — single full-width header strip across the top, then
+ * a horizontal sidebar + main row below. CSS Grid drives the outer
+ * shell (`.app--with-top-header`) so the sidebar's existing flex
+ * styling (and main's children) are unaffected — only the *placement*
+ * of the toolbar changed. Mirrors the footprintjs-playground header
+ * pattern: brand on the left, current sample title in the middle,
+ * nav links on the right, all in one strip. */
 function SamplesLayout({ onOpenSettings }: { onOpenSettings: () => void }) {
   return (
-    <div className="app">
+    <div className="app app--with-top-header">
+      <SamplesToolbar onOpenSettings={onOpenSettings} />
       <Sidebar />
       <div className="main">
-        <SamplesToolbar onOpenSettings={onOpenSettings} />
         <div className="main-content">
           <SamplePage />
         </div>
@@ -45,13 +52,49 @@ function SamplesToolbar({ onOpenSettings }: { onOpenSettings: () => void }) {
   const keys = loadApiKeys();
   const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
 
+  // Sidebar already carries the brand; the top bar shows the current sample
+  // title + one-line description. Falls back to a bare "agentfootprint" when
+  // no sample is selected (Welcome page).
+  const navigate = useNavigate();
+  const sampleMatch = useMatch('/samples/:sampleId');
+  const currentSample = sampleMatch?.params.sampleId
+    ? samples.find((s) => s.id === sampleMatch.params.sampleId)
+    : undefined;
+
   return (
     <header className="app-header">
-      <span className="app-header-title">Agent Playground</span>
+      {/* Brand block — replaces the sidebar's brand header so the top
+          strip is the single source of identity for the app. */}
+      <div className="app-header-brand" onClick={() => navigate('/')} role="button" tabIndex={0}>
+        <span className="app-header-brand-title">agentfootprint</span>
+        <span className="app-header-brand-attribution">powered by footprintjs</span>
+      </div>
+
+      {/* Current-sample title in the middle. Empty on the welcome page. */}
+      {currentSample ? (
+        <div className="app-header-sample">
+          <span className="app-header-sample-title">
+            {String(currentSample.number).padStart(2, '0')}. {currentSample.title}
+          </span>
+          <span className="app-header-sample-desc">{currentSample.description}</span>
+        </div>
+      ) : (
+        <div className="app-header-sample" />
+      )}
       <div className="app-header-links">
+        <button
+          onClick={() => navigate('/')}
+          title="Home"
+          aria-label="Home"
+          className="app-header-home-btn"
+        >
+          Home
+        </button>
+        <span className="app-header-sep">&middot;</span>
         <button
           onClick={onOpenSettings}
           title="API key settings"
+          aria-label="API key settings"
           className={`settings-btn ${hasKeys ? 'has-keys' : ''}`}
         >
           {hasKeys ? '\u26A1' : '\u2699'}

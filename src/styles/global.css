@@ -70,6 +70,33 @@ body {
   position: relative;
 }
 
+/* Single full-width header strip on top + sidebar/main row below.
+ * Grid drives the SHELL only — sidebar's flex column and main's flex
+ * column inside are unchanged. The header sits above both columns,
+ * carrying brand + sample title + nav links in one strip
+ * (mirrors the footprintjs-playground header pattern). */
+.app--with-top-header {
+  display: grid;
+  grid-template-rows: 56px 1fr;
+  grid-template-columns: 280px 1fr;
+  grid-template-areas:
+    'header header'
+    'sidebar main';
+  height: 100vh;
+}
+.app--with-top-header > .app-header { grid-area: header; }
+.app--with-top-header > .sidebar    { grid-area: sidebar; width: auto; }
+.app--with-top-header > .main       { grid-area: main; }
+@media (max-width: 768px) {
+  .app--with-top-header {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'header'
+      'main';
+  }
+  .app--with-top-header > .sidebar { display: none; }
+}
+
 .sidebar {
   width: 280px;
   background: var(--bg-secondary);
@@ -79,21 +106,35 @@ body {
   overflow: hidden;
 }
 
+/* Pinned to 56px so the sidebar's brand block aligns horizontally with
+ * the top app-header (also 56px). All three columns now share the same
+ * baseline → the second row (CONCEPTS label, tab strip, CHAT label)
+ * also lines up. Standard Material/HIG 8pt-grid practice. */
 .sidebar-header {
-  padding: 16px 20px;
+  height: 56px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .sidebar-header h1 {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--accent);
+  letter-spacing: -0.2px;
+  line-height: 1.15;
+  margin: 0;
 }
 
-.sidebar-header p {
+.sidebar-header p,
+.sidebar-attribution {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 2px;
+  letter-spacing: 0.2px;
+  line-height: 1.1;
 }
 
 .sidebar-home-btn {
@@ -174,27 +215,110 @@ body {
 }
 
 /* ── App header ──────────────────────────────────────── */
+/* Top app-header — Material/HIG-aligned at 56px tall (8pt grid),
+ * comfortable 24px horizontal gutters, big-enough touch targets for
+ * the icon row on the right. Sits above all panel chrome. */
 .app-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 16px;
+  padding: 0 24px;
+  height: 56px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .app-header-title {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--accent);
+  letter-spacing: -0.1px;
+}
+
+/* Brand block on the left of the top app-header. Replaces the sidebar's
+ * brand header — single source of identity, click navigates home. */
+.app-header-brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  cursor: pointer;
+  width: 280px; /* match sidebar width so brand sits over sidebar column */
+  margin-left: -24px; /* offset .app-header padding so brand starts at 0 */
+  padding: 0 20px;
+  border-right: 1px solid var(--border);
+  height: 100%;
+}
+.app-header-brand:hover .app-header-brand-title {
+  color: var(--accent-hover);
+}
+.app-header-brand-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.2px;
+  line-height: 1.15;
+  transition: color 0.12s;
+}
+.app-header-brand-attribution {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  letter-spacing: 0.2px;
+  line-height: 1.1;
+}
+
+/* Current-sample banner sits in the middle of the top header, between
+ * the brand on the left and the nav links on the right. */
+.app-header-sample {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  min-width: 0; /* let text-overflow work inside flex */
+  flex: 1;
+  margin-left: 24px;
+}
+.app-header-sample-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+}
+.app-header-sample-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .app-header-links {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 12px;
+  font-size: 13px;
+}
+
+/* Home button — sits with the other text links in the header but
+ * styled as a button (no underline border, hover lift). Same visual
+ * weight as the footprintjs/agentfootprint links to its right. */
+.app-header-home-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.app-header-home-btn:hover {
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .app-header-links a {
@@ -259,23 +383,193 @@ body {
   display: flex;
 }
 
-/* ── 2-panel: Left (Code/Flowchart) | Right (Result) ──── */
+/* ── 3-panel resizable layout (react-resizable-panels) ────────────
+ * Tabs | Chat | Lens. Each panel has a collapse/expand button in its
+ * header; resize handles between panels let users drag the dividers.
+ * Auto-saves layout to localStorage via PanelGroup's autoSaveId. */
 .sample-3panel {
-  display: flex;
   overflow: hidden;
   height: 100%;
+  width: 100%;
+  position: relative;
 }
-
-/* Left panel: code ↔ flowchart spec toggle */
-.sample-left-panel {
-  flex: 1;
-  min-width: 0;
+/* The <Group> from react-resizable-panels v4 renders as a div without
+ * an intrinsic height. Force it to fill the .sample-3panel container
+ * so the three panels (and their resize handles) span the full viewport
+ * height — without this, the Group collapses to 0 height and the
+ * mobile-panels block (rendered as a sibling) appears below it. */
+.sample-3panel > div[role='group'],
+.sample-3panel > div {
+  height: 100%;
+  width: 100%;
+}
+/* Each <Panel> child needs to participate in the height chain so its
+ * inner .sample-left-panel / .sample-result-panel / .sample-bts-panel
+ * can size against it. */
+.sample-3panel [data-panel] {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid var(--border);
-  transition: flex 0.4s ease, min-width 0.4s ease, max-width 0.4s ease;
 }
+
+/* Each Panel from react-resizable-panels gets full-height children — the
+ * inner div is what styles the panel chrome. */
+.sample-left-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Static divider between panels — drag is disabled; columns adjust
+ * width via the per-panel collapse/expand button only. Thin neutral
+ * line, no hover affordance, no resize cursor. */
+.sample-resize-handle {
+  width: 1px;
+  background: var(--border);
+  cursor: default;
+  position: relative;
+}
+
+/* Per-panel collapse button — sits at the right end of each panel's
+ * header strip (Tabs panel). Subtle default; accent on hover. */
+.sample-panel-collapse-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+}
+.sample-panel-collapse-btn:hover {
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Floating variant for panels that don't have a header strip (Chat,
+ * Lens). Absolutely positioned in the top-right of the panel. */
+.sample-panel-collapse-btn--floating {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+}
+
+/* Wrap chat/lens panels so the floating collapse button positions
+ * relative to the panel column, not the document. */
+.sample-result-panel,
+.sample-bts-panel {
+  position: relative;
+}
+
+/* ── Expand strip — line + pill pattern (matches ExplainableShell) ──
+ * A 1px vertical line runs the full column height; a small pill button
+ * sits centered on the line with the rotated label + arrow. Hover lights
+ * up the pill in the accent color. Same pattern as the explainable-ui
+ * shell's left/right panel collapse pulls. */
+.sample-panel-expand-strip {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  position: relative;
+}
+/* Vertical line — runs floor-to-ceiling behind the pill */
+.sample-panel-expand-strip::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--border);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+/* Pill body — both icon and label share the rounded chip aesthetic.
+ * The chip sits over the line so the line "passes through" it visually. */
+.sample-panel-expand-strip-icon,
+.sample-panel-expand-strip-label {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.sample-panel-expand-strip-icon {
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 700;
+  padding: 4px 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  border-bottom: none;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+.sample-panel-expand-strip-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 8px 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  border-top: none;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  /* Vertical text — reads bottom-up like browser tab labels */
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.sample-panel-expand-strip:hover .sample-panel-expand-strip-icon,
+.sample-panel-expand-strip:hover .sample-panel-expand-strip-label {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Empty state for the Lens column before the first run. Centered text,
+ * muted, signals "this is where observability lives once you run it." */
+.sample-lens-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 32px 24px;
+  text-align: center;
+  gap: 12px;
+}
+.sample-lens-empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.sample-lens-empty-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  max-width: 280px;
+}
+
+/* Legacy: kept for the mobile path that still renders the old collapsed
+ * strip. Desktop uses the resize-handle + collapse button now. */
 .sample-left-panel--collapsed {
   flex: 0 0 44px;
   min-width: 44px;
@@ -306,32 +600,52 @@ body {
   color: var(--accent);
 }
 
+/* Folder-tab look — modeled on Figma Prototype/Slide-deck tab pattern.
+ *
+ * Inactive tabs: flat against the bar, muted text, no chrome.
+ * Active tab:    same background as the content panel below, framed with
+ *                a 1px border that opens at the bottom — visually merging
+ *                the tab with the panel like a paper folder tab.
+ *
+ * Adapted for dark theme: "white-on-cream" → panel-color on bar-color.
+ */
 .sample-left-tabs {
   display: flex;
+  align-items: flex-end;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--bg-secondary);
+  padding: 8px 12px 0;
+  gap: 4px;
 }
 
 .sample-left-tab {
-  flex: 1;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 10px 22px 11px;
+  font-size: 13px;
+  font-weight: 500;
   font-family: inherit;
   background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+  margin-bottom: -1px; /* overlap the bar's bottom border so active tab merges with panel */
+  position: relative;
+  letter-spacing: 0.1px;
 }
-.sample-left-tab:hover {
+.sample-left-tab:hover:not(.active) {
   color: var(--text-primary);
 }
 .sample-left-tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--text-primary);
+  font-weight: 600;
+  background: var(--bg-primary, #181821);
+  border-color: var(--border);
+  border-bottom-color: var(--bg-primary, #181821); /* hide the bar's border under the active tab */
+  z-index: 1;
 }
 .sample-left-tab.disabled {
   color: var(--text-muted);
@@ -342,7 +656,6 @@ body {
   margin-left: auto;
   flex: none;
   color: var(--accent) !important;
-  border-bottom-color: transparent !important;
 }
 
 .sample-left-content {
@@ -383,17 +696,23 @@ body {
   font-size: 13px;
 }
 
-/* Result panel */
+/* Result panel — wrapper that gives the floating chat surface its
+ * breathing room inside the resize-panel column. Generous padding so
+ * the chat card sits clearly inside the column, not edge-to-edge. */
 .sample-result-panel {
-  flex: 0 1 380px;
-  min-width: 280px;
-  max-width: 440px;
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
 }
 
-/* BTS panel — slides in after run, fills height */
+/* BTS panel — slides in after run, fills height.
+ * Paints `--bg-secondary` so Lens's transparent tab-strip shows that tone
+ * (while the active tab + content body paint `--bg-primary` via Lens's
+ * `playgroundTheme`). Gives the same folder-tab-merged-with-body look
+ * as the left panel's `.sample-left-tabs` / `.sample-left-content`. */
 .sample-bts-panel {
   flex: 1 1 auto;
   min-width: 300px;
@@ -402,6 +721,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--bg-secondary);
   animation: sample-bts-enter 0.4s ease;
 }
 .sample-bts-panel > * {
@@ -898,22 +1218,36 @@ body {
   background: var(--bg-primary);
 }
 
-/* ── Chat panel (right side) ─────────────────────────── */
+/* ── Chat panel — floating app surface ────────────────────────────
+ * No border. Shadow does the lifting. Theme-aware fill so the surface
+ * is visible against BOTH the dark and light page backgrounds —
+ * lighten-on-dark won't show on a light page; we invert the elevation
+ * with darken-on-light. */
 .chat-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--bg-primary);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+:root.light .chat-panel {
+  background: rgba(0, 0, 0, 0.025);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .chat-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  padding: 12px 18px;
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   flex-shrink: 0;
 }
 
@@ -921,8 +1255,17 @@ body {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
+}
+
+/* Provider picker hosted in the chat header — sits right after the title.
+ * `margin-right: auto` pushes the Clear button to the far right. */
+.chat-header__provider {
+  margin-right: auto;
+  margin-left: 10px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .chat-clear-btn {
@@ -1002,16 +1345,24 @@ body {
 }
 
 .chat-bubble--user .chat-bubble__body {
-  background: var(--accent);
-  color: white;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: #1a1a1a;
   border-bottom-right-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .chat-bubble--assistant .chat-bubble__body {
-  background: var(--bg-secondary);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-bottom-left-radius: 4px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+:root.light .chat-bubble--assistant .chat-bubble__body {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: #1a1a1a;
 }
 
 .chat-bubble--error .chat-bubble__body {
@@ -1072,6 +1423,20 @@ body {
 .chat-typing span:nth-child(2) { animation-delay: 0.2s; }
 .chat-typing span:nth-child(3) { animation-delay: 0.4s; }
 
+/* Streaming cursor — blinks at the end of a live agent response while
+ * tokens are arriving, like Claude's chat cursor. Removed when the
+ * stream finalizes and the bubble is replaced by the static turn. */
+.chat-stream-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--accent);
+  font-weight: 700;
+  animation: chat-stream-cursor-blink 0.9s steps(2, start) infinite;
+}
+@keyframes chat-stream-cursor-blink {
+  to { visibility: hidden; }
+}
+
 .chat-meta {
   align-self: center;
   font-size: 11px;
@@ -1079,30 +1444,43 @@ body {
   padding: 4px 0;
 }
 
-/* Input bar */
+/* Input bar — pill-shaped composer that floats inside the glass panel.
+ * No top border, no background fill — the input itself is the visual
+ * element, sitting in a generous bottom margin like iMessage's composer. */
 .chat-input-bar {
   display: flex;
   gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-secondary);
+  padding: 12px 14px 16px;
+  background: transparent;
+  border-top: none;
+  align-items: center;
 }
 
 .chat-input {
   flex: 1;
-  padding: 10px 14px;
+  padding: 11px 16px;
   font-size: 14px;
   font-family: var(--font-sans);
-  background: var(--bg-primary);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+:root.light .chat-input {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #1a1a1a;
 }
 
 .chat-input:focus {
-  border-color: var(--accent);
+  border-color: rgba(250, 204, 21, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.1);
+}
+:root.light .chat-input:focus {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .chat-input::placeholder {
@@ -1110,21 +1488,56 @@ body {
 }
 
 .chat-run-btn {
-  padding: 10px 20px;
+  padding: 10px 18px;
   font-size: 13px;
   font-weight: 700;
   font-family: var(--font-sans);
-  background: var(--accent);
-  color: white;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: #1a1a1a;
   border: none;
-  border-radius: 8px;
+  border-radius: 22px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s;
+  transition: transform 0.12s, box-shadow 0.12s, opacity 0.15s;
+  box-shadow: 0 2px 6px rgba(250, 204, 21, 0.2);
 }
 
 .chat-run-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(250, 204, 21, 0.3);
+}
+
+/* Provider picker — small native <select> sitting between the input and
+ * the Run button. Same pill aesthetic as the input + Run button so the
+ * three controls read as one composer row. */
+.provider-picker {
+  padding: 9px 28px 9px 12px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 4l3 3 3-3' stroke='%23a0a0b8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 0.12s, background-color 0.12s;
+}
+.provider-picker:hover {
+  border-color: rgba(250, 204, 21, 0.4);
+}
+.provider-picker:focus {
+  outline: none;
+  border-color: rgba(250, 204, 21, 0.6);
+}
+:root.light .provider-picker {
+  background-color: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #1a1a1a;
 }
 
 .chat-run-btn:disabled {

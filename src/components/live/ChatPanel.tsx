@@ -91,7 +91,6 @@ export function ChatPanel({ messages, running, input, streamingContent, onInputC
                       redacted: false,
                       snapshot: msg.execution!.snapshot,
                       narrativeEntries: msg.execution!.narrativeEntries,
-                      narrative: msg.execution!.narrative,
                       spec: msg.execution!.spec,
                     };
                     try {

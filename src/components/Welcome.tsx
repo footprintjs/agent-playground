@@ -9,22 +9,77 @@ function useThemeToggle() {
   return [light, () => setLight((v) => !v)] as const;
 }
 
+/**
+ * Chip-grid card contents. Each `categories` array drives one card's
+ * chip grid. Split across three cards (Patterns / Context Engineering /
+ * Features) so no single card grows taller than its siblings in the
+ * 3-column grid — visual parity across the row.
+ *
+ * Every `mode` is the example's folder name in agentfootprint/examples/.
+ * URL = the folder; Sidebar filters by `cat.group === mode`. Adding a
+ * new folder automatically works if you drop a chip in here.
+ */
+const PATTERN_CATEGORIES = [
+  { mode: 'patterns', label: 'ReAct',         sample: 'regular-vs-dynamic', desc: 'Agent default (Yao 2022)' },
+  { mode: 'patterns', label: 'Dynamic ReAct', sample: 'regular-vs-dynamic', desc: 'Slots re-evaluate per iter' },
+  { mode: 'patterns', label: 'Hierarchy',     sample: 'regular-vs-dynamic', desc: 'Swarm — router → specialists' },
+];
+
+// Context-engineering chips — the teaching thesis. Currently all point to
+// the RAG sample (the most prominent CE example). When dedicated memory /
+// skills / grounding samples land in `examples/`, the samples get their
+// own ids and chips update individually.
+const CONTEXT_CATEGORIES = [
+  { mode: 'concepts', label: 'RAG',          sample: 'rag',   desc: 'Retrieved chunks → messages' },
+  { mode: 'concepts', label: 'Memory',       sample: 'rag',   desc: 'Prior turns → messages' },
+  { mode: 'concepts', label: 'Skills',       sample: 'rag',   desc: 'Activate → system prompt + tools' },
+  { mode: 'concepts', label: 'Instructions', sample: 'rag',   desc: 'Per-tool guidance → system prompt' },
+];
+
+const FEATURE_CATEGORIES = [
+  { mode: 'providers',         label: 'Providers',     sample: 'prompt',           desc: 'Prompt, message, tool providers' },
+  { mode: 'runtime-features',  label: 'Runtime',       sample: 'events',           desc: 'Streaming, pause/resume, break' },
+  { mode: 'observability',     label: 'Observability', sample: 'recorders',        desc: 'Recorders, metrics, traces' },
+  { mode: 'security',          label: 'Security',      sample: 'gated-tools',      desc: 'Gated tools, redaction, guardrails' },
+  { mode: 'resilience',        label: 'Resilience',    sample: 'runner-wrappers',  desc: 'Retry, fallback, circuit breaker' },
+  { mode: 'integrations',      label: 'Integrations',  sample: 'full-integration', desc: 'MCP, CloudWatch, Datadog' },
+];
+
 const CARDS = [
   {
     phase: 'build' as const,
     icon: '\uD83E\uDDE0',
     title: 'Concept Ladder',
-    desc: 'Single LLM: LLM Call \u2192 Agent \u2192 RAG. Multi-Agent: Sequential \u2192 Parallel \u2192 Swarm. 6 concepts in 5 minutes.',
-    cta: 'Learn the concepts',
-    to: '/samples/simple-llm-call?mode=concepts',
+    desc: '2 primitives (LLM, Agent) + 3 compositions (Sequence, Parallel, Conditional). Everything else is a recipe on top.',
+    cta: 'Learn the primitives',
+    to: '/samples/llm-call?mode=concepts',
+  },
+  {
+    phase: 'build' as const,
+    icon: '\uD83D\uDD01',
+    title: 'Patterns',
+    desc: 'Named configurations of the primitives \u2014 each row links to the canonical paper.',
+    cta: null,
+    to: null,
+    categories: PATTERN_CATEGORIES,
+  },
+  {
+    phase: 'build' as const,
+    icon: '\uD83E\uDDE9',
+    title: 'Context Engineering',
+    desc: 'What you inject into the Agent\u2019s slots. The library\u2019s teaching thesis \u2014 visible as tagged injections in Lens.',
+    cta: null,
+    to: null,
+    categories: CONTEXT_CATEGORIES,
   },
   {
     phase: 'execute' as const,
     icon: '\u26A1',
-    title: 'Feature Playground',
-    desc: 'Tools, memory, streaming, security, resilience, recorders, grounding \u2014 every feature with runnable code and Behind the Scenes.',
-    cta: 'Explore features',
-    to: '/samples/prompt-strategies?mode=features',
+    title: 'Features',
+    desc: 'Infrastructure around runs \u2014 providers, runtime, observability, security, resilience, integrations.',
+    cta: null,
+    to: null,
+    categories: FEATURE_CATEGORIES,
   },
   {
     phase: 'observe' as const,
@@ -135,11 +190,117 @@ export function Welcome() {
         </p>
       </div>
 
-      {/* 3 cards — responsive via CSS class */}
+      {/* 4 cards — responsive via CSS class. Card 2 (Feature Playground)
+          renders a category chip-grid instead of a single CTA, so the
+          user lands on a sidebar already scoped to their area of
+          interest. */}
       <div className="welcome-cards">
         {CARDS.map((card, i) => {
           const colors = PHASE_COLORS[card.phase];
-          return (
+
+          const cardInner = (
+            <div
+              className="welcome-card"
+              style={{
+                height: '100%',
+                padding: '28px 24px',
+                background: 'var(--bg-secondary)',
+                border: `1px solid ${colors.border}`,
+                borderRadius: 14,
+                cursor: card.to ? 'pointer' : 'default',
+                transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.15s',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+              onMouseEnter={(e) => {
+                if (!card.to) return;
+                (e.currentTarget as HTMLDivElement).style.boxShadow = `0 4px 24px ${colors.border}`;
+                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
+                (e.currentTarget as HTMLDivElement).style.transform = 'none';
+              }}
+            >
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  background: colors.dim,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 22,
+                }}
+              >
+                {card.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+                  {card.title}
+                </div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {card.desc}
+                </div>
+              </div>
+
+              {/* Feature-Playground: render the category chip grid. Each
+                  chip is its own Link so clicks don't bubble to the card
+                  wrapper (card wrapper has no `to` in this case). */}
+              {'categories' in card && card.categories ? (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                    gap: 8,
+                    marginTop: 8,
+                  }}
+                >
+                  {card.categories.map((cat) => (
+                    <Link
+                      key={cat.mode}
+                      to={`/samples/${cat.sample}?mode=${cat.mode}`}
+                      title={cat.desc}
+                      style={{
+                        textDecoration: 'none',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: colors.color,
+                        background: colors.dim,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        textAlign: 'center',
+                        transition: 'background 0.12s, transform 0.12s',
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLAnchorElement).style.transform = 'none';
+                      }}
+                    >
+                      {cat.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ marginTop: 'auto', paddingTop: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.color, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {card.cta} <span style={{ fontSize: 16 }}>&rarr;</span>
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+
+          // Card with `to` = single-destination Link. Card without `to`
+          // (Feature Playground) = plain wrapper — the inner chips own
+          // their own navigation.
+          return card.to ? (
             <Link
               key={card.title}
               to={card.to}
@@ -150,68 +311,31 @@ export function Welcome() {
                 animationDelay: `${0.1 + i * 0.1}s`,
               }}
             >
-              <div
-                className="welcome-card"
-                style={{
-                  height: '100%',
-                  padding: '28px 24px',
-                  background: 'var(--bg-secondary)',
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 14,
-                  cursor: 'pointer',
-                  transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.15s',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12,
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = `0 4px 24px ${colors.border}`;
-                  (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-                  (e.currentTarget as HTMLDivElement).style.transform = 'none';
-                }}
-              >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    background: colors.dim,
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 22,
-                  }}
-                >
-                  {card.icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
-                    {card.title}
-                  </div>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    {card.desc}
-                  </div>
-                </div>
-                <div style={{ marginTop: 'auto', paddingTop: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.color, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {card.cta} <span style={{ fontSize: 16 }}>&rarr;</span>
-                  </span>
-                </div>
-              </div>
+              {cardInner}
             </Link>
+          ) : (
+            <div
+              key={card.title}
+              style={{
+                display: 'block',
+                height: '100%',
+                animationDelay: `${0.1 + i * 0.1}s`,
+              }}
+            >
+              {cardInner}
+            </div>
           );
         })}
       </div>
 
-      {/* Concept Ladder — Single LLM | Multi-Agent */}
+      {/* Canonical taxonomy chips: Primitives → Compositions → Patterns.
+          Reads top-to-bottom as the library's mental model. The chip grid
+          in the Feature Playground card covers the cross-cutting pieces
+          (Context Engineering + Features). */}
       <div className="welcome-concepts">
         <div className="welcome-concept-row">
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Single LLM</span>
-          {['LLM Call', 'Agent', 'RAG'].map((c, i) => (
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Primitives</span>
+          {['LLM', 'Agent (ReAct)'].map((c, i) => (
             <React.Fragment key={c}>
               {i > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>&rarr;</span>}
               <span style={{
@@ -225,10 +349,25 @@ export function Welcome() {
           ))}
         </div>
         <div className="welcome-concept-row">
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Multi-Agent</span>
-          {['Sequential', 'Parallel', 'Swarm'].map((c, i) => (
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Compositions</span>
+          {['Sequence', 'Parallel', 'Conditional'].map((c, i) => (
             <React.Fragment key={c}>
               {i > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>&rarr;</span>}
+              <span style={{
+                fontSize: 12, fontWeight: 600,
+                color: 'var(--accent, #facc15)',
+                background: 'rgba(250,204,21,0.1)',
+                border: '1px solid rgba(250,204,21,0.2)',
+                borderRadius: 6, padding: '4px 10px',
+              }}>{c}</span>
+            </React.Fragment>
+          ))}
+        </div>
+        <div className="welcome-concept-row">
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Patterns</span>
+          {['ReAct', 'Dynamic ReAct', 'Hierarchy'].map((c, i) => (
+            <React.Fragment key={c}>
+              {i > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>&middot;</span>}
               <span style={{
                 fontSize: 12, fontWeight: 600,
                 color: 'var(--accent, #facc15)',

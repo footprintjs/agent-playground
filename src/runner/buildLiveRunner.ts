@@ -949,13 +949,12 @@ function wrapRunnerWithMemory(
 // ── Shared Helpers ──────────────────────────────────────────
 
 function captureExecution(
-  runner: { getSnapshot?: () => unknown; getNarrativeEntries?: () => unknown[]; getNarrative?: () => string[]; getSpec?: () => unknown },
+  runner: { getSnapshot?: () => unknown; getNarrativeEntries?: () => unknown[]; getSpec?: () => unknown },
   obs?: AgentObservabilityRecorder,
 ): CapturedExecution {
   const execution: CapturedExecution = {};
   try { if (runner.getSnapshot) execution.snapshot = runner.getSnapshot(); } catch {}
   try { if (runner.getNarrativeEntries) execution.narrativeEntries = runner.getNarrativeEntries(); } catch {}
-  try { if (runner.getNarrative) execution.narrative = runner.getNarrative(); } catch {}
   try { if (runner.getSpec) execution.spec = runner.getSpec(); } catch {}
   if (obs) {
     try {

@@ -3,15 +3,42 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { getCategorizedSamples } from '../samples/catalog';
 import type { SampleCategory } from '../samples/catalog';
 
-/** Sample IDs that represent the 6 core concepts. */
-const CONCEPT_IDS = new Set([
-  'simple-llm-call',      // LLMCall
-  'agent-with-tools',     // Agent
-  'rag-retrieval',        // RAG
-  'flowchart-sequential', // FlowChart
-  'swarm-delegation',     // Swarm
-  'parallel-execution',   // Parallel
-]);
+/**
+ * URL-mode aliases for URL stability across folder renames. Keep this
+ * tiny — every entry is a promise we've made to existing links. Today's
+ * only alias: `runtime` → `runtime-features` (the folder grew a suffix
+ * but old `?mode=runtime` URLs shouldn't 404).
+ */
+const MODE_ALIAS: Record<string, string> = {
+  runtime: 'runtime-features',
+};
+
+/**
+ * Sub-layer mapping for `?mode=concepts` — the canonical 5-layer
+ * taxonomy (Primitives / Compositions / Patterns / Context Engineering)
+ * lives at the DISPLAY layer. The library's `examples/concepts/` folder
+ * still contains all 7 samples flat (LLM, Agent, RAG, FlowChart,
+ * Parallel, Conditional, Swarm). We sub-split at render time so the
+ * sidebar teaches the taxonomy without requiring a library-side folder
+ * refactor. Sample IDs not listed here fall through to "Concepts" as
+ * before.
+ */
+const CONCEPT_SAMPLE_LAYER: Record<string, 'Primitives' | 'Compositions' | 'Patterns' | 'Context Engineering'> = {
+  'llm-call': 'Primitives',
+  'agent': 'Primitives',
+  'agent-with-tools': 'Primitives',
+  'flowchart': 'Compositions',
+  'flowchart-sequential': 'Compositions',
+  'parallel': 'Compositions',
+  'parallel-execution': 'Compositions',
+  'conditional': 'Compositions',
+  'conditional-triage': 'Compositions',
+  'swarm': 'Patterns',
+  'swarm-delegation': 'Patterns',
+  'rag': 'Context Engineering',
+  'rag-retrieval': 'Context Engineering',
+};
+const LAYER_ORDER = ['Primitives', 'Compositions', 'Patterns', 'Context Engineering', 'Concepts'] as const;
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -20,32 +47,41 @@ export function Sidebar() {
   const allCategories = getCategorizedSamples();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Determine mode from query param
-  const mode = searchParams.get('mode') as 'concepts' | 'features' | null;
+  // URL mode = the category's folder name (from agentfootprint/examples/<folder>).
+  // Unknown / no mode → show everything (safe default for direct URLs).
+  const rawMode = searchParams.get('mode');
+  const mode = rawMode ? (MODE_ALIAS[rawMode] ?? rawMode) : null;
 
-  // Filter categories based on mode
   const categories = useMemo<SampleCategory[]>(() => {
+    if (!mode) return allCategories;
+    const filtered = allCategories.filter((cat) => cat.group === mode);
+    // If the mode matched no category, fall through to "show all" rather
+    // than leave the user with an empty sidebar.
+    if (filtered.length === 0) return allCategories;
+
+    // Special case: concepts mode sub-splits into the 5-layer taxonomy
+    // (Primitives / Compositions / Patterns / Context Engineering). The
+    // library keeps all 7 concept samples in one folder; the sidebar
+    // teaches the taxonomy at the display layer.
     if (mode === 'concepts') {
-      // Show concept samples grouped by Single LLM / Multi-Agent
-      return allCategories
-        .filter((cat) => cat.name === 'Single LLM' || cat.name === 'Multi-Agent')
-        .map((cat) => ({
-          ...cat,
-          samples: cat.samples.filter((s) => CONCEPT_IDS.has(s.id)),
-        }))
-        .filter((cat) => cat.samples.length > 0);
+      const buckets = new Map<string, SampleCategory['samples'][number][]>();
+      for (const cat of filtered) {
+        for (const s of cat.samples) {
+          const layer = CONCEPT_SAMPLE_LAYER[s.id] ?? 'Concepts';
+          if (!buckets.has(layer)) buckets.set(layer, []);
+          buckets.get(layer)!.push(s);
+        }
+      }
+      return LAYER_ORDER
+        .filter((name) => buckets.has(name))
+        .map((name) => ({
+          name,
+          samples: buckets.get(name)!,
+          group: 'concepts',
+        }));
     }
-    if (mode === 'features') {
-      // Show everything EXCEPT the concept samples
-      return allCategories
-        .map((cat) => ({
-          ...cat,
-          samples: cat.samples.filter((s) => !CONCEPT_IDS.has(s.id)),
-        }))
-        .filter((cat) => cat.samples.length > 0);
-    }
-    // No mode = show all (direct URL access)
-    return allCategories;
+
+    return filtered;
   }, [allCategories, mode]);
 
   // Extract sampleId from current path
@@ -53,13 +89,12 @@ export function Sidebar() {
   const activeSampleId = match?.[1] ?? null;
 
   const handleNavigate = (sampleId: string) => {
-    // Preserve the mode param when navigating between samples
-    const modeParam = mode ? `?mode=${mode}` : '';
+    // Preserve the mode param (using the raw URL form, not the aliased
+    // internal form) when navigating between samples.
+    const modeParam = rawMode ? `?mode=${rawMode}` : '';
     navigate(`/samples/${sampleId}${modeParam}`);
     setMobileOpen(false);
   };
-
-  const modeLabel = mode === 'concepts' ? 'Concept Ladder' : mode === 'features' ? 'Feature Playground' : 'All Samples';
 
   return (
     <>
@@ -78,18 +113,6 @@ export function Sidebar() {
       )}
 
       <div className={`sidebar ${mobileOpen ? 'sidebar--open' : ''}`}>
-        <div className="sidebar-header">
-          <h1 onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-            Agent Playground
-          </h1>
-          <p>{modeLabel}</p>
-          <button
-            className="sidebar-home-btn"
-            onClick={() => navigate('/')}
-          >
-            Home
-          </button>
-        </div>
         <div className="sidebar-list">
           {categories.map((cat) => (
             <div key={cat.name}>

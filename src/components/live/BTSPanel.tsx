@@ -26,33 +26,9 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
         (execution.narrativeEntries as any[]) ?? undefined,
       );
     } catch {
-      if (execution.narrative && execution.narrative.length > 0) {
-        return execution.narrative.map((text, i) => ({
-          stageName: `stage-${i}`,
-          stageLabel: `Stage ${i + 1}`,
-          memory: {},
-          narrative: text,
-          startMs: i * 100,
-          durationMs: 100,
-          status: 'done' as const,
-        }));
-      }
       return [];
     }
   }, [execution]);
-
-  // Use the captured agent narrative directly (from createAgentRenderer)
-  const narrative = useMemo(() => {
-    if (execution?.narrative && execution.narrative.length > 0) {
-      return execution.narrative;
-    }
-    const lines: string[] = [];
-    for (const snap of snapshots) {
-      const stageLines = (snap.narrative ?? '').split('\n').filter(Boolean);
-      lines.push(...stageLines);
-    }
-    return lines;
-  }, [execution, snapshots]);
 
   const spec = execution?.spec ?? null;
 
@@ -82,7 +58,6 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
               <ExplainableShell
                 snapshots={snapshots}
                 spec={spec as any}
-                narrative={narrative}
                 narrativeEntries={execution!.narrativeEntries as any[] ?? undefined}
                 tabs={['explainable']}
                 defaultTab="narrative"

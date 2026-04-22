@@ -14,6 +14,7 @@ import * as agentfootprintExplain from 'agentfootprint/explain';
 import * as agentfootprintResilience from 'agentfootprint/resilience';
 import * as agentfootprintProviders from 'agentfootprint/providers';
 import * as footprintjs from 'footprintjs';
+import { asStreaming } from './streamingMock';
 
 export interface ExecuteResult {
   output: unknown;
@@ -44,7 +45,6 @@ export interface RecorderSnapshot {
 export interface CapturedExecution {
   snapshot?: unknown;
   narrativeEntries?: unknown[];
-  narrative?: string[];
   spec?: unknown;
   /** Recorder data from agentObservability (tokens, tools, cost, explain). */
   recorders?: RecorderSnapshot;
@@ -55,7 +55,33 @@ export interface ApiKeys {
   openai?: string;
 }
 
-export async function executeCode(code: string, input: string, apiKeys?: ApiKeys): Promise<ExecuteResult> {
+export interface ExecuteOptions {
+  /** Called for every token as the mock streams. Lets the chat UI
+   *  render a progressive bubble (Claude-style token-by-token). */
+  readonly onStreamToken?: (token: string) => void;
+  /** Called once when the mock streaming finishes. */
+  readonly onStreamDone?: () => void;
+  /** Called periodically during the run with the latest runner snapshot.
+   *  Drives the Lens column — so the observability panel updates as the
+   *  mock streams tokens, instead of only at the end of the run. */
+  readonly onLiveSnapshot?: (snapshot: unknown) => void;
+  /** Called for every AgentStreamEvent during AgentRunner.run(). Injected
+   *  into the sample code by monkey-patching AgentRunner.prototype.run to
+   *  forward events to useLiveTimeline's ingest. Without this callback,
+   *  Lens would only show the post-run snapshot — with it, Lens populates
+   *  iteration-by-iteration as the mock (or real provider) runs. */
+  readonly onAgentEvent?: (event: unknown) => void;
+}
+
+export async function executeCode(
+  code: string,
+  input: string,
+  apiKeys?: ApiKeys,
+  /** Optional injected provider — replaces the example's default mock when supplied.
+   *  Selected by the user via ProviderPicker (mock / anthropic / openai / ollama). */
+  injectedProvider?: unknown,
+  options?: ExecuteOptions,
+): Promise<ExecuteResult> {
   const logs: string[] = [];
   const start = performance.now();
 
@@ -82,13 +108,18 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
       disableESTransforms: true,
     });
 
-    // Wrap in async function
+    // Wrap in async function. `__provider` is passed to the example body
+    // via the catalog's fromSample prelude (`const provider = __provider;`).
+    // When undefined, the example's `provider ?? defaultMock()` falls back
+    // to the example's scripted mock — same behavior as before. When a
+    // real provider is injected, the example uses it for every chat call.
     const wrapped = `
-      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs) {
+      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent) {
         const {
           LLMCall, LLMCallRunner, Agent, AgentRunner, RAG, RAGRunner,
           FlowChart, FlowChartRunner, Swarm, SwarmRunner, Parallel, ParallelRunner,
           mock, mockRetriever, defineTool, ToolRegistry,
+          AgentPattern, defineInstruction, quickBind,
           staticPrompt, templatePrompt, compositePrompt,
           slidingWindow, charBudget, appendMessage,
           userMessage, assistantMessage, systemMessage, toolResultMessage,
@@ -124,9 +155,6 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
           } catch(e) {}
           try {
             if (runner.getNarrativeEntries) __captured.narrativeEntries = runner.getNarrativeEntries();
-          } catch(e) {}
-          try {
-            if (runner.getNarrative) __captured.narrative = runner.getNarrative();
           } catch(e) {}
           try {
             if (runner.getSpec) __captured.spec = runner.getSpec();
@@ -177,14 +205,49 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
                 this.attachRecorder(new MetricRecorder('__timing'));
               }
 
-              const result = await origRuns.get(Cls).apply(this, args);
-              captureFromRunner(this);
-              // Final recorder snapshot
-              const finalSnap = snapshotObs();
-              if (finalSnap) {
-                __captured.recorders = finalSnap;
+              // Subscribe to the runner event stream so Lens lights up.
+              // Class-agnostic — every agentfootprint runner exposes
+              // observe(). Idempotent: subscribe only once per instance
+              // (sample code may call run() multiple times).
+              if (__onAgentEvent && typeof this.observe === 'function' && !this.__fpPlaygroundSubscribed) {
+                try {
+                  this.observe(__onAgentEvent);
+                  this.__fpPlaygroundSubscribed = true;
+                } catch (e) {}
               }
-              return result;
+
+              // Live-snapshot polling — every ~100ms during the run,
+              // push a fresh snapshot to the Lens column so the
+              // observability panel updates AS the mock streams tokens,
+              // not only at the end.
+              let __livePoll = null;
+              const self = this;
+              if (__onLiveSnapshot && self.getSnapshot) {
+                __livePoll = setInterval(() => {
+                  try {
+                    __onLiveSnapshot(self.getSnapshot());
+                  } catch (e) {}
+                }, 100);
+              }
+
+              try {
+                const result = await origRuns.get(Cls).apply(this, args);
+                captureFromRunner(this);
+                // Final recorder snapshot
+                const finalSnap = snapshotObs();
+                if (finalSnap) {
+                  __captured.recorders = finalSnap;
+                }
+                // Final live-snapshot push so the UI is guaranteed to
+                // have the end-of-run state (the interval may have
+                // missed the final commit).
+                if (__onLiveSnapshot) {
+                  try { __onLiveSnapshot(self.getSnapshot()); } catch (e) {}
+                }
+                return result;
+              } finally {
+                if (__livePoll) clearInterval(__livePoll);
+              }
             };
           }
         }
@@ -200,7 +263,7 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
             Cls.prototype.build = orig;
           }
         }
-      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs);
+      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent);
     `;
 
     const mockConsole = {
@@ -210,16 +273,34 @@ export async function executeCode(code: string, input: string, apiKeys?: ApiKeys
     };
 
     // Execute
-    const fn = new Function('__agentfootprint', '__input', '__console', '__captured', '__apiKeys', '__footprintjs', wrapped);
+    const fn = new Function('__agentfootprint', '__input', '__console', '__captured', '__apiKeys', '__footprintjs', '__provider', '__onLiveSnapshot', '__onAgentEvent', wrapped);
     // Merge subpath barrels into agentfootprint so all exports are available
-    const mergedAgentfootprint = { ...agentfootprint, ...agentfootprintObserve, ...agentfootprintExplain, ...agentfootprintResilience, ...agentfootprintProviders };
-    const output = await fn(mergedAgentfootprint, input, mockConsole, captured, apiKeys ?? {}, footprintjs);
+    const mergedAgentfootprint: Record<string, unknown> = {
+      ...agentfootprint,
+      ...agentfootprintObserve,
+      ...agentfootprintExplain,
+      ...agentfootprintResilience,
+      ...agentfootprintProviders,
+    };
+    // When the picker is "Mock" (no real provider injected), wrap the
+    // example's `mock([...])` calls with `asStreaming(...)` so the
+    // scripted responses arrive token-by-token via the StreamCallback —
+    // matching the visual feel of "Run with Claude" / "Run with GPT".
+    if (!injectedProvider) {
+      const originalMock = mergedAgentfootprint.mock as (...args: unknown[]) => unknown;
+      mergedAgentfootprint.mock = (...args: unknown[]) =>
+        asStreaming(originalMock(...args) as Parameters<typeof asStreaming>[0], {
+          onToken: options?.onStreamToken,
+          onDone: options?.onStreamDone,
+        });
+    }
+    const output = await fn(mergedAgentfootprint, input, mockConsole, captured, apiKeys ?? {}, footprintjs, injectedProvider, options?.onLiveSnapshot, options?.onAgentEvent);
 
     return {
       output,
       logs,
       durationMs: Math.round(performance.now() - start),
-      execution: (captured.snapshot || captured.narrative) ? captured : undefined,
+      execution: (captured.snapshot || captured.narrativeEntries) ? captured : undefined,
     };
   } catch (err) {
     return {

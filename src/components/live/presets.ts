@@ -329,7 +329,7 @@ const swarm = Swarm.create({ provider })
 
 const result = await swarm.run('Write a haiku about debugging');
 // result.agents shows which specialists were invoked
-// swarm.getNarrative() shows full execution trace`,
+// swarm.getNarrativeEntries() shows full execution trace`,
   },
 
   // ── Dynamic Behavior ──────────────────────────────────────

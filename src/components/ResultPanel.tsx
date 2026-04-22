@@ -13,6 +13,12 @@ interface ResultPanelProps {
   onRun: () => void;
   onInputChange: (value: string) => void;
   onClear: () => void;
+  /** Optional provider picker — rendered next to the Run button when supplied. */
+  providerPicker?: React.ReactNode;
+  /** Token-by-token in-progress response, rendered as a live bubble
+   *  while a Run is in flight. Cleared once the run finalizes and
+   *  the full turn lands in `history`. Empty string = no live bubble. */
+  streamingResponse?: string;
 }
 
 function extractContent(output: unknown): string | null {
@@ -102,7 +108,7 @@ function TurnView({ turn }: { turn: ChatTurn }) {
   );
 }
 
-export function ResultPanel({ history, running, pendingInput, onRun, onInputChange, onClear }: ResultPanelProps) {
+export function ResultPanel({ history, running, pendingInput, onRun, onInputChange, onClear, providerPicker, streamingResponse }: ResultPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -113,9 +119,15 @@ export function ResultPanel({ history, running, pendingInput, onRun, onInputChan
 
   return (
     <div className="chat-panel">
-      {/* Header with clear button */}
+      {/* Header: title + provider picker + clear button. Provider picker
+          sits in the header (not the input bar) so the input row stays
+          a clean "type + Run" pair — larger tap target for Run, no
+          visual competition between provider and send actions. */}
       <div className="chat-header">
         <span className="chat-header__title">Chat</span>
+        {providerPicker && (
+          <span className="chat-header__provider">{providerPicker}</span>
+        )}
         {history.length > 0 && (
           <button className="chat-clear-btn" onClick={onClear} title="Clear history">
             Clear
@@ -135,7 +147,10 @@ export function ResultPanel({ history, running, pendingInput, onRun, onInputChan
           <TurnView key={i} turn={turn} />
         ))}
 
-        {/* Typing indicator for in-flight run */}
+        {/* In-flight bubble — shows the user's message + a live agent
+            response. While streamingResponse is empty, the agent bubble
+            shows the typing dots (TTFT). Once tokens start arriving, it
+            renders them progressively + a blinking cursor at the end. */}
         {running && (
           <>
             <div className="chat-bubble chat-bubble--user">
@@ -144,9 +159,16 @@ export function ResultPanel({ history, running, pendingInput, onRun, onInputChan
             </div>
             <div className="chat-bubble chat-bubble--assistant">
               <div className="chat-bubble__label">Agent</div>
-              <div className="chat-typing">
-                <span /><span /><span />
-              </div>
+              {streamingResponse ? (
+                <div className="chat-bubble__body">
+                  {streamingResponse}
+                  <span className="chat-stream-cursor">▍</span>
+                </div>
+              ) : (
+                <div className="chat-typing">
+                  <span /><span /><span />
+                </div>
+              )}
             </div>
           </>
         )}
@@ -154,7 +176,8 @@ export function ResultPanel({ history, running, pendingInput, onRun, onInputChan
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input bar */}
+      {/* Input bar — clean pair: input pill + Run. Provider picker
+          lives in the header so Run gets room to breathe. */}
       <div className="chat-input-bar">
         <input
           className="chat-input"

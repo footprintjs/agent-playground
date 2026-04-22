@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 export interface ApiKeys {
   anthropic: string;
   openai: string;
+  /** OpenRouter — unified gateway for Claude / GPT / Gemini / Llama / 200+ models.
+   *  One key, one endpoint, OpenAI-compatible API. */
+  openrouter: string;
 }
 
 const STORAGE_KEY = 'agent-playground:api-keys';
@@ -12,9 +15,13 @@ const STORAGE_KEY = 'agent-playground:api-keys';
 export function loadApiKeys(): ApiKeys {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Backfill openrouter for sessions that pre-date the field.
+      return { anthropic: '', openai: '', openrouter: '', ...parsed };
+    }
   } catch {}
-  return { anthropic: '', openai: '' };
+  return { anthropic: '', openai: '', openrouter: '' };
 }
 
 /** Persist API keys to sessionStorage. */
@@ -30,7 +37,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     saveApiKeys(keys);
   }, [keys]);
 
-  const hasAnyKey = keys.anthropic.length > 0 || keys.openai.length > 0;
+  const hasAnyKey =
+    keys.anthropic.length > 0 || keys.openai.length > 0 || keys.openrouter.length > 0;
 
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -85,12 +93,43 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           />
         </div>
 
+        <div className="settings-field">
+          <label>
+            OpenRouter API Key
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400, marginLeft: 6 }}>
+              one key, 200+ models
+            </span>
+          </label>
+          <input
+            type="password"
+            placeholder="sk-or-v1-..."
+            value={keys.openrouter}
+            onChange={(e) => setKeys((k) => ({ ...k, openrouter: e.target.value }))}
+            autoComplete="off"
+          />
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.4 }}>
+            Unified gateway for Claude / GPT / Gemini / Llama / Mistral. Get a key at{' '}
+            <a
+              href="https://openrouter.ai/keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--accent)' }}
+            >
+              openrouter.ai/keys
+            </a>
+            .
+          </div>
+        </div>
+
         <div className="settings-status">
           <span className={keys.anthropic ? 'key-active' : 'key-inactive'}>
             Anthropic: {keys.anthropic ? 'Set' : 'Not set'}
           </span>
           <span className={keys.openai ? 'key-active' : 'key-inactive'}>
             OpenAI: {keys.openai ? 'Set' : 'Not set'}
+          </span>
+          <span className={keys.openrouter ? 'key-active' : 'key-inactive'}>
+            OpenRouter: {keys.openrouter ? 'Set' : 'Not set'}
           </span>
         </div>
 
@@ -128,7 +167,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 cursor: 'pointer',
               }}
               onClick={() => {
-                setKeys({ anthropic: '', openai: '' });
+                setKeys({ anthropic: '', openai: '', openrouter: '' });
                 sessionStorage.removeItem(STORAGE_KEY);
               }}
             >
