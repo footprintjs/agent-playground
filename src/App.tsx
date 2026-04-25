@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { SamplePage } from './components/SamplePage';
 import { Welcome } from './components/Welcome';
 import { Sidebar } from './components/Sidebar';
-import { LiveChatPage } from './components/live/LiveChatPage';
+// Lazy-loaded so v1-coupled live-chat code doesn't pull patternSpecs/buildLiveRunner
+// into the main bundle until the route is actually visited.
+const LiveChatPage = React.lazy(() =>
+  import('./components/live/LiveChatPage').then((m) => ({ default: m.LiveChatPage })),
+);
 import { ViewerPage } from './components/viewer/ViewerPage';
 import { SettingsPanel, loadApiKeys } from './components/SettingsPanel';
 import { samples } from './samples/catalog';
@@ -133,7 +137,14 @@ export function App() {
       <AutoOpenSettings onOpen={() => setShowSettings(true)} />
       <Routes>
         <Route path="/" element={<Welcome />} />
-        <Route path="/live" element={<LiveChatPage />} />
+        <Route
+          path="/live"
+          element={
+            <Suspense fallback={<div style={{ padding: 16 }}>Loading…</div>}>
+              <LiveChatPage />
+            </Suspense>
+          }
+        />
         <Route path="/viewer" element={<ViewerPage />} />
         <Route
           path="/samples/:sampleId"

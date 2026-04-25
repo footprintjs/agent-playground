@@ -261,7 +261,7 @@ export function Welcome() {
                 >
                   {card.categories.map((cat) => (
                     <Link
-                      key={cat.mode}
+                      key={cat.label}
                       to={`/samples/${cat.sample}?mode=${cat.mode}`}
                       title={cat.desc}
                       style={{

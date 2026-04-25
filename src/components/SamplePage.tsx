@@ -7,7 +7,7 @@ import { ChatThinkKit } from './ChatThinkKit';
 import { SampleExplainer } from './SampleExplainer';
 import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
 import type { ThemeTokens } from 'footprint-explainable-ui';
-import { Lens, useLiveTimeline } from 'agentfootprint-lens';
+import { Lens, LensRecorder } from 'agentfootprint-lens';
 import { ThreeRenderersDemo } from './ThreeRenderersDemo';
 
 // Theme tokens built from the playground's own CSS vars so Lens renders
@@ -95,13 +95,25 @@ export function SamplePage() {
   // tokens. Cleared on sample switch.
   const [liveSnapshot, setLiveSnapshot] = useState<unknown>(null);
 
-  // Lens live timeline — same pattern the Neo app uses. Ingests
-  // AgentStreamEvents fired by agentfootprint's emit channel (llm_start,
-  // llm_end, tool_start, tool_end, token, turn_start, turn_end). Without
-  // this, Lens would only show the post-run snapshot; with it, Lens
-  // populates iteration-by-iteration as the agent runs — identical
-  // visual feel to what Neo gets with real Anthropic streaming.
-  const lens = useLiveTimeline();
+  // Live flowchart spec fed to the Flowchart panel during a run. Captured
+  // from `runner.toFlowChart().buildTimeStructure` at run-start, BEFORE
+  // traversal begins, so multi-agent subflow trees (Swarm/Debate/MapReduce/
+  // ToT) surface in the UI while execution streams — not only after.
+  const [liveSpec, setLiveSpec] = useState<unknown>(null);
+
+  // Live composition graph from footprintjs TopologyRecorder. Polled during
+  // a run alongside the snapshot. Gives { nodes, edges, activeNodeId } —
+  // each entered subflow (Swarm agent, Debate role, MapReduce shard,
+  // ToT branch) appears as a node as execution reaches it, so the UI can
+  // group steps live without waiting for a post-run tree walk.
+  const [liveTopology, setLiveTopology] = useState<unknown>(null);
+
+  // Lens recorder. Each Run click creates a fresh recorder (so
+  // RunTree / EventLog / Summary reset between turns), observes the
+  // outermost runner through the sandbox, and is then handed to the
+  // Lens component via state so React re-renders with the populated
+  // recorder once events accumulate.
+  const [lensRecorder, setLensRecorder] = useState<LensRecorder>(() => new LensRecorder());
 
   // Reset all state when switching samples
   useEffect(() => {
@@ -109,7 +121,10 @@ export function SamplePage() {
     setChatHistory([]);
     setStreamingResponse('');
     setLiveSnapshot(null);
-    lens.reset();
+    setLiveSpec(null);
+    setLiveTopology(null);
+    // Swap in a fresh LensRecorder so prior-sample events don't leak.
+    setLensRecorder(new LensRecorder());
     setRunning(false);
     // Default to Explain when the sample has one — read first, then shape,
     // then code. Falls back to Code for the inline samples that have no .md.
@@ -166,35 +181,23 @@ export function SamplePage() {
         ]);
         return;
       }
-      // Reset the streaming bubble + live snapshot + Lens timeline.
-      // `lens.reset()` clears any prior turn; the new turn opens on its
-      // own when the sandbox dispatches `turn_start` (every runner fires
-      // that at the top of `run()` now — LiveTimelineBuilder.ingest
-      // auto-starts the turn on that event).
+      // Reset streaming bubble + live snapshot + Lens recorder. Create
+      // the fresh recorder INLINE (not via setState) so the sandbox
+      // observes the same instance we hand to React — setState is
+      // asynchronous and would leave the sandbox holding a stale
+      // closure reference.
       setStreamingResponse('');
       setLiveSnapshot(null);
-      lens.reset();
+      const freshRecorder = new LensRecorder();
+      setLensRecorder(freshRecorder);
       const res = await executeCode(code, capturedInput, apiKeys, built.provider, {
         onStreamToken: (token) => setStreamingResponse((prev) => prev + token),
         onLiveSnapshot: (snap) => setLiveSnapshot(snap),
-        // Attach the Lens recorder directly → executor routes rich
-        // EmitEvents (real runtimeStageId + subflowPath) + FlowRecorder
-        // events (onSubflowEntry/Fork/Decision/Loop) via
-        // `forwardEmitRecorders` → `attachCombinedRecorder`.
-        lensRecorder: lens.recorder,
-        // HYBRID: attach handles llm/tool/subflow/fork/decision via the
-        // emit+flow channels. Turn boundaries (turn_start / turn_end)
-        // are NOT on the emit channel (see StreamEventRecorder.ts) — they
-        // flow only through observe. Feed JUST those via ingest; every
-        // other event is already in the recorder via attach.
-        onAgentEvent: (event) => {
-          const type = (event as { type?: string })?.type;
-          if (type === 'turn_start' || type === 'turn_end') {
-            lens.ingest(event);
-          } else {
-            lens.sync();
-          }
-        },
+        onLiveSpec: (spec) => setLiveSpec(spec),
+        onLiveTopology: (topo) => setLiveTopology(topo),
+        // Lens observe()-based attach: the sandbox calls
+        // `recorder.observe(runner)` before calling `runner.run()`.
+        lensRecorder: freshRecorder,
       });
       setStreamingResponse('');
       setChatHistory((prev) => [...prev, { input: capturedInput, result: res }]);
@@ -215,7 +218,10 @@ export function SamplePage() {
 
   const lastTurn = chatHistory[chatHistory.length - 1];
   const execution = lastTurn?.result?.execution ?? null;
-  const spec = execution?.spec ?? null;
+  // Prefer the finalized spec from the last completed turn; fall back to
+  // the live spec emitted at run-start so the Flowchart panel renders
+  // the tree while execution streams in.
+  const spec = execution?.spec ?? liveSpec ?? null;
 
   return (
     <>
@@ -318,12 +324,14 @@ export function SamplePage() {
                     <SampleExplainer markdown={sample.explainer} />
                   )}
                   {leftView === '3renderers' && (
-                    <ThreeRenderersDemo
-                      recorder={lens.recorder}
-                      // `lens.timeline` reference changes after every event
-                      // ingest, forcing this component to re-read selectors.
-                      version={lens.timeline.turns.length + lens.timeline.tools.length}
-                    />
+                    // 3-renderers demo was coupled to the older Lens
+                    // timeline shape; the current Lens exposes
+                    // recorder.selectRunTree() / selectEventLog() /
+                    // selectSummary() instead. Tab kept for a future
+                    // rewrite over the new selectors.
+                    <div style={{ padding: 16, color: 'var(--text-muted)' }}>
+                      3-renderers demo pending Lens selector rewrite.
+                    </div>
                   )}
                 </div>
               </div>
@@ -375,7 +383,7 @@ export function SamplePage() {
                   onInputChange={(v: string) => setInput(v)}
                   onClear={() => setChatHistory([])}
                   streamingResponse={streamingResponse}
-                  thinkKit={<ChatThinkKit recorder={lens.recorder} version={lens.timeline.turns.length + lens.timeline.tools.length} />}
+                  thinkKit={null}
                   providerPicker={
                     <ProviderPicker value={providerKind} onChange={setProviderKind} />
                   }
@@ -429,14 +437,18 @@ export function SamplePage() {
                     snapshot so the Trace tab lights up after completion.
                     Mock and real providers both populate Lens identically
                     because the emit channel fires the same events. */}
+                {/* Lens — single-prop API: pass the recorder that
+                    observed the run. The recorder derives RunTree + Event
+                    Log + Summary lazily via its selectors; each turn of
+                    runner execution updates the recorder in place. */}
                 <Lens
-                  theme={playgroundTheme}
-                  timeline={lens.timeline}
-                  runtimeSnapshot={
-                    (liveSnapshot ?? (execution as { snapshot?: unknown } | null)?.snapshot ?? null) as any
-                  }
-                  narrativeEntries={execution?.narrativeEntries as any}
-                  spec={spec as any}
+                  recorder={lensRecorder}
+                  // StepGraph from runner.enable.flowchart() — pushed via
+                  // onLiveTopology during the run. Lens re-renders the
+                  // React Flow graph each time this changes.
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  stepGraph={liveTopology as any}
+                  view="engineer"
                 />
               </div>
             )}
@@ -473,7 +485,7 @@ export function SamplePage() {
               onRun={handleRun}
               onInputChange={setInput}
               onClear={() => setChatHistory([])}
-              thinkKit={<ChatThinkKit recorder={lens.recorder} version={lens.timeline.turns.length + lens.timeline.tools.length} />}
+              thinkKit={<ChatThinkKit recorder={lensRecorder} version={lensRecorder.selectEventLog?.()?.length ?? 0} />}
             />
           )}
         </div>

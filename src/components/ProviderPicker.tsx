@@ -42,7 +42,7 @@ export function ProviderPicker({ value, onChange }: Props) {
       aria-label="LLM provider"
     >
       {PROVIDER_OPTIONS.map((opt) => (
-        <option key={opt.kind} value={opt.kind}>
+        <option key={opt.id} value={opt.id}>
           {opt.label}
         </option>
       ))}

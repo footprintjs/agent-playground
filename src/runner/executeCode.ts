@@ -8,13 +8,15 @@
  * (snapshot, narrativeEntries, spec) for the explainable UI.
  */
 import { transform } from 'sucrase';
+// agentfootprint root IS v2 — one flat namespace with every primitive,
+// composition, pattern, adapter, and observability helper. v1 subpaths
+// are gone; if anything still needs the legacy API it's at
+// `agentfootprint/v1`.
 import * as agentfootprint from 'agentfootprint';
-import * as agentfootprintObserve from 'agentfootprint/observe';
-import * as agentfootprintExplain from 'agentfootprint/explain';
-import * as agentfootprintResilience from 'agentfootprint/resilience';
-import * as agentfootprintProviders from 'agentfootprint/providers';
 import * as footprintjs from 'footprintjs';
-import { asStreaming } from './streamingMock';
+// trace barrel exposes TopologyRecorder — fallback for anything not
+// exposed through `runner.enable.flowchart()`.
+import * as footprintjsTrace from 'footprintjs/trace';
 
 export interface ExecuteResult {
   output: unknown;
@@ -65,12 +67,45 @@ export interface ExecuteOptions {
    *  Drives the Lens column — so the observability panel updates as the
    *  mock streams tokens, instead of only at the end of the run. */
   readonly onLiveSnapshot?: (snapshot: unknown) => void;
+  /** Called once at the very start of the outermost `runner.run()`, before
+   *  any traversal, with the flowchart spec derived from
+   *  `runner.toFlowChart().buildTimeStructure`. Lets the Flowchart panel
+   *  render the static tree structure while execution streams in — multi-
+   *  agent subflow nesting surfaces immediately instead of after the run.
+   *  v1 runners expose `getSpec()`; v2 runners expose `toFlowChart()`. */
+  readonly onLiveSpec?: (spec: unknown) => void;
+  /** Called periodically during the run with the live composition graph
+   *  from footprintjs `TopologyRecorder`. Groups steps at runtime —
+   *  sub-agents from Swarm / Debate / MapReduce / ToT / Parallel appear
+   *  as distinct nodes as execution enters each subflow. Fires alongside
+   *  `onLiveSnapshot`. Consumers merge topology nodes with the spec (for
+   *  static structure) to highlight which branches actually ran. */
+  readonly onLiveTopology?: (topology: unknown) => void;
   /** Called for every AgentStreamEvent during AgentRunner.run(). Injected
    *  into the sample code by monkey-patching AgentRunner.prototype.run to
    *  forward events to useLiveTimeline's ingest. Without this callback,
    *  Lens would only show the post-run snapshot — with it, Lens populates
    *  iteration-by-iteration as the mock (or real provider) runs. */
   readonly onAgentEvent?: (event: unknown) => void;
+  /**
+   * Optional Lens recorder to attach to every constructed runner via
+   * `runner.attachRecorder()`. When present, full EmitEvents flow into
+   * the recorder (real `runtimeStageId` + `subflowPath`) instead of the
+   * flat AgentStreamEvent shape `observe()` emits — required for
+   * multi-agent grouping (FlowChart / Conditional / Parallel / Swarm
+   * sub-agents land in `timeline.subAgents`).
+   *
+   * Pass `lens.recorder` from `useLiveTimeline()`. When absent we fall
+   * back to the `onAgentEvent` observe-based path.
+   */
+  /**
+   * Lens v2 recorder. Sandbox calls `recorder.observe(runner)` on each
+   * constructed runner before `runner.run()` fires, so the recorder
+   * captures the full typed event stream via `runner.on('*')`. The Lens
+   * React component then renders from this recorder's selectors.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly lensRecorder?: any;
 }
 
 export async function executeCode(
@@ -114,7 +149,7 @@ export async function executeCode(
     // to the example's scripted mock — same behavior as before. When a
     // real provider is injected, the example uses it for every chat call.
     const wrapped = `
-      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent) {
+      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology) {
         const {
           LLMCall, LLMCallRunner, Agent, AgentRunner, RAG, RAGRunner,
           FlowChart, FlowChartRunner, Swarm, SwarmRunner, Parallel, ParallelRunner,
@@ -140,6 +175,15 @@ export async function executeCode(
           agentObservability,
           OTelRecorder,
           ExplainRecorder,
+          // v2 — primitives, compositions, features, patterns. When the
+          // sample is v1 these are undefined; v1 code never references
+          // them. When the sample is v2, these shadow any v1 collisions
+          // because __agentfootprint merges v2 AFTER v1.
+          Sequence, Conditional, Loop,
+          MockProvider, pauseHere, isPauseRequest, isPaused, PauseRequest,
+          pricingTable, costBudget, emitCostTick,
+          selfConsistency, reflection, debate, mapReduce, tot, treeOfThoughts, swarm,
+          LoggingDomains,
         } = __agentfootprint;
 
         // footprintjs core — flowChart builder, executor, subflow utilities
@@ -157,7 +201,18 @@ export async function executeCode(
             if (runner.getNarrativeEntries) __captured.narrativeEntries = runner.getNarrativeEntries();
           } catch(e) {}
           try {
-            if (runner.getSpec) __captured.spec = runner.getSpec();
+            // v1 runners expose getSpec() directly. v2 runners expose
+            // toFlowChart() whose buildTimeStructure IS the
+            // SerializedPipelineStructure (same shape the Flowchart panel
+            // consumes). Check v2 first so v2 wins when both are present.
+            if (runner.toFlowChart) {
+              const chart = runner.toFlowChart();
+              if (chart && chart.buildTimeStructure) {
+                __captured.spec = chart.buildTimeStructure;
+              }
+            } else if (runner.getSpec) {
+              __captured.spec = runner.getSpec();
+            }
           } catch(e) {}
         }
 
@@ -192,8 +247,19 @@ export async function executeCode(
           } catch(e) { return null; }
         }
 
-        // Wrap .run() on runner classes to capture execution data
-        const runnerClasses = [LLMCallRunner, AgentRunner, RAGRunner, FlowChartRunner, SwarmRunner, ParallelRunner, __footprintjs.FlowChartExecutor];
+        // Wrap .run() on runner classes to capture execution data.
+        // v1 runner classes (XyzRunner) are the returned build() product.
+        // v2 runner classes are LLMCall/Agent/Sequence/Parallel/Conditional/Loop
+        // themselves (they extend RunnerBase). In v1-mode, those names point
+        // to builder classes and prototype.run is undefined — the guard
+        // below skips cleanly. In v2-mode they point to runner classes and
+        // the monkey-patch attaches. Same array, both modes.
+        const runnerClasses = [
+          LLMCallRunner, AgentRunner, RAGRunner, FlowChartRunner, SwarmRunner, ParallelRunner,
+          __footprintjs.FlowChartExecutor,
+          // v2 runner classes (shadow v1 builder names when isV2 merged last)
+          LLMCall, Agent, Sequence, Parallel, Conditional, Loop,
+        ];
         const origRuns = new Map();
         for (const Cls of runnerClasses) {
           if (Cls && Cls.prototype && Cls.prototype.run) {
@@ -205,10 +271,24 @@ export async function executeCode(
                 this.attachRecorder(new MetricRecorder('__timing'));
               }
 
-              // Subscribe to the runner event stream so Lens lights up.
+              // Lens v2 observe() — called once on the outermost runner.
+              // The recorder subscribes via runner.on wildcard and builds
+              // its RunTree / EventLog / Summary synchronously from the
+              // typed event stream. Works for every Runner (primitive,
+              // composition, pattern) because every Runner extends
+              // RunnerBase which exposes .on().
+              if (__lensRecorder && typeof this.on === 'function' && !this.__fpPlaygroundLensAttached) {
+                try {
+                  __lensRecorder.observe(this);
+                  this.__fpPlaygroundLensAttached = true;
+                } catch (e) {}
+              }
+
+              // FALLBACK PATH — observe() for runners that don't have
+              // attachRecorder (older versions) AND for non-Lens consumers
+              // of the event stream (still useful for debug logging).
               // Class-agnostic — every agentfootprint runner exposes
-              // observe(). Idempotent: subscribe only once per instance
-              // (sample code may call run() multiple times).
+              // observe(). Idempotent: subscribe only once per instance.
               if (__onAgentEvent && typeof this.observe === 'function' && !this.__fpPlaygroundSubscribed) {
                 try {
                   this.observe(__onAgentEvent);
@@ -216,19 +296,81 @@ export async function executeCode(
                 } catch (e) {}
               }
 
-              // Live-snapshot polling — every ~100ms during the run,
-              // push a fresh snapshot to the Lens column so the
-              // observability panel updates AS the mock streams tokens,
-              // not only at the end.
-              let __livePoll = null;
-              const self = this;
-              if (__onLiveSnapshot && self.getSnapshot) {
-                __livePoll = setInterval(() => {
-                  try {
-                    __onLiveSnapshot(self.getSnapshot());
-                  } catch (e) {}
-                }, 100);
+              // TopologyRecorder — the live composition graph accumulator.
+              // Attach once per outermost runner; it listens to FlowRecorder
+              // events (onSubflowEntry / onFork / onDecision) and exposes a
+              // queryable { nodes, edges, activeNodeId } snapshot at any
+              // moment. This is how multi-agent patterns (Swarm, Debate,
+              // MapReduce, ToT) surface sub-agent grouping in the UI —
+              // each agent subflow becomes a node as execution enters it,
+              // not from a post-run tree walk.
+              //
+              // v1 runners expose attachRecorder(); v2 runners expose
+              // attach(). Try both so the sandbox works across versions.
+              // v2's enable.flowchart() — returns a handle whose
+              // getSnapshot() yields a StepGraph (ReAct steps +
+              // composition edges, all derived in agentfootprint). The
+              // onUpdate callback fires on every event; we forward to
+              // __onLiveTopology so the Lens panel re-renders.
+              let __topo = null;
+              if (!this.__fpPlaygroundTopoAttached && this.enable && typeof this.enable.flowchart === 'function') {
+                try {
+                  const handle = this.enable.flowchart({
+                    onUpdate: (graph) => {
+                      if (__onLiveTopology) {
+                        try { __onLiveTopology(graph); } catch (e) {}
+                      }
+                    },
+                  });
+                  __topo = { getTopology: handle.getSnapshot };
+                  this.__fpPlaygroundTopoAttached = true;
+                } catch (e) { __topo = null; }
               }
+
+              // Progressive rendering: Lens v2 subscribes to the recorder
+              // directly via useSyncExternalStore and re-renders on each
+              // event. No poll needed for the Lens column. Static
+              // consumers of onLiveSnapshot / onLiveTopology still get
+              // fed at run-start + run-end below.
+              const __livePoll = null;
+              const self = this;
+              // Prime the live callbacks immediately so fast runs (<100ms)
+              // still surface topology to the UI at least once before the
+              // run completes.
+              try {
+                if (__onLiveTopology && __topo) {
+                  __onLiveTopology(__topo.getTopology());
+                }
+              } catch (e) {}
+
+              // Capture the flowchart spec BEFORE the run starts so the
+              // Flowchart view can render the tree structure while
+              // execution streams in. toFlowChart() is pure — it rebuilds
+              // the composition graph from the builder config, no
+              // execution state required. For v2 multi-agent patterns
+              // (Swarm, Debate, MapReduce, ToT) this is the only way the
+              // agent subflow tree surfaces to Lens during streaming —
+              // otherwise the spec lands only at run-end, after the
+              // observer has already missed every transition.
+              try {
+                if (!__captured.spec) {
+                  let spec = undefined;
+                  if (self.toFlowChart) {
+                    const chart = self.toFlowChart();
+                    spec = chart && chart.buildTimeStructure;
+                  } else if (self.getSpec) {
+                    spec = self.getSpec();
+                  }
+                  if (spec) {
+                    __captured.spec = spec;
+                    // Push to the UI immediately so Flowchart panel
+                    // renders the tree during streaming (not after).
+                    if (__onLiveSpec) {
+                      try { __onLiveSpec(spec); } catch (e) {}
+                    }
+                  }
+                }
+              } catch (e) {}
 
               try {
                 const result = await origRuns.get(Cls).apply(this, args);
@@ -241,8 +383,14 @@ export async function executeCode(
                 // Final live-snapshot push so the UI is guaranteed to
                 // have the end-of-run state (the interval may have
                 // missed the final commit).
-                if (__onLiveSnapshot) {
+                if (__onLiveSnapshot && self.getSnapshot) {
                   try { __onLiveSnapshot(self.getSnapshot()); } catch (e) {}
+                }
+                // Final topology push — captures the full composition
+                // graph including every subflow that ran. For fast runs
+                // (<100ms) the interval may not have ticked at all.
+                if (__onLiveTopology && __topo) {
+                  try { __onLiveTopology(__topo.getTopology()); } catch (e) {}
                 }
                 return result;
               } finally {
@@ -263,7 +411,7 @@ export async function executeCode(
             Cls.prototype.build = orig;
           }
         }
-      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent);
+      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology);
     `;
 
     const mockConsole = {
@@ -273,28 +421,19 @@ export async function executeCode(
     };
 
     // Execute
-    const fn = new Function('__agentfootprint', '__input', '__console', '__captured', '__apiKeys', '__footprintjs', '__provider', '__onLiveSnapshot', '__onAgentEvent', wrapped);
-    // Merge subpath barrels into agentfootprint so all exports are available
-    const mergedAgentfootprint: Record<string, unknown> = {
-      ...agentfootprint,
-      ...agentfootprintObserve,
-      ...agentfootprintExplain,
-      ...agentfootprintResilience,
-      ...agentfootprintProviders,
-    };
-    // When the picker is "Mock" (no real provider injected), wrap the
-    // example's `mock([...])` calls with `asStreaming(...)` so the
-    // scripted responses arrive token-by-token via the StreamCallback —
-    // matching the visual feel of "Run with Claude" / "Run with GPT".
-    if (!injectedProvider) {
-      const originalMock = mergedAgentfootprint.mock as (...args: unknown[]) => unknown;
-      mergedAgentfootprint.mock = (...args: unknown[]) =>
-        asStreaming(originalMock(...args) as Parameters<typeof asStreaming>[0], {
-          onToken: options?.onStreamToken,
-          onDone: options?.onStreamDone,
-        });
-    }
-    const output = await fn(mergedAgentfootprint, input, mockConsole, captured, apiKeys ?? {}, footprintjs, injectedProvider, options?.onLiveSnapshot, options?.onAgentEvent);
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const fn = new Function(
+      '__agentfootprint', '__input', '__console', '__captured', '__apiKeys',
+      '__footprintjs', '__provider', '__onLiveSnapshot', '__onAgentEvent',
+      '__lensRecorder', '__onLiveSpec', '__footprintjsTrace', '__onLiveTopology',
+      wrapped,
+    );
+    const output = await fn(
+      agentfootprint, input, mockConsole, captured, apiKeys ?? {},
+      footprintjs, injectedProvider, options?.onLiveSnapshot, options?.onAgentEvent,
+      options?.lensRecorder, options?.onLiveSpec, footprintjsTrace,
+      options?.onLiveTopology,
+    );
 
     return {
       output,

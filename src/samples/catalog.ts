@@ -196,11 +196,19 @@ function fromSample(raw: string): string {
   // selection — null when "Mock" is chosen (so `provider ?? defaultMock()`
   // falls through to the example's scripted mock), or a real LLMProvider
   // when "Claude" / "GPT" / "Ollama" is selected.
-  return 'const provider = __provider ?? undefined;\n' + out.join('\n') + '\n';
+  //
+  // Examples sometimes declare their own `const provider = new MockProvider(...)`
+  // inside the body. Skip the injection prelude when the body already
+  // declares `provider` (lexical scope would throw "already declared").
+  const body = out.join('\n');
+  const bodyDeclaresProvider = /\b(const|let|var)\s+provider\b/.test(body);
+  const prelude = bodyDeclaresProvider ? '' : 'const provider = __provider ?? undefined;\n';
+  return prelude + body + '\n';
 }
 
 function toSampleId(metaId: string): string {
-  const last = metaId.split('/').pop() ?? metaId;
+  const parts = metaId.split('/');
+  const last = parts[parts.length - 1] ?? metaId;
   return last.replace(/^\d+-/, '').replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
 }
 
@@ -250,331 +258,9 @@ const fileBased: Sample[] = Object.entries(exampleModules)
     return a.number - b.number;
   });
 
-// ── Inline samples (playground-only, no agentfootprint counterpart) ──
-
-const s11 = `
-import { mcpToolProvider } from 'agentfootprint';
-
-const client = {
-  listTools: async () => [
-    { name: 'file_read', description: 'Read a file', inputSchema: { type: 'object' } },
-    { name: 'file_write', description: 'Write a file', inputSchema: { type: 'object' } },
-    { name: 'shell_exec', description: 'Execute shell command', inputSchema: { type: 'object' } },
-  ],
-  callTool: async (name, args) => ({ content: name + ': ' + JSON.stringify(args) }),
-};
-
-const provider = mcpToolProvider({ client });
-const tools = await provider.resolve({ message: '', turnNumber: 0, loopIteration: 0, messages: [] });
-
-return {
-  availableTools: tools.map(t => t.name),
-  count: tools.length,
-};
-`;
-
-const s14 = `
-import { AnthropicAdapter, OpenAIAdapter, createProvider } from 'agentfootprint';
-import { anthropic, openai } from 'agentfootprint';
-import { userMessage } from 'agentfootprint';
-
-const mockAnthropicClient = {
-  messages: {
-    create: async () => ({
-      id: 'msg_1', model: 'claude-sonnet-4-20250514', role: 'assistant',
-      content: [{ type: 'text', text: 'Hello from Claude!' }],
-      stop_reason: 'end_turn',
-      usage: { input_tokens: 10, output_tokens: 8 },
-    }),
-  },
-};
-
-const mockOpenAIClient = {
-  chat: { completions: { create: async () => ({
-    id: 'chatcmpl-1', model: 'gpt-4o',
-    choices: [{ index: 0, message: { role: 'assistant', content: 'Hello from GPT!' }, finish_reason: 'stop' }],
-    usage: { prompt_tokens: 10, completion_tokens: 8, total_tokens: 18 },
-  }) } },
-};
-
-const r1 = await new AnthropicAdapter({ model: 'claude-sonnet-4-20250514', _client: mockAnthropicClient }).chat([userMessage(input)]);
-const r2 = await new OpenAIAdapter({ model: 'gpt-4o', _client: mockOpenAIClient }).chat([userMessage(input)]);
-
-const provider = createProvider({ ...anthropic('claude-sonnet-4-20250514'), _client: mockAnthropicClient });
-const r3 = await provider.chat([userMessage(input)]);
-
-return {
-  anthropic: r1.content,
-  openai: r2.content,
-  viaCreateProvider: r3.content,
-};
-`;
-
-const s16 = `
-import { textBlock, base64Image, urlImage, userMessage } from 'agentfootprint';
-
-const text = textBlock('Describe this image:');
-const b64img = base64Image('image/png', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
-const urlImg = urlImage('https://example.com/photo.jpg');
-
-const msg = userMessage([text, b64img]);
-
-return {
-  textBlock: text,
-  base64ImageBlock: { type: b64img.type, mediaType: b64img.source.mediaType },
-  urlImageBlock: { type: urlImg.type, url: urlImg.source.url },
-  multiModalMessage: { role: msg.role, blocks: Array.isArray(msg.content) ? msg.content.length : 1 },
-  supportedAdapters: ['Anthropic (base64 blocks)', 'OpenAI (data URIs)', 'Bedrock (image bytes)'],
-};
-`;
-
-const s17 = `
-import { LLMCall, BrowserAnthropicAdapter, BrowserOpenAIAdapter, mock, TokenRecorder } from 'agentfootprint';
-
-const tokens = new TokenRecorder();
-
-let provider;
-if (__apiKeys.anthropic) {
-  provider = new BrowserAnthropicAdapter({
-    apiKey: __apiKeys.anthropic,
-    model: 'claude-sonnet-4-20250514',
-  });
-  console.log('Using Anthropic API (claude-sonnet-4-20250514)');
-} else if (__apiKeys.openai) {
-  provider = new BrowserOpenAIAdapter({
-    apiKey: __apiKeys.openai,
-    model: 'gpt-4o-mini',
-  });
-  console.log('Using OpenAI API (gpt-4o-mini)');
-} else {
-  provider = mock([{
-    content: 'This is a mock response. To use a real LLM, click the gear icon in the header and add your API key.',
-  }]);
-  console.log('No API key set — using mock. Click the gear icon to add your key.');
-}
-
-const runner = LLMCall
-  .create({ provider })
-  .system('You are a helpful, concise assistant.')
-  .recorder(tokens)
-  .build();
-
-const result = await runner.run(input);
-return {
-  content: result.content,
-  tokenStats: tokens.getStats(),
-  provider: __apiKeys.anthropic ? 'anthropic' : __apiKeys.openai ? 'openai' : 'mock',
-};
-`;
-
-const s18 = `
-import { flowChart, FlowChartExecutor } from 'footprintjs';
-
-const innerFlowStructure = {
-  name: 'Validate-Input', id: 'validate', type: 'stage',
-  next: { name: 'Fetch-Data', id: 'fetch', type: 'stage',
-    next: { name: 'Format-Response', id: 'format', type: 'stage' } },
-};
-
-const chart = flowChart(
-  'Receive Request',
-  async (scope) => {
-    scope.setValue('request', scope.getArgs());
-    console.log('Stage 1: Received request');
-  },
-  'receive', undefined, 'Accept incoming request',
-)
-  .addFunction('Process with Tool', async (scope) => {
-    const toolResult = { status: 'ok', data: 'processed: ' + scope.getValue('request') };
-    scope.setValue('toolResult', toolResult);
-    console.log('Stage 2: Tool executed (inner pipeline already ran)');
-    return {
-      name: 'TOOL_TRACE', id: 'tool-trace', isSubflowRoot: true,
-      subflowId: 'inner-pipeline', subflowName: 'Tool Internal Pipeline',
-      description: 'Validate → Fetch → Format (pre-executed)',
-      subflowDef: { buildTimeStructure: innerFlowStructure },
-    };
-  }, 'process', undefined, 'Execute tool with structural trace')
-  .addFunction('Return Response', async (scope) => {
-    const result = scope.getValue('toolResult');
-    scope.setValue('response', { ...result, timestamp: Date.now() });
-    console.log('Stage 3: Response ready');
-  }, 'respond', undefined, 'Format and return response')
-  .setEnableNarrative()
-  .build();
-
-const executor = new FlowChartExecutor(chart);
-await executor.run({ input });
-
-const snapshot = executor.getSnapshot();
-const narrative = executor.getNarrativeEntries().map(e => e.text);
-
-return {
-  response: snapshot.sharedState?.response,
-  narrative,
-  stages: snapshot.executionTree?.name,
-  hasSubflowTrace: !!snapshot.executionTree?.children?.[0]?.children?.[0]?.subflowStructure,
-};
-`;
-
-const s19 = `
-import { flowChart, FlowChartExecutor } from 'footprintjs';
-import { LLMCall, mock, TokenRecorder } from 'agentfootprint';
-
-const authService = flowChart(
-  'Validate Token', async (scope) => { scope.setValue('tokenValid', true); console.log('Auth: token validated'); },
-  'validate-token', undefined, 'Validate JWT and extract claims',
-).addFunction('Check Permissions', async (scope) => {
-  scope.setValue('authorized', true); console.log('Auth: permissions checked');
-}, 'check-perms', 'Verify user permissions').build();
-
-const paymentService = flowChart(
-  'Create Charge', async (scope) => { scope.setValue('chargeId', 'ch_' + Date.now()); console.log('Payment: charge created'); },
-  'create-charge', undefined, 'Create payment charge',
-).addFunction('Confirm Payment', async (scope) => {
-  scope.setValue('paymentStatus', 'confirmed'); console.log('Payment: confirmed');
-}, 'confirm-payment', 'Wait for confirmation').build();
-
-const notificationService = flowChart(
-  'Send Email', async (scope) => { scope.setValue('emailSent', true); console.log('Notification: email sent'); },
-  'send-email', undefined, 'Send transactional email',
-).build();
-
-const resolved = [];
-
-const chart = flowChart(
-  'Parse Request', async (scope) => {
-    const services = scope.getArgs()?.requiredServices ?? ['auth', 'payment'];
-    scope.setValue('requiredServices', services);
-    console.log('Required services:', services);
-  }, 'parse-request', undefined, 'Determine required services',
-)
-  .addSelectorFunction('Route Services', async (scope) => scope.getValue('requiredServices'), 'route-services', 'Select which services to invoke')
-    .addLazySubFlowChartBranch('auth', () => { resolved.push('auth'); return authService; }, 'Auth Service')
-    .addLazySubFlowChartBranch('payment', () => { resolved.push('payment'); return paymentService; }, 'Payment Service')
-    .addLazySubFlowChartBranch('notification', () => { resolved.push('notification'); return notificationService; }, 'Notification Service')
-    .end()
-  .addFunction('Build Response', async (scope) => { scope.setValue('status', 200); console.log('Response: OK'); }, 'build-response', 'Aggregate results')
-  .setEnableNarrative()
-  .build();
-
-const executor = new FlowChartExecutor(chart);
-await executor.run({ input });
-
-return {
-  resolved,
-  subflowCount: executor.getSubflowResults().size,
-  narrative: executor.getNarrativeEntries().map(e => e.text),
-  snapshot: executor.getSnapshot(),
-};
-`;
-
-const s26 = `
-import { Agent, mock, defineTool } from 'agentfootprint';
-import { ToolUsageRecorder } from 'agentfootprint/observe';
-
-const searchTool = defineTool({
-  id: 'search',
-  description: 'Search the web',
-  inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
-  handler: async ({ query }) => ({ content: 'Results for: ' + query }),
-});
-
-const calcTool = defineTool({
-  id: 'calculate',
-  description: 'Perform calculations',
-  inputSchema: { type: 'object', properties: { expression: { type: 'string' } } },
-  handler: async ({ expression }) => ({ content: 'Result: 42' }),
-});
-
-const toolUsage = new ToolUsageRecorder();
-
-const runner = Agent
-  .create({ provider: mock([
-    { content: 'Searching...', toolCalls: [
-      { id: '1', name: 'search', arguments: { query: 'population' } },
-      { id: '2', name: 'calculate', arguments: { expression: '8.1e9 * 0.6' } },
-    ] },
-    { content: 'About 4.86 billion people have internet access.' },
-  ]) })
-  .system('Use tools to answer questions.')
-  .tool(searchTool)
-  .tool(calcTool)
-  .recorder(toolUsage)
-  .build();
-
-await runner.run(input);
-
-const stats = toolUsage.getStats();
-return {
-  totalCalls: stats.totalCalls,
-  byTool: stats.byTool,
-};
-`;
-
-const s29 = `
-import { Agent, mock, defineTool } from 'agentfootprint';
-import { agentObservability } from 'agentfootprint/observe';
-
-const cloudwatchMetrics = [];
-function putMetric(namespace, name, value, unit) {
-  cloudwatchMetrics.push({ namespace, name, value, unit, timestamp: new Date().toISOString() });
-}
-
-const searchTool = defineTool({
-  id: 'search',
-  description: 'Search',
-  inputSchema: { type: 'object', properties: { q: { type: 'string' } } },
-  handler: async ({ q }) => ({ content: 'Found: ' + q }),
-});
-
-const obs = agentObservability();
-
-const runner = Agent
-  .create({ provider: mock([
-    { content: 'Searching...', toolCalls: [{ id: '1', name: 'search', arguments: { q: 'data' } }] },
-    { content: 'Here is the data.' },
-  ]) })
-  .system('Search assistant.')
-  .tool(searchTool)
-  .recorder(obs)
-  .build();
-
-await runner.run(input);
-
-const tokens = obs.tokens();
-putMetric('AgentFootprint', 'InputTokens', tokens.totalInputTokens, 'Count');
-putMetric('AgentFootprint', 'OutputTokens', tokens.totalOutputTokens, 'Count');
-putMetric('AgentFootprint', 'LLMCalls', tokens.totalCalls, 'Count');
-putMetric('AgentFootprint', 'EstimatedCost', obs.cost(), 'None');
-
-const tools = obs.tools();
-putMetric('AgentFootprint', 'ToolCalls', tools.totalCalls, 'Count');
-
-return {
-  metrics: cloudwatchMetrics,
-  summary: tokens.totalCalls + ' LLM calls, ' + tools.totalCalls + ' tool calls',
-};
-`;
-
-// Inline samples — category + group must match prettifyGroup() output of
-// file-based samples, so they merge into the same Sidebar sections.
-// Folder-as-truth: if you're tempted to invent a new `category` here, ask
-// if it should become its own `examples/<folder>/` instead.
-const inlineSamples: Sample[] = [
-  { id: 'mcp-protocol',         number: 80, title: 'MCP tool provider',       description: 'mcpToolProvider — bridge external MCP servers.',                       group: 'integrations',     category: prettifyGroup('integrations'),     code: s11 },
-  { id: 'real-adapters',        number: 81, title: 'Real adapters (mock)',    description: 'AnthropicAdapter, OpenAIAdapter, createProvider wiring.',              group: 'providers',        category: prettifyGroup('providers'),        code: s14 },
-  { id: 'multimodal',           number: 82, title: 'Multimodal blocks',       description: 'textBlock, base64Image, urlImage content blocks.',                      group: 'integrations',     category: prettifyGroup('integrations'),     code: s16 },
-  { id: 'live-chat',            number: 83, title: 'Live chat',                description: 'Real API call with your key (Anthropic or OpenAI).',                    group: 'integrations',     category: prettifyGroup('integrations'),     code: s17 },
-  { id: 'dynamic-tool-subflow', number: 84, title: 'Dynamic tool subflow',    description: 'Pre-executed inner flow attached for drill-down.',                      group: 'runtime-features', category: prettifyGroup('runtime-features'), code: s18 },
-  { id: 'lazy-subflow',         number: 85, title: 'Lazy subflow',            description: 'Graph-of-services — lazy branches resolve only when selected.',         group: 'runtime-features', category: prettifyGroup('runtime-features'), code: s19 },
-  { id: 'tool-usage',           number: 86, title: 'Tool Usage recorder',    description: 'ToolUsageRecorder — per-tool calls, errors, latency.',                  group: 'observability',    category: prettifyGroup('observability'),    code: s26 },
-  { id: 'cloudwatch-export',    number: 87, title: 'CloudWatch export',      description: 'Recorder data → AWS CloudWatch metrics pipeline.',                      group: 'observability',    category: prettifyGroup('observability'),    code: s29 },
-];
-
 // ── Final catalog ────────────────────────────────────────────
 
-export const samples: Sample[] = [...fileBased, ...inlineSamples];
+export const samples: Sample[] = fileBased;
 
 export function getCategorizedSamples(): SampleCategory[] {
   const map = new Map<string, Sample[]>();
@@ -590,7 +276,6 @@ export function getCategorizedSamples(): SampleCategory[] {
     samples,
     // Hoist the group from the first sample — every sample in a given
     // category shares the same group (folder), so this is well-defined.
-    // Inline samples without a group fall through undefined.
     ...(samples[0]?.group ? { group: samples[0].group } : {}),
   }));
 }
