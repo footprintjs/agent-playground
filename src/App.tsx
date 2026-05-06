@@ -33,14 +33,23 @@ function AutoOpenSettings({ onOpen }: { onOpen: () => void }) {
  * of the toolbar changed. Mirrors the footprintjs-playground header
  * pattern: brand on the left, current sample title in the middle,
  * nav links on the right, all in one strip. */
-function SamplesLayout({ onOpenSettings }: { onOpenSettings: () => void }) {
+function SamplesLayout({
+  onOpenSettings,
+  onOpenKeyPrompt,
+}: {
+  onOpenSettings: () => void;
+  onOpenKeyPrompt: () => void;
+}) {
   return (
     <div className="app app--with-top-header">
       <SamplesToolbar onOpenSettings={onOpenSettings} />
       <Sidebar />
       <div className="main">
         <div className="main-content">
-          <SamplePage />
+          {/* Gear icon → full panel (onOpenSettings); ProviderPicker
+              → key-only panel (onOpenKeyPrompt). Same drawer, different
+              variant — keeps the picker-driven flow tight. */}
+          <SamplePage onOpenSettings={onOpenKeyPrompt} />
         </div>
       </div>
     </div>
@@ -130,11 +139,25 @@ function SamplesToolbar({ onOpenSettings }: { onOpenSettings: () => void }) {
 }
 
 export function App() {
+  // `variant` decides which copy of the SettingsPanel renders. Default
+  // 'full' covers the gear icon + welcome auto-open. ProviderPicker's
+  // drawer-on-pick path opens 'key-only' so the user just enters a key
+  // and goes back to their sample — no nav buttons, no clear-keys.
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsVariant, setSettingsVariant] = useState<'full' | 'key-only'>('full');
+
+  const openSettingsFull = () => {
+    setSettingsVariant('full');
+    setShowSettings(true);
+  };
+  const openSettingsKeyOnly = () => {
+    setSettingsVariant('key-only');
+    setShowSettings(true);
+  };
 
   return (
     <>
-      <AutoOpenSettings onOpen={() => setShowSettings(true)} />
+      <AutoOpenSettings onOpen={openSettingsFull} />
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route
@@ -148,10 +171,20 @@ export function App() {
         <Route path="/viewer" element={<ViewerPage />} />
         <Route
           path="/samples/:sampleId"
-          element={<SamplesLayout onOpenSettings={() => setShowSettings(true)} />}
+          element={
+            <SamplesLayout
+              onOpenSettings={openSettingsFull}
+              onOpenKeyPrompt={openSettingsKeyOnly}
+            />
+          }
         />
       </Routes>
-      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <SettingsPanel
+          onClose={() => setShowSettings(false)}
+          variant={settingsVariant}
+        />
+      )}
     </>
   );
 }

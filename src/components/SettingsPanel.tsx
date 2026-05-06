@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export interface ApiKeys {
   anthropic: string;
@@ -29,9 +29,30 @@ function saveApiKeys(keys: ApiKeys) {
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
 }
 
-export function SettingsPanel({ onClose }: { onClose: () => void }) {
+/**
+ * `'full'` (default) — behaves as before: status pills, "Try Live Chat",
+ *   "Clear all keys", and the empty-state Explore-samples helper. Used
+ *   when the user opens the drawer via the gear icon or via the
+ *   AutoOpenSettings welcome flow.
+ *
+ * `'key-only'` — minimal mode for when the drawer was opened in
+ *   response to picking a key-required provider in the dropdown. Hides
+ *   the navigation CTAs so the user just enters their key and closes
+ *   the drawer to keep working on the sample they were on. No
+ *   navigation away from the current route.
+ */
+export type SettingsPanelVariant = 'full' | 'key-only';
+
+export function SettingsPanel({
+  onClose,
+  variant = 'full',
+}: {
+  onClose: () => void;
+  variant?: SettingsPanelVariant;
+}) {
   const [keys, setKeys] = useState<ApiKeys>(loadApiKeys);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     saveApiKeys(keys);
@@ -39,6 +60,12 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
 
   const hasAnyKey =
     keys.anthropic.length > 0 || keys.openai.length > 0 || keys.openrouter.length > 0;
+  const onLivePage = location.pathname === '/live';
+  // Show full-mode CTAs only when not in key-only AND when navigating
+  // would actually change the page. On /live, "Try Live Chat" is a no-op.
+  const showLiveChatCta = variant === 'full' && !onLivePage;
+  const showSamplesCta = variant === 'full';
+  const showClearCta = variant === 'full';
 
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -134,7 +161,55 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Actions */}
-        {hasAnyKey && (
+        {hasAnyKey && (showLiveChatCta || showClearCta) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+            {showLiveChatCta && (
+              <button
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: 'var(--accent, #facc15)',
+                  color: '#1a1a00',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  onClose();
+                  navigate('/live');
+                }}
+              >
+                Try Live Chat &rarr;
+              </button>
+            )}
+            {showClearCta && (
+              <button
+                style={{
+                  width: '100%',
+                  padding: '8px 16px',
+                  background: 'none',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  setKeys({ anthropic: '', openai: '', openrouter: '' });
+                  sessionStorage.removeItem(STORAGE_KEY);
+                }}
+              >
+                Clear all keys
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* When a key is set in key-only variant, give the user a clean
+            way back to what they were doing without navigating away. */}
+        {hasAnyKey && variant === 'key-only' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
             <button
               style={{
@@ -148,35 +223,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
-              onClick={() => {
-                onClose();
-                navigate('/live');
-              }}
+              onClick={onClose}
             >
-              Try Live Chat &rarr;
-            </button>
-            <button
-              style={{
-                width: '100%',
-                padding: '8px 16px',
-                background: 'none',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                fontSize: 13,
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-              }}
-              onClick={() => {
-                setKeys({ anthropic: '', openai: '', openrouter: '' });
-                sessionStorage.removeItem(STORAGE_KEY);
-              }}
-            >
-              Clear all keys
+              Done
             </button>
           </div>
         )}
 
-        {!hasAnyKey && (
+        {!hasAnyKey && showSamplesCta && (
           <div style={{
             textAlign: 'center',
             padding: '12px 0',

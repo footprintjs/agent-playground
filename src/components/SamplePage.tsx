@@ -3,9 +3,11 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { samples } from '../samples/catalog';
 import { CodePanel } from './CodePanel';
 import { ResultPanel } from './ResultPanel';
+import { HitlPauseForm } from './HitlPauseForm';
 import { ChatThinkKit } from './ChatThinkKit';
 import { SampleExplainer } from './SampleExplainer';
 import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
+import { ExplainableShell } from 'footprint-explainable-ui';
 import type { ThemeTokens } from 'footprint-explainable-ui';
 import { Lens, LensRecorder } from 'agentfootprint-lens';
 import { ThreeRenderersDemo } from './ThreeRenderersDemo';
@@ -45,7 +47,16 @@ import type { ChatTurn } from './ResultPanel';
 type MobileTab = 'code' | 'output';
 type LeftView = 'code' | 'flowchart' | 'explain' | '3renderers';
 
-export function SamplePage() {
+interface SamplePageProps {
+  /**
+   * Optional handler that opens the SettingsPanel drawer. Plumbed from
+   * SamplesLayout so the ProviderPicker can prompt for a key inline
+   * when the user picks a key-required provider with no saved key.
+   */
+  onOpenSettings?: () => void;
+}
+
+export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
   const { sampleId } = useParams<{ sampleId: string }>();
   const [searchParams] = useSearchParams();
   const sample = samples.find((s) => s.id === sampleId);
@@ -72,6 +83,16 @@ export function SamplePage() {
   const [tabsCollapsed, setTabsCollapsed] = useState(false);
   const [chatCollapsed, setChatCollapsed] = useState(false);
   const [lensCollapsed, setLensCollapsed] = useState(false);
+  // Active tab inside the Observability column. `lens` shows the
+  // agentfootprint-lens RunTree+EventStream+Summary; `trace` renders
+  // the same run snapshot through footprint-explainable-ui's
+  // TracedFlowchartView so consumers can compare both renderers
+  // against the same data.
+  const [observeTab, setObserveTab] = useState<'lens' | 'trace'>('lens');
+  // Trace tab — toggle to render each stage's stable `stageId` as a small
+  // caption beneath the label. Teaching aid: shows the key recorders use
+  // (`runtimeStageId = [subflowPath/]stageId#executionIndex`).
+  const [showStageIds, setShowStageIds] = useState(false);
 
   // Left panel: code or flowchart spec toggle
   const [leftView, setLeftView] = useState<LeftView>('code');
@@ -115,6 +136,18 @@ export function SamplePage() {
   // recorder once events accumulate.
   const [lensRecorder, setLensRecorder] = useState<LensRecorder>(() => new LensRecorder());
 
+  // ─── Pause/Resume HITL state ──────────────────────────────────
+  // When the example's run() returns a `RunnerPauseOutcome`, store the
+  // checkpoint + pauseData here so the chat panel renders a form. On
+  // submit, we re-invoke executeCode in resume mode with the user's
+  // answer. The same lensRecorder observes both phases so the
+  // commentary timeline is unbroken.
+  const [pausedOutcome, setPausedOutcome] = useState<{
+    readonly checkpoint: unknown;
+    readonly pauseData: unknown;
+    readonly originalInput: string;
+  } | null>(null);
+
   // Reset all state when switching samples
   useEffect(() => {
     setCode(sample?.code ?? '');
@@ -123,6 +156,7 @@ export function SamplePage() {
     setLiveSnapshot(null);
     setLiveSpec(null);
     setLiveTopology(null);
+    setPausedOutcome(null); // HITL form is sample-scoped — clear on swap
     // Swap in a fresh LensRecorder so prior-sample events don't leak.
     setLensRecorder(new LensRecorder());
     setRunning(false);
@@ -188,6 +222,7 @@ export function SamplePage() {
       // closure reference.
       setStreamingResponse('');
       setLiveSnapshot(null);
+      setPausedOutcome(null); // any prior pause is cleared on a new Run
       const freshRecorder = new LensRecorder();
       setLensRecorder(freshRecorder);
       const res = await executeCode(code, capturedInput, apiKeys, built.provider, {
@@ -200,12 +235,86 @@ export function SamplePage() {
         lensRecorder: freshRecorder,
       });
       setStreamingResponse('');
-      setChatHistory((prev) => [...prev, { input: capturedInput, result: res }]);
+      // ── HITL detection ──
+      // The example's run() may return a `RunnerPauseOutcome` shape
+      // ({ paused: true, checkpoint, pauseData }). Stash it for the
+      // form to render; don't append to chat history yet — the chat
+      // turn isn't complete until the human answers.
+      const out = res?.output as { paused?: boolean; checkpoint?: unknown; pauseData?: unknown } | undefined;
+      if (out && out.paused === true && out.checkpoint !== undefined) {
+        setPausedOutcome({
+          checkpoint: out.checkpoint,
+          pauseData: out.pauseData,
+          originalInput: capturedInput,
+        });
+      } else {
+        // Capture the recorder's event log so TurnView can replay the
+        // activity timeline later (the same one ChatThinkKit showed
+        // live). Fresh array so future events on the recorder don't
+        // mutate the historical snapshot.
+        const events = freshRecorder.selectEventLog().map((e) => e.event);
+        setChatHistory((prev) => [...prev, { input: capturedInput, result: res, events }]);
+      }
       // Lens column auto-renders the trace once execution lands.
     } finally {
       setRunning(false);
     }
   }, [sample, code, input, running, providerKind]);
+
+  /**
+   * HITL resume. Called when the user submits the pause form's answer.
+   * Re-invokes the sandbox in `mode: 'resume'`, threading the stored
+   * checkpoint + answer to the example's `resume()` export. The SAME
+   * lensRecorder is reused so the timeline (commentary, slider, step
+   * graph) extends from the pause point forward instead of starting
+   * over.
+   */
+  const handleResume = useCallback(
+    async (humanAnswer: unknown) => {
+      if (!pausedOutcome || !sample || running) return;
+      setRunning(true);
+      try {
+        const keys = loadApiKeys();
+        const apiKeys = {
+          anthropic: keys.anthropic || undefined,
+          openai: keys.openai || undefined,
+          openrouter: keys.openrouter || undefined,
+        };
+        const built = buildProvider(providerKind, apiKeys);
+        const checkpoint = pausedOutcome.checkpoint;
+        const original = pausedOutcome.originalInput;
+        // Clear the form before the resume call lands; the run is
+        // about to mutate state again. Keep the lensRecorder — same
+        // run, just second phase.
+        setPausedOutcome(null);
+        setStreamingResponse('');
+        const res = await executeCode(
+          code,
+          original, // original user input (not used by resume() but the sandbox still wires `input`)
+          apiKeys,
+          built.provider,
+          {
+            onStreamToken: (token) => setStreamingResponse((prev) => prev + token),
+            onLiveSnapshot: (snap) => setLiveSnapshot(snap),
+            onLiveSpec: (spec) => setLiveSpec(spec),
+            onLiveTopology: (topo) => setLiveTopology(topo),
+            lensRecorder, // reuse — same recorder observes the resume agent
+            mode: 'resume',
+            resumeCheckpoint: checkpoint,
+            resumeInput: humanAnswer,
+          },
+        );
+        setStreamingResponse('');
+        // Capture events at resume completion — same recorder observed
+        // both phases, so the snapshot covers the full HITL flow.
+        const events = lensRecorder.selectEventLog().map((e) => e.event);
+        setChatHistory((prev) => [...prev, { input: original, result: res, events }]);
+      } finally {
+        setRunning(false);
+      }
+    },
+    [pausedOutcome, sample, running, providerKind, code, lensRecorder],
+  );
 
   if (!sample) {
     return (
@@ -383,9 +492,33 @@ export function SamplePage() {
                   onInputChange={(v: string) => setInput(v)}
                   onClear={() => setChatHistory([])}
                   streamingResponse={streamingResponse}
-                  thinkKit={null}
+                  // ChatThinkKit subscribes to the same recorder Lens uses
+                  // and renders the bubble whenever selectThinkingState
+                  // returns a non-null state (idle / streaming / tool /
+                  // paused). Returns null between calls — the typing dots
+                  // fallback inside ResultPanel never reaches the user
+                  // once thinkKit becomes truthy.
+                  thinkKit={
+                    <ChatThinkKit
+                      recorder={lensRecorder}
+                      version={lensRecorder.selectEventLog?.()?.length ?? 0}
+                    />
+                  }
+                  hitlForm={
+                    pausedOutcome ? (
+                      <HitlPauseForm
+                        pauseData={pausedOutcome.pauseData}
+                        onSubmit={(answer) => { void handleResume(answer); }}
+                        busy={running}
+                      />
+                    ) : null
+                  }
                   providerPicker={
-                    <ProviderPicker value={providerKind} onChange={setProviderKind} />
+                    <ProviderPicker
+                      value={providerKind}
+                      onChange={setProviderKind}
+                      onNeedsKey={onOpenSettings}
+                    />
                   }
                 />
               </div>
@@ -431,25 +564,78 @@ export function SamplePage() {
                 >
                   ⇤
                 </button>
-                {/* Lens — same agentfootprint-lens component Neo uses. We
-                    feed it a live `timeline` via useLiveTimeline (ingested
-                    from AgentStreamEvents during the run) and the post-run
-                    snapshot so the Trace tab lights up after completion.
-                    Mock and real providers both populate Lens identically
-                    because the emit channel fires the same events. */}
-                {/* Lens — single-prop API: pass the recorder that
-                    observed the run. The recorder derives RunTree + Event
-                    Log + Summary lazily via its selectors; each turn of
-                    runner execution updates the recorder in place. */}
-                <Lens
-                  recorder={lensRecorder}
-                  // StepGraph from runner.enable.flowchart() — pushed via
-                  // onLiveTopology during the run. Lens re-renders the
-                  // React Flow graph each time this changes.
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  stepGraph={liveTopology as any}
-                  view="engineer"
-                />
+                {/* Tab strip: pick which renderer to show.
+                    Lens is the agent-native view; Trace renders the
+                    same snapshot through footprint-explainable-ui so
+                    consumers can compare both layers against the same
+                    underlying data. */}
+                <div className="sample-observe-tabs">
+                  <button
+                    className={`sample-observe-tab ${observeTab === 'lens' ? 'active' : ''}`}
+                    onClick={() => setObserveTab('lens')}
+                    title="Lens — agentfootprint-lens (agent-native view)"
+                  >
+                    Lens
+                  </button>
+                  <button
+                    className={`sample-observe-tab ${observeTab === 'trace' ? 'active' : ''}`}
+                    onClick={() => setObserveTab('trace')}
+                    title="Trace — footprint-explainable-ui (flowchart with snapshot scrubbing)"
+                  >
+                    Trace
+                  </button>
+                </div>
+
+                {observeTab === 'lens' && (
+                  <Lens
+                    recorder={lensRecorder}
+                    // StepGraph from runner.enable.flowchart() — pushed via
+                    // onLiveTopology during the run. Lens re-renders the
+                    // React Flow graph each time this changes.
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    stepGraph={liveTopology as any}
+                    view="engineer"
+                  />
+                )}
+
+                {observeTab === 'trace' && (
+                  <div className="sample-observe-trace">
+                    <label className="sample-observe-toggle">
+                      <input
+                        type="checkbox"
+                        checked={showStageIds}
+                        onChange={(e) => setShowStageIds(e.target.checked)}
+                      />
+                      <span>Show stage IDs</span>
+                      <span className="sample-observe-toggle-hint">
+                        recorders key per-stage data by{' '}
+                        <code>runtimeStageId</code>
+                      </span>
+                    </label>
+                    {spec ? (
+                      <ExplainableShell
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        spec={spec as any}
+                        // Raw runtime snapshot — ExplainableShell calls
+                        // toVisualizationSnapshots() internally to derive
+                        // the per-stage scrub array. Pair with
+                        // narrativeEntries below for rich per-stage text
+                        // alongside the time slider + commit log.
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        runtimeSnapshot={(execution?.snapshot ?? liveSnapshot) as any}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        narrativeEntries={(execution?.narrativeEntries ?? []) as any}
+                        showStageId={showStageIds}
+                      />
+                    ) : (
+                      <div className="sample-spec-empty">
+                        <div className="sample-spec-empty-text">
+                          Click <strong>Run</strong> to populate the trace
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </Panel>
@@ -486,6 +672,15 @@ export function SamplePage() {
               onInputChange={setInput}
               onClear={() => setChatHistory([])}
               thinkKit={<ChatThinkKit recorder={lensRecorder} version={lensRecorder.selectEventLog?.()?.length ?? 0} />}
+              hitlForm={
+                pausedOutcome ? (
+                  <HitlPauseForm
+                    pauseData={pausedOutcome.pauseData}
+                    onSubmit={(answer) => { void handleResume(answer); }}
+                    busy={running}
+                  />
+                ) : null
+              }
             />
           )}
         </div>
