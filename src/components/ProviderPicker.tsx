@@ -4,7 +4,7 @@
  *
  * Selection persists per browser via localStorage so a user's preferred
  * provider survives page reloads. When the user picks a key-required
- * provider AND no matching key is in sessionStorage, fires `onNeedsKey`
+ * provider AND no matching key is in localStorage, fires `onNeedsKey`
  * — consumer typically opens the SettingsPanel inline so the user can
  * paste a key without hunting for the gear icon.
  */
@@ -47,7 +47,7 @@ function keyFieldFor(kind: ProviderKind): 'anthropic' | 'openai' | 'openrouter' 
 }
 
 /** True when the chosen provider requires a key AND that key is not in
- *  sessionStorage yet. Cheap — reads sessionStorage every call. */
+ *  localStorage yet. Cheap — reads localStorage every call. */
 export function providerNeedsKey(kind: ProviderKind): boolean {
   const field = keyFieldFor(kind);
   if (!field) return false;

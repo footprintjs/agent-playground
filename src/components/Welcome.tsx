@@ -11,54 +11,86 @@ function useThemeToggle() {
 
 /**
  * Chip-grid card contents. Each `categories` array drives one card's
- * chip grid. Split across three cards (Patterns / Context Engineering /
- * Features) so no single card grows taller than its siblings in the
- * 3-column grid — visual parity across the row.
+ * chip grid. Cards reflect the canonical taxonomy:
+ *
+ *   1. Primitives          — LLM, Agent (Classic / Dynamic)
+ *   2. Control Flows       — Sequence, Parallel, Conditional, Loop
+ *   3. Patterns            — recipes we provide on top of primitives
+ *   4. Context Engineering — what you inject into Agent slots
+ *   5. Features            — production-grade governance & safety
  *
  * Every `mode` is the example's folder name in agentfootprint/examples/.
- * URL = the folder; Sidebar filters by `cat.group === mode`. Adding a
- * new folder automatically works if you drop a chip in here.
+ * URL = `/samples/<sample-id>?mode=<folder>`. Sidebar filters by
+ * `cat.group === mode`. Adding a new folder works if you drop a chip in.
  */
-const PATTERN_CATEGORIES = [
-  { mode: 'patterns', label: 'ReAct',         sample: 'regular-vs-dynamic', desc: 'Agent default (Yao 2022)' },
-  { mode: 'patterns', label: 'Dynamic ReAct', sample: 'regular-vs-dynamic', desc: 'Slots re-evaluate per iter' },
-  { mode: 'patterns', label: 'Hierarchy',     sample: 'regular-vs-dynamic', desc: 'Swarm — router → specialists' },
+// Two primitives — LLM + Agent (= ReAct). Agent has two modes: Static
+// (fixed toolset every iter) and Dynamic (tools/context narrow per iter
+// via autoActivate). Patterns BELOW are compositions on top of these
+// — they are NOT Agent modes.
+const PRIMITIVE_CATEGORIES = [
+  { mode: 'core',          label: 'LLM',             sample: 'llm-call',      desc: 'One-shot LLM primitive' },
+  { mode: 'dynamic-react', label: 'Agent · Static',  sample: 'classic-react', desc: 'ReAct — fixed toolset' },
+  { mode: 'dynamic-react', label: 'Agent · Dynamic', sample: 'dynamic-react', desc: 'ReAct — tools narrow per iter' },
 ];
 
-// Context-engineering chips — the teaching thesis. Currently all point to
-// the RAG sample (the most prominent CE example). When dedicated memory /
-// skills / grounding samples land in `examples/`, the samples get their
-// own ids and chips update individually.
+const CONTROL_FLOW_CATEGORIES = [
+  { mode: 'core-flow', label: 'Sequence',    sample: 'sequence',    desc: 'Linear pipeline' },
+  { mode: 'core-flow', label: 'Parallel',    sample: 'parallel',    desc: 'Fan-out + merge' },
+  { mode: 'core-flow', label: 'Conditional', sample: 'conditional', desc: 'Predicate routing' },
+  { mode: 'core-flow', label: 'Loop',        sample: 'loop',        desc: 'Bounded iteration' },
+];
+
+const PATTERN_CATEGORIES = [
+  { mode: 'patterns', label: 'Self-Consistency', sample: 'self-consistency', desc: 'Sample N, vote (Wang 2022)' },
+  { mode: 'patterns', label: 'Reflection',       sample: 'reflection',       desc: 'Self-Refine (Madaan 2023)' },
+  { mode: 'patterns', label: 'Debate',           sample: 'debate',           desc: 'Multi-Agent Debate (Du 2023)' },
+  { mode: 'patterns', label: 'MapReduce',        sample: 'map-reduce',       desc: 'Split → summarize → combine' },
+  { mode: 'patterns', label: 'Tree of Thoughts', sample: 'tot',              desc: 'Branch + evaluate (Yao 2023)' },
+  { mode: 'patterns', label: 'Swarm',            sample: 'swarm',            desc: 'Multi-agent handoff' },
+];
+
 const CONTEXT_CATEGORIES = [
-  { mode: 'concepts', label: 'RAG',          sample: 'rag',   desc: 'Retrieved chunks → messages' },
-  { mode: 'concepts', label: 'Memory',       sample: 'rag',   desc: 'Prior turns → messages' },
-  { mode: 'concepts', label: 'Skills',       sample: 'rag',   desc: 'Activate → system prompt + tools' },
-  { mode: 'concepts', label: 'Instructions', sample: 'rag',   desc: 'Per-tool guidance → system prompt' },
+  { mode: 'context-engineering', label: 'Skills',       sample: 'skill',         desc: 'Activate → prompt + tools' },
+  { mode: 'context-engineering', label: 'RAG',          sample: 'rag',           desc: 'Retrieved chunks → messages' },
+  { mode: 'memory',              label: 'Memory',       sample: 'window-strategy', desc: 'Window / budget / summarize / topK' },
+  { mode: 'context-engineering', label: 'Steering',     sample: 'steering',      desc: 'Always-on system rule' },
+  { mode: 'context-engineering', label: 'Instructions', sample: 'instruction',   desc: 'Activate-when system rule' },
+  { mode: 'context-engineering', label: 'Dynamic ReAct', sample: 'dynamic-react', desc: 'Context morphs each iter' },
 ];
 
 const FEATURE_CATEGORIES = [
-  { mode: 'providers',         label: 'Providers',     sample: 'prompt',           desc: 'Prompt, message, tool providers' },
-  { mode: 'runtime-features',  label: 'Runtime',       sample: 'events',           desc: 'Streaming, pause/resume, break' },
-  { mode: 'observability',     label: 'Observability', sample: 'recorders',        desc: 'Recorders, metrics, traces' },
-  { mode: 'security',          label: 'Security',      sample: 'gated-tools',      desc: 'Gated tools, redaction, guardrails' },
-  { mode: 'resilience',        label: 'Resilience',    sample: 'runner-wrappers',  desc: 'Retry, fallback, circuit breaker' },
-  { mode: 'integrations',      label: 'Integrations',  sample: 'full-integration', desc: 'MCP, CloudWatch, Datadog' },
+  { mode: 'features', label: 'Resilience',       sample: 'reliability',     desc: 'Retry / fallback / circuit breaker' },
+  { mode: 'features', label: 'HITL',             sample: 'pause-resume',    desc: 'Pause / resume — human-in-the-loop' },
+  { mode: 'features', label: 'Permissions',      sample: 'permissions',     desc: 'Tool-call gating' },
+  { mode: 'features', label: 'Sequence policy',  sample: 'sequence-policy', desc: 'Sequence-aware governance' },
+  { mode: 'features', label: 'Output schema',    sample: 'strict-output',   desc: 'Instructor-style retry' },
+  { mode: 'features', label: 'Observability',    sample: 'observability',   desc: 'Recorders, metrics, traces' },
 ];
 
 const CARDS = [
   {
     phase: 'build' as const,
     icon: '\uD83E\uDDE0',
-    title: 'Concept Ladder',
-    desc: '2 primitives (LLM, Agent) + 3 compositions (Sequence, Parallel, Conditional). Everything else is a recipe on top.',
-    cta: 'Learn the primitives',
-    to: '/samples/llm-call?mode=concepts',
+    title: 'Primitives',
+    desc: 'Two atomic building blocks: LLM and Agent (ReAct). Agent runs in Static or Dynamic mode. Everything else is a composition.',
+    cta: null,
+    to: null,
+    categories: PRIMITIVE_CATEGORIES,
+  },
+  {
+    phase: 'build' as const,
+    icon: '\u21AA\uFE0F',
+    title: 'Control Flows',
+    desc: 'How primitives compose. Same shape as the agent loop \u2014 reusable for any pipeline.',
+    cta: null,
+    to: null,
+    categories: CONTROL_FLOW_CATEGORIES,
   },
   {
     phase: 'build' as const,
     icon: '\uD83D\uDD01',
     title: 'Patterns',
-    desc: 'Named configurations of the primitives \u2014 each row links to the canonical paper.',
+    desc: 'Named recipes we provide on top of the primitives \u2014 each links to the canonical paper.',
     cta: null,
     to: null,
     categories: PATTERN_CATEGORIES,
@@ -76,7 +108,7 @@ const CARDS = [
     phase: 'execute' as const,
     icon: '\u26A1',
     title: 'Features',
-    desc: 'Infrastructure around runs \u2014 providers, runtime, observability, security, resilience, integrations.',
+    desc: 'Production-grade governance \u2014 resilience, HITL, permissions, output schema, sequence policy, observability.',
     cta: null,
     to: null,
     categories: FEATURE_CATEGORIES,

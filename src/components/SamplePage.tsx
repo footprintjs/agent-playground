@@ -45,7 +45,7 @@ import { buildProvider } from '../runner/buildProvider';
 import type { ChatTurn } from './ResultPanel';
 
 type MobileTab = 'code' | 'output';
-type LeftView = 'code' | 'flowchart' | 'explain' | '3renderers';
+type LeftView = 'code' | 'flowchart' | 'explain';
 
 interface SamplePageProps {
   /**
@@ -384,13 +384,6 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
                     Flowchart
                   </button>
                   <button
-                    className={`sample-left-tab ${leftView === '3renderers' ? 'active' : ''}`}
-                    onClick={() => setLeftView('3renderers')}
-                    title="One recorder, three renderers — engineer/analyst/user views"
-                  >
-                    3 Views
-                  </button>
-                  <button
                     className={`sample-left-tab ${leftView === 'code' ? 'active' : ''}`}
                     onClick={() => setLeftView('code')}
                   >
@@ -432,22 +425,12 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
                   {leftView === 'explain' && sample.explainer && (
                     <SampleExplainer markdown={sample.explainer} />
                   )}
-                  {leftView === '3renderers' && (
-                    // 3-renderers demo was coupled to the older Lens
-                    // timeline shape; the current Lens exposes
-                    // recorder.selectRunTree() / selectEventLog() /
-                    // selectSummary() instead. Tab kept for a future
-                    // rewrite over the new selectors.
-                    <div style={{ padding: 16, color: 'var(--text-muted)' }}>
-                      3-renderers demo pending Lens selector rewrite.
-                    </div>
-                  )}
                 </div>
               </div>
             )}
           </Panel>
 
-          <Separator disabled className="sample-resize-handle" />
+          <Separator className="sample-resize-handle" />
 
           {/* ── Column 2: Chat (input + response stream) ── */}
           <Panel
@@ -525,7 +508,7 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
             )}
           </Panel>
 
-          <Separator disabled className="sample-resize-handle" />
+          <Separator className="sample-resize-handle" />
 
           {/* ── Column 3: Observability (Lens). Always visible, with an
                   empty state pre-run; shows live trace + explain trace

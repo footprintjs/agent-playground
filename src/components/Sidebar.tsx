@@ -1,7 +1,31 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { getCategorizedSamples } from '../samples/catalog';
 import type { SampleCategory } from '../samples/catalog';
+
+const COLLAPSED_KEY = 'agent-playground.sidebar-collapsed';
+
+/**
+ * Map a category name to a single-glyph icon shown in collapsed-mode.
+ * Falls back to the first letter of the category name when no override.
+ */
+const CATEGORY_ICON: Record<string, string> = {
+  Patterns: '🔁',
+  Canonical: '⭐',
+  'Context Engineering': '🧩',
+  Core: '🧠',
+  'Core Flow': '↪️',
+  'Dynamic React': '🔄',
+  Features: '⚡',
+  Memory: '💾',
+  Concepts: '🧠',
+  Primitives: '🧠',
+  Compositions: '↪️',
+};
+
+function categoryIcon(name: string): string {
+  return CATEGORY_ICON[name] ?? name.charAt(0).toUpperCase();
+}
 
 /**
  * URL-mode aliases for URL stability across folder renames. Keep this
@@ -46,6 +70,15 @@ export function Sidebar() {
   const [searchParams] = useSearchParams();
   const allCategories = getCategorizedSamples();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Collapsed = icon-only rail (~52px). Expanded = full labels (~240px).
+  // Persisted to localStorage so the user's preference survives reloads.
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(COLLAPSED_KEY) === '1';
+  });
+  useEffect(() => {
+    window.localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0');
+  }, [collapsed]);
 
   // URL mode = the category's folder name (from agentfootprint/examples/<folder>).
   // Unknown / no mode → show everything (safe default for direct URLs).
@@ -112,25 +145,85 @@ export function Sidebar() {
         <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />
       )}
 
-      <div className={`sidebar ${mobileOpen ? 'sidebar--open' : ''}`}>
+      <div
+        className={`sidebar ${mobileOpen ? 'sidebar--open' : ''} ${collapsed ? 'sidebar--collapsed' : ''}`}
+      >
+        {/* Collapse / expand toggle — sits at the top so it's reachable
+            in both states. Single chevron flips on toggle. */}
+        <button
+          className="sidebar-collapse-btn"
+          onClick={() => setCollapsed((c) => !c)}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? '»' : '«'}
+        </button>
         <div className="sidebar-list">
           {categories.map((cat) => (
             <div key={cat.name}>
-              <div className="sidebar-category">{cat.name}</div>
+              <div
+                className="sidebar-category"
+                title={collapsed ? cat.name : undefined}
+                aria-label={cat.name}
+              >
+                {collapsed ? (
+                  <span className="sidebar-category-icon">{categoryIcon(cat.name)}</span>
+                ) : (
+                  cat.name
+                )}
+              </div>
               {cat.samples.map((sample, idx) => (
                 <button
                   key={sample.id}
                   className={`sidebar-item ${activeSampleId === sample.id ? 'active' : ''}`}
                   onClick={() => handleNavigate(sample.id)}
+                  title={collapsed ? sample.title : undefined}
+                  aria-label={sample.title}
                 >
                   <span className="number">
                     {mode ? String(idx + 1).padStart(2, '0') : String(sample.number).padStart(2, '0')}
                   </span>
-                  <span>{sample.title}</span>
+                  {!collapsed && <span>{sample.title}</span>}
                 </button>
               ))}
             </div>
           ))}
+          {/* Tools — entry-point routes that aren't sample-bound. Pinned
+              at the bottom so they're reachable from anywhere in the app
+              (matches the equivalent cards on the Welcome page). */}
+          <div>
+            <div
+              className="sidebar-category"
+              title={collapsed ? 'Tools' : undefined}
+              aria-label="Tools"
+            >
+              {collapsed ? <span className="sidebar-category-icon">🛠</span> : 'Tools'}
+            </div>
+            <button
+              className={`sidebar-item ${location.pathname === '/live' ? 'active' : ''}`}
+              onClick={() => {
+                navigate('/live');
+                setMobileOpen(false);
+              }}
+              title={collapsed ? 'Live Chat' : undefined}
+              aria-label="Live Chat"
+            >
+              <span className="number">💬</span>
+              {!collapsed && <span>Live Chat</span>}
+            </button>
+            <button
+              className={`sidebar-item ${location.pathname === '/viewer' ? 'active' : ''}`}
+              onClick={() => {
+                navigate('/viewer');
+                setMobileOpen(false);
+              }}
+              title={collapsed ? 'Trace Viewer' : undefined}
+              aria-label="Trace Viewer"
+            >
+              <span className="number">🔎</span>
+              {!collapsed && <span>Trace Viewer</span>}
+            </button>
+          </div>
         </div>
       </div>
     </>

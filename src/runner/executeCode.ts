@@ -14,6 +14,18 @@ import { transform } from 'sucrase';
 // `agentfootprint/v1`.
 import * as agentfootprint from 'agentfootprint';
 import * as footprintjs from 'footprintjs';
+// Example-only helper: lives alongside the example sources, exposes a
+// single `exampleProvider(kind, opts)` factory every example references
+// for its default mock provider. Loaded via Vite's `import.meta.glob`
+// (eager) because a static `import` from `@samples/helpers/provider`
+// crosses tsconfig's rootDir boundary. The sandbox injects whatever
+// this exports as a top-level scope binding so the example's stripped
+// `import { exampleProvider } from '../helpers/provider.js'` works.
+const __exampleHelperModule = import.meta.glob(
+  '@samples/helpers/provider.ts',
+  { eager: true },
+) as Record<string, { exampleProvider: (...args: unknown[]) => unknown }>;
+const exampleProviderHelper = Object.values(__exampleHelperModule)[0]?.exampleProvider;
 // trace barrel exposes TopologyRecorder — fallback for anything not
 // exposed through `runner.enable.flowchart()`.
 import * as footprintjsTrace from 'footprintjs/trace';
@@ -106,6 +118,27 @@ export interface ExecuteOptions {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly lensRecorder?: any;
+
+  /**
+   * Sandbox dispatch mode. Default `'run'` — invokes the example's
+   * `run(input, provider)` export. Set to `'resume'` to invoke
+   * `resume(checkpoint, humanAnswer, provider)` instead.
+   *
+   * Resume mode is how the playground completes a HITL pause: when
+   * `run()` returns a `RunnerPauseOutcome`, the playground stores the
+   * checkpoint, renders a form, and on submit re-invokes executeCode
+   * with `mode: 'resume'` + the user's answer. The example's
+   * `resume()` builds a fresh agent (cross-executor resume safe) and
+   * runs it to completion.
+   */
+  readonly mode?: 'run' | 'resume';
+  /** Required when `mode === 'resume'`. The checkpoint stored from the
+   *  prior paused outcome — opaque, JSON-serializable, fed to the
+   *  example's `resume()` as-is. */
+  readonly resumeCheckpoint?: unknown;
+  /** Required when `mode === 'resume'`. The human's answer to the
+   *  pause question — becomes the paused tool's return value. */
+  readonly resumeInput?: unknown;
 }
 
 export async function executeCode(
@@ -128,7 +161,7 @@ export async function executeCode(
     // Handle single-line, multi-line `{ ... }`, default, namespace, and
     // `import type` forms. `[\s\S]*?` matches across newlines (plain `.`
     // doesn't span newlines by default).
-    const stripped = code
+    let stripped = code
       // Named / type / multi-line: `import { A, B, type C } from 'x';`
       .replace(/import\s+(?:type\s+)?\{[\s\S]*?\}\s+from\s+['"][^'"]+['"];?/g, '')
       // Default / type-default / namespace: `import X from 'y';`, `import * as X from 'y';`
@@ -136,6 +169,26 @@ export async function executeCode(
       // Bare side-effect imports: `import 'x';`
       .replace(/import\s+['"][^'"]+['"];?/g, '')
       .trim();
+
+    // v2.14 — sample model rewrite. Examples in agentfootprint/examples/
+    // hardcode mock-only model ids (`'mock-weather'`, `'mock'`) for
+    // their scripted MockProvider fixture. When the user picks a real
+    // provider in the playground, those literals leak into Lens's
+    // DETAILS panel via stream.llm_start events even though the real
+    // HTTP call hits the right model (the playground's provider wrapper
+    // translates outbound requests). Rewrite the literals so the
+    // recorded model matches the wire model, end-to-end.
+    //
+    // Limited to a known mock-id allowlist so we don't accidentally
+    // touch a real `claude-*` / `gpt-*` model id a sample author wrote.
+    if (injectedProvider) {
+      const REAL_DEFAULT_MODEL = 'claude-sonnet-4-5-20250929';
+      const MOCK_MODEL_IDS = ['mock-weather', 'mock'];
+      for (const mockId of MOCK_MODEL_IDS) {
+        const re = new RegExp(`(['"\`])${mockId}\\1`, 'g');
+        stripped = stripped.replace(re, `'${REAL_DEFAULT_MODEL}'`);
+      }
+    }
 
     // Transpile TS → JS
     const { code: jsCode } = transform(stripped, {
@@ -149,7 +202,7 @@ export async function executeCode(
     // to the example's scripted mock — same behavior as before. When a
     // real provider is injected, the example uses it for every chat call.
     const wrapped = `
-      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology) {
+      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology, exampleProvider, __mode, __checkpoint, __resumeInput) {
         const {
           LLMCall, LLMCallRunner, Agent, AgentRunner, RAG, RAGRunner,
           FlowChart, FlowChartRunner, Swarm, SwarmRunner, Parallel, ParallelRunner,
@@ -261,6 +314,25 @@ export async function executeCode(
           LLMCall, Agent, Sequence, Parallel, Conditional, Loop,
         ];
         const origRuns = new Map();
+        const origResumes = new Map();
+        // Shared lens-attach helper. Used by both .run() and .resume()
+        // so the second phase of a HITL flow (a fresh agent built
+        // inside the example's resume() export) gets observed too —
+        // otherwise the Lens panel freezes at the pause point.
+        function __attachLensIfNeeded(self) {
+          if (__lensRecorder && typeof self.on === 'function' && !self.__fpPlaygroundLensAttached) {
+            try {
+              __lensRecorder.observe(self);
+              self.__fpPlaygroundLensAttached = true;
+            } catch (e) {}
+          }
+          if (__onAgentEvent && typeof self.observe === 'function' && !self.__fpPlaygroundSubscribed) {
+            try {
+              self.observe(__onAgentEvent);
+              self.__fpPlaygroundSubscribed = true;
+            } catch (e) {}
+          }
+        }
         for (const Cls of runnerClasses) {
           if (Cls && Cls.prototype && Cls.prototype.run) {
             origRuns.set(Cls, Cls.prototype.run);
@@ -398,6 +470,52 @@ export async function executeCode(
               }
             };
           }
+
+          // Patch .resume() the same way. Resume mode (HITL second
+          // phase) builds a fresh agent inside the example's
+          // resume() export and calls agent.resume(checkpoint, ...)
+          // -- which would NEVER trigger the .run() patch above. Lens
+          // would freeze at the pause point. Patching .resume() here
+          // makes the lensRecorder observe the resume agent so the
+          // commentary, slider, and step graph extend through the
+          // second phase too.
+          if (Cls && Cls.prototype && Cls.prototype.resume && !origResumes.has(Cls)) {
+            origResumes.set(Cls, Cls.prototype.resume);
+            Cls.prototype.resume = async function(...args) {
+              __attachLensIfNeeded(this);
+
+              // Topology recorder for the resume agent. Without this,
+              // the StepGraph the playground feeds Lens is frozen at
+              // the first agent's pause-point state — slider stays at
+              // 3/3 even after the resume's second LLM call lands.
+              // The new graph replaces the prior one (each agent has
+              // its own BoundaryRecorder); the resume phase's nodes +
+              // edges become Lens's source of truth post-resume.
+              if (!this.__fpPlaygroundTopoAttached && this.enable && typeof this.enable.flowchart === 'function') {
+                try {
+                  this.enable.flowchart({
+                    onUpdate: (graph) => {
+                      if (__onLiveTopology) {
+                        try { __onLiveTopology(graph); } catch (e) {}
+                      }
+                    },
+                  });
+                  this.__fpPlaygroundTopoAttached = true;
+                } catch (e) {}
+              }
+
+              try {
+                const result = await origResumes.get(Cls).apply(this, args);
+                captureFromRunner(this);
+                if (__onLiveSnapshot && this.getSnapshot) {
+                  try { __onLiveSnapshot(this.getSnapshot()); } catch (e) {}
+                }
+                return result;
+              } catch (e) {
+                throw e;
+              }
+            };
+          }
         }
 
         try {
@@ -407,11 +525,14 @@ export async function executeCode(
           for (const [Cls, orig] of origRuns) {
             Cls.prototype.run = orig;
           }
+          for (const [Cls, orig] of origResumes) {
+            Cls.prototype.resume = orig;
+          }
           for (const [Cls, orig] of origBuilds) {
             Cls.prototype.build = orig;
           }
         }
-      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology);
+      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology, __exampleProvider, __mode, __checkpoint, __resumeInput);
     `;
 
     const mockConsole = {
@@ -426,6 +547,8 @@ export async function executeCode(
       '__agentfootprint', '__input', '__console', '__captured', '__apiKeys',
       '__footprintjs', '__provider', '__onLiveSnapshot', '__onAgentEvent',
       '__lensRecorder', '__onLiveSpec', '__footprintjsTrace', '__onLiveTopology',
+      '__exampleProvider',
+      '__mode', '__checkpoint', '__resumeInput',
       wrapped,
     );
     const output = await fn(
@@ -433,6 +556,10 @@ export async function executeCode(
       footprintjs, injectedProvider, options?.onLiveSnapshot, options?.onAgentEvent,
       options?.lensRecorder, options?.onLiveSpec, footprintjsTrace,
       options?.onLiveTopology,
+      exampleProviderHelper,
+      options?.mode ?? 'run',
+      options?.resumeCheckpoint,
+      options?.resumeInput,
     );
 
     return {

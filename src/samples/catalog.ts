@@ -96,22 +96,32 @@ const explainerRaw = import.meta.glob(
 ) as Record<string, string>;
 
 /**
- * Strip JSDoc, the `meta` export, the CLI guard, and the `run()` wrapper
- * from an example's `.ts` source. Prepends `const provider = undefined;`
- * so `provider ?? defaultMock()` resolves to the scripted mock when the
- * playground sandbox runs the extracted code.
+ * Strip JSDoc / `meta` export / CLI guard from an example's `.ts`
+ * source, leaving the function declarations intact. Returns code that
+ * can be inlined into the sandbox's async IIFE and dispatched by
+ * mode.
  *
- * The sandbox (executeCode.ts) strips imports and injects agentfootprint
- * modules + `input`. We need to make the body executable as a top-level
- * snippet inside an async IIFE — top-level `export` is a syntax error
- * in that context.
+ * Two phases per example:
+ *   • `run(input, provider?)`           — required; kicks off the run.
+ *   • `resume(checkpoint, answer, p?)`  — optional; the HITL second
+ *                                          phase. Pause/Resume sample
+ *                                          ships it; most others don't.
+ *
+ * The dispatcher appended at the end picks one based on `__mode`
+ * (sandbox-injected) so the same compiled snippet handles both
+ * phases. Helper functions defined in the source (e.g. `buildAgent`)
+ * are preserved as-is — only the leading `export` keyword is dropped
+ * from `run` / `resume` so they're locals in the IIFE scope.
+ *
+ * Sandbox injects (executeCode.ts):
+ *   `__input`, `__provider`,
+ *   `__mode` ∈ 'run' | 'resume',
+ *   `__checkpoint`, `__resumeInput` (only on resume mode)
  */
 function fromSample(raw: string): string {
   const lines = raw.split('\n');
   const out: string[] = [];
   let inJsDoc = false;
-  let insideRun = false;
-  let braceDepth = 0;
   let skipBlockUntilClose = false;
   let skipBraceDepth = 0;
 
@@ -138,6 +148,7 @@ function fromSample(raw: string): string {
       continue;
     }
 
+    // Skip `export const meta = {...}` block.
     if (trimmed.startsWith('export const meta')) {
       skipBraceDepth = 0;
       for (const ch of line) {
@@ -148,6 +159,7 @@ function fromSample(raw: string): string {
       continue;
     }
 
+    // Skip CLI-only entry guards.
     if (
       trimmed.startsWith('if (isCliEntry(') ||
       trimmed.startsWith('if (process.argv') ||
@@ -162,48 +174,39 @@ function fromSample(raw: string): string {
       continue;
     }
 
-    if (!insideRun && /^export\s+(async\s+)?function\s+run\b/.test(trimmed)) {
-      insideRun = true;
-      braceDepth = 0;
-      for (const ch of line) {
-        if (ch === '{') braceDepth++;
-        else if (ch === '}') braceDepth--;
-      }
-      continue;
+    // Drop the `export ` keyword off function declarations so they
+    // become valid IIFE-scope locals. Catches the `export function`,
+    // `export async function`, and `export const NAME =` forms.
+    let outputLine = line;
+    if (
+      /^export\s+(async\s+)?function\b/.test(trimmed) ||
+      /^export\s+const\b/.test(trimmed)
+    ) {
+      // Strip the leading `export ` (preserve indentation).
+      outputLine = line.replace(/^(\s*)export\s+/, '$1');
     }
-
-    if (insideRun) {
-      for (const ch of line) {
-        if (ch === '{') braceDepth++;
-        else if (ch === '}') braceDepth--;
-      }
-      if (braceDepth <= 0) {
-        insideRun = false;
-        continue;
-      }
-      out.push(line.startsWith('  ') ? line.slice(2) : line);
-    } else {
-      out.push(line);
-    }
+    out.push(outputLine);
   }
 
   while (out.length > 0 && out[0].trim() === '') out.shift();
   while (out.length > 0 && out[out.length - 1].trim() === '') out.pop();
 
-  // The `run(input, provider?)` signature means the body references both
-  // `input` (sandbox-injected) and `provider` (was a parameter). The
-  // sandbox now injects `__provider` based on the user's ProviderPicker
-  // selection — null when "Mock" is chosen (so `provider ?? defaultMock()`
-  // falls through to the example's scripted mock), or a real LLMProvider
-  // when "Claude" / "GPT" / "Ollama" is selected.
-  //
-  // Examples sometimes declare their own `const provider = new MockProvider(...)`
-  // inside the body. Skip the injection prelude when the body already
-  // declares `provider` (lexical scope would throw "already declared").
   const body = out.join('\n');
-  const bodyDeclaresProvider = /\b(const|let|var)\s+provider\b/.test(body);
-  const prelude = bodyDeclaresProvider ? '' : 'const provider = __provider ?? undefined;\n';
-  return prelude + body + '\n';
+
+  // Dispatcher. `run` is required by every sample; `resume` only the
+  // pause/resume sample defines today. The runtime check on `resume`
+  // keeps the dispatcher safe for samples that never define it.
+  // Note: `input` is the IIFE parameter name (preserved for back-compat
+  // with prior catalog versions); `__mode` / `__checkpoint` /
+  // `__resumeInput` are new params injected by executeCode.ts.
+  const dispatcher =
+    `\n// ── Sandbox dispatcher (injected by playground) ──\n` +
+    `if (typeof __mode !== 'undefined' && __mode === 'resume' && typeof resume === 'function') {\n` +
+    `  return await resume(__checkpoint, __resumeInput, __provider);\n` +
+    `}\n` +
+    `return await run(input, __provider);\n`;
+
+  return body + dispatcher;
 }
 
 function toSampleId(metaId: string): string {

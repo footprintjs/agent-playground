@@ -11,10 +11,17 @@ export interface ApiKeys {
 
 const STORAGE_KEY = 'agent-playground:api-keys';
 
-/** Read API keys from sessionStorage (cleared on tab close). */
+/**
+ * Read API keys from localStorage. Persists across tab closes and
+ * browser restarts so the user doesn't paste the key every visit.
+ *
+ * Trade-off vs sessionStorage: keys live until the user clicks
+ * "Clear all keys" or wipes browser data. The panel surfaces this
+ * explicitly so the user can opt out at any time.
+ */
 export function loadApiKeys(): ApiKeys {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       // Backfill openrouter for sessions that pre-date the field.
@@ -24,9 +31,9 @@ export function loadApiKeys(): ApiKeys {
   return { anthropic: '', openai: '', openrouter: '' };
 }
 
-/** Persist API keys to sessionStorage. */
+/** Persist API keys to localStorage. */
 function saveApiKeys(keys: ApiKeys) {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
 }
 
 /**
@@ -92,8 +99,9 @@ export function SettingsPanel({
               Your keys stay private
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Stored in <strong>sessionStorage</strong> only (cleared when you close this tab).
+              Stored in <strong>localStorage</strong> on this device only — survives reloads.
               Sent directly to the API provider. <strong>Never sent to any backend.</strong>
+              Click <em>Clear all keys</em> below to remove anytime.
             </div>
           </div>
         </div>
@@ -198,7 +206,7 @@ export function SettingsPanel({
                 }}
                 onClick={() => {
                   setKeys({ anthropic: '', openai: '', openrouter: '' });
-                  sessionStorage.removeItem(STORAGE_KEY);
+                  localStorage.removeItem(STORAGE_KEY);
                 }}
               >
                 Clear all keys

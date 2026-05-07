@@ -1,9 +1,22 @@
 import React, { useEffect, useRef } from 'react';
 import type { ExecuteResult } from '../runner/executeCode';
+import type { AgentfootprintEvent } from 'agentfootprint';
+import { buildThinkingActivities } from './buildThinkingActivities';
+import { ActivityTimeline } from './ActivityTimeline';
 
 export interface ChatTurn {
   input: string;
   result: ExecuteResult;
+  /**
+   * Snapshot of the recorder's event log at the moment this turn
+   * completed. Lets `TurnView` replay the activity timeline (the same
+   * list ChatThinkKit showed live) so the user can scroll back through
+   * chat history and click any prior turn to inspect what happened.
+   *
+   * Optional — historical turns from before this feature shipped, or
+   * turns with no recorder events, leave it undefined.
+   */
+  events?: readonly AgentfootprintEvent[];
 }
 
 interface ResultPanelProps {
@@ -28,6 +41,15 @@ interface ResultPanelProps {
    * result" live in the chat, not only in the side panel.
    */
   thinkKit?: React.ReactNode;
+  /**
+   * Human-in-the-loop pause form. Rendered when the agent's run paused
+   * for human input. Mounted at the bottom of the chat panel after
+   * the user's question bubble — replaces the live thinkKit bubble
+   * while the user composes an answer. SamplePage passes a
+   * `<HitlPauseForm/>` here when `pausedOutcome` is set; null
+   * otherwise.
+   */
+  hitlForm?: React.ReactNode;
 }
 
 function extractContent(output: unknown): string | null {
@@ -53,6 +75,9 @@ function TurnView({ turn }: { turn: ChatTurn }) {
   const { result } = turn;
   const content = result.output ? extractContent(result.output) : null;
   const turns = result.output ? extractTurns(result.output) : null;
+  // Replay the live timeline from the recorder snapshot captured at
+  // turn-completion. Same projection ChatThinkKit used live.
+  const activities = turn.events ? buildThinkingActivities(turn.events) : [];
 
   return (
     <>
@@ -61,6 +86,28 @@ function TurnView({ turn }: { turn: ChatTurn }) {
         <div className="chat-bubble__label">You</div>
         <div className="chat-bubble__body">{turn.input || '(no input)'}</div>
       </div>
+
+      {/* Preserved activity timeline — the user can revisit what
+          happened during this turn. Collapsed by default; click to
+          expand. Skipped when no events were captured. */}
+      {activities.length > 0 && (
+        <details className="chat-activity-history" style={{ margin: '4px 0 0 0' }}>
+          <summary
+            style={{
+              cursor: 'pointer',
+              fontSize: 12,
+              color: '#64748b',
+              padding: '2px 6px',
+            }}
+          >
+            {activities.length} step{activities.length === 1 ? '' : 's'} —
+            click to inspect
+          </summary>
+          <div style={{ padding: '4px 0 4px 12px' }}>
+            <ActivityTimeline activities={activities} />
+          </div>
+        </details>
+      )}
 
       {/* Error */}
       {result.error && (
@@ -117,12 +164,12 @@ function TurnView({ turn }: { turn: ChatTurn }) {
   );
 }
 
-export function ResultPanel({ history, running, pendingInput, onRun, onInputChange, onClear, providerPicker, streamingResponse, thinkKit }: ResultPanelProps) {
+export function ResultPanel({ history, running, pendingInput, onRun, onInputChange, onClear, providerPicker, streamingResponse, thinkKit, hitlForm }: ResultPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [history.length, running]);
+  }, [history.length, running, !!hitlForm]);
 
   const isEmpty = history.length === 0 && !running;
 
@@ -156,11 +203,25 @@ export function ResultPanel({ history, running, pendingInput, onRun, onInputChan
           <TurnView key={i} turn={turn} />
         ))}
 
+        {/* HITL pause form — rendered when the agent paused waiting on
+            the user. Sits BELOW prior history (so the user sees the
+            question they asked) and ABOVE the in-flight bubble (so the
+            form is the prominent next-action). The form mounts only
+            while a pause is open; on submit it's cleared by SamplePage
+            and the resume's running bubble takes over. */}
+        {hitlForm && <div className="chat-hitl">{hitlForm}</div>}
+
         {/* In-flight bubble — shows the user's message + a live agent
-            response. While streamingResponse is empty, the agent bubble
-            shows the typing dots (TTFT). Once tokens start arriving, it
-            renders them progressively + a blinking cursor at the end. */}
-        {running && (
+            response. Visible while:
+              • running is true               (active LLM call / tool / streaming)
+              • OR hitlForm is mounted        (paused, waiting for user input)
+            The activity timeline and HITL form are part of one continuous
+            "this turn is in progress" view — the timeline must NOT
+            disappear the moment the agent pauses for a human answer.
+            While streamingResponse is empty, the agent bubble renders
+            thinkKit (Neo-style activity timeline). Once tokens arrive,
+            it switches to the progressive token bubble + cursor. */}
+        {(running || hitlForm) && (
           <>
             <div className="chat-bubble chat-bubble--user">
               <div className="chat-bubble__label">You</div>

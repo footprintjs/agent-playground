@@ -22,18 +22,37 @@
   --font-sans: 'Inter', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  /* footprint-explainable-ui theme bridge */
+  /* footprint-explainable-ui + agentfootprint-lens theme bridge.
+   *
+   * Both libraries read `--fp-*` design tokens. We mirror the
+   * playground's own variables (`--bg-primary`, `--text-primary`, ...)
+   * into the `--fp-*` names the libraries expect. Because the indirection
+   * goes through var(...), light-mode swaps propagate automatically:
+   * `:root.light` redefines `--bg-primary` etc., and the `--fp-*`
+   * aliases follow without per-mode duplication.
+   *
+   * Naming compatibility: agentfootprint-lens v0.13 reads
+   * `--fp-color-primary` / `--fp-color-success` / `--fp-color-error` /
+   * `--fp-color-warning` (not `--fp-primary`). We define BOTH spellings
+   * so a future rename in either consumer or library doesn't break
+   * theming silently. */
   --fp-bg-primary: var(--bg-primary);
   --fp-bg-secondary: var(--bg-secondary);
   --fp-bg-tertiary: var(--bg-tertiary);
+  --fp-bg-elevated: var(--bg-secondary);
   --fp-text-primary: var(--text-primary);
   --fp-text-secondary: var(--text-secondary);
   --fp-text-muted: var(--text-muted);
   --fp-border: var(--border);
+  /* Color tokens — both naming conventions for forward-compat. */
   --fp-primary: var(--accent);
+  --fp-color-primary: var(--accent);
   --fp-success: var(--success);
+  --fp-color-success: var(--success);
   --fp-error: var(--error);
+  --fp-color-error: var(--error);
   --fp-warning: var(--warning);
+  --fp-color-warning: var(--warning);
   --fp-radius: var(--radius);
   --fp-font-sans: var(--font-sans);
   --fp-font-mono: var(--font-mono);
@@ -78,14 +97,18 @@ body {
 .app--with-top-header {
   display: grid;
   grid-template-rows: 56px 1fr;
-  grid-template-columns: 280px 1fr;
+  /* `auto` for the sidebar column so the track follows the sidebar's
+   * intrinsic width — collapses to 56px when the user clicks the
+   * sidebar toggle, expands back to 280px when toggled open. The main
+   * column reclaims the freed space without a hardcoded breakpoint. */
+  grid-template-columns: auto 1fr;
   grid-template-areas:
     'header header'
     'sidebar main';
   height: 100vh;
 }
 .app--with-top-header > .app-header { grid-area: header; }
-.app--with-top-header > .sidebar    { grid-area: sidebar; width: auto; }
+.app--with-top-header > .sidebar    { grid-area: sidebar; }
 .app--with-top-header > .main       { grid-area: main; }
 @media (max-width: 768px) {
   .app--with-top-header {
@@ -104,6 +127,60 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  transition: width 0.18s ease-out;
+}
+/* Collapsed = icon rail. Just enough room for the 2-digit "01"
+ * sidebar-item.number prefix + a glyph in the category strip. */
+.sidebar.sidebar--collapsed {
+  width: 56px;
+}
+.sidebar.sidebar--collapsed .sidebar-item span:not(.number),
+.sidebar.sidebar--collapsed .sidebar-category {
+  /* Hide labels — only the number / glyph remain. */
+}
+.sidebar.sidebar--collapsed .sidebar-item {
+  padding-left: 8px;
+  padding-right: 8px;
+  justify-content: center;
+}
+.sidebar.sidebar--collapsed .sidebar-category-icon {
+  font-size: 16px;
+}
+/* Top-right collapse / expand chevron. Sticks to the rail edge so the
+ * user can find it in both states. */
+.sidebar-collapse-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  width: 28px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s, border-color 0.12s;
+  z-index: 2;
+}
+.sidebar-collapse-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.sidebar.sidebar--collapsed .sidebar-collapse-btn {
+  /* When collapsed the rail is narrow — center the chevron. */
+  right: 50%;
+  transform: translateX(50%);
+}
+/* Push the list down a bit so the collapse button doesn't overlap the
+ * first category label. */
+.sidebar .sidebar-list {
+  padding-top: 36px;
 }
 
 /* Pinned to 56px so the sidebar's brand block aligns horizontally with
@@ -425,10 +502,19 @@ body {
  * width via the per-panel collapse/expand button only. Thin neutral
  * line, no hover affordance, no resize cursor. */
 .sample-resize-handle {
-  width: 1px;
+  width: 4px;
   background: var(--border);
-  cursor: default;
+  cursor: col-resize;
   position: relative;
+  transition: background 0.12s;
+}
+.sample-resize-handle:hover {
+  background: var(--accent, #facc15);
+}
+/* When react-resizable-panels marks the handle as actively dragging, keep
+ * the accent so the user can see what they're moving. */
+.sample-resize-handle[data-resize-handle-active='pointer'] {
+  background: var(--accent, #facc15);
 }
 
 /* Per-panel collapse button — sits at the right end of each panel's
@@ -1725,3 +1811,81 @@ body {
   }
 }
 .key-inactive::before { content: '○ '; }
+
+/* ── Observability column tabs (Lens / Trace) ───────────────
+ * Mirrors `.sample-left-tabs` shape but scoped under the bts panel
+ * so the tab strip stays compact and the active tab content fills
+ * the rest of the column. The `height: auto` + flex overrides defeat
+ * the bts-panel-wide `> * { flex: 1; height: 100% }` rule so the tab
+ * strip doesn't expand to fill the whole panel. */
+.sample-observe-tabs {
+  display: flex;
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  padding: 6px 10px 0;
+  gap: 4px;
+}
+.sample-observe-tab {
+  padding: 7px 16px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+  margin-bottom: -1px;
+}
+.sample-observe-tab:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.sample-observe-tab.active {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  border-bottom-color: var(--bg-secondary);
+}
+.sample-observe-trace {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sample-observe-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.sample-observe-toggle input[type='checkbox'] {
+  cursor: pointer;
+  margin: 0;
+}
+.sample-observe-toggle-hint {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+.sample-observe-toggle code {
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
