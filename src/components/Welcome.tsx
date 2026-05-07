@@ -113,22 +113,6 @@ const CARDS = [
     to: null,
     categories: FEATURE_CATEGORIES,
   },
-  {
-    phase: 'observe' as const,
-    icon: '\uD83D\uDCAC',
-    title: 'Live Chat',
-    desc: 'Pick a pattern, set your API key, and chat with a real LLM. Every turn shows the full execution trace.',
-    cta: 'Try with your key',
-    to: '/live',
-  },
-  {
-    phase: 'observe' as const,
-    icon: '\uD83D\uDD0E',
-    title: 'Trace Viewer',
-    desc: 'Paste an exportTrace() JSON from your code or a Live Chat run \u2014 see the full Behind the Scenes view without re-executing.',
-    cta: 'Open viewer',
-    to: '/viewer',
-  },
 ];
 
 const PHASE_COLORS: Record<string, { color: string; dim: string; border: string }> = {
