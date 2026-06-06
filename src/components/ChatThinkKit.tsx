@@ -9,13 +9,13 @@
  * chat history.
  *
  * No new library APIs. Reuses recorder events + the existing
- * `defaultThinkingTemplates` already shipped by agentfootprint. Same
+ * `defaultStatusTemplates` already shipped by agentfootprint. Same
  * pattern Lens uses for commentary, just rendered as a vertical list.
  */
 import React, { useSyncExternalStore } from 'react';
 import {
-  defaultThinkingTemplates,
-  type ThinkingTemplates,
+  defaultStatusTemplates,
+  type StatusTemplates,
 } from 'agentfootprint';
 import type { LensRecorder } from 'agentfootprint-lens';
 import { buildThinkingActivities } from './buildThinkingActivities';
@@ -30,7 +30,7 @@ export interface ChatThinkKitProps {
   readonly appName?: string;
   /** Override the bundled thinking templates. Defaults are used as
    *  fallback for any key not present. */
-  readonly templates?: ThinkingTemplates;
+  readonly templates?: StatusTemplates;
   /** Compatibility prop — ignored; kept so SamplePage call sites
    *  don't have to change after the version-counter removal. */
   readonly version?: number;
@@ -39,7 +39,7 @@ export interface ChatThinkKitProps {
 export function ChatThinkKit({
   recorder,
   appName = 'Chatbot',
-  templates = defaultThinkingTemplates,
+  templates = defaultStatusTemplates,
 }: ChatThinkKitProps) {
   // Push-based reactivity. Re-render every event tick.
   useSyncExternalStore(

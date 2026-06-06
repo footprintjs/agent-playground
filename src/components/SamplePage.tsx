@@ -514,7 +514,7 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
                 onClear={() => setChatHistory([])}
                 streamingResponse={streamingResponse}
                 // ChatThinkKit subscribes to the same recorder Lens uses
-                // and renders the bubble whenever selectThinkingState
+                // and renders the bubble whenever selectStatus
                 // returns a non-null state (idle / streaming / tool /
                 // paused). Returns null between calls — the typing dots
                 // fallback inside ResultPanel never reaches the user

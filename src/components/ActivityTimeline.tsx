@@ -10,20 +10,20 @@
 import React from 'react';
 import { type Activity, renderActivityLine } from './buildThinkingActivities';
 import {
-  defaultThinkingTemplates,
-  type ThinkingTemplates,
+  defaultStatusTemplates,
+  type StatusTemplates,
 } from 'agentfootprint';
 
 export interface ActivityTimelineProps {
   readonly activities: readonly Activity[];
   readonly appName?: string;
-  readonly templates?: ThinkingTemplates;
+  readonly templates?: StatusTemplates;
 }
 
 export function ActivityTimeline({
   activities,
   appName = 'Chatbot',
-  templates = defaultThinkingTemplates,
+  templates = defaultStatusTemplates,
 }: ActivityTimelineProps) {
   if (activities.length === 0) return null;
   return (
@@ -48,7 +48,7 @@ export function ActivityTimeline({
 const ActivityRow: React.FC<{
   activity: Activity;
   appName: string;
-  templates: ThinkingTemplates;
+  templates: StatusTemplates;
 }> = ({ activity, appName, templates }) => {
   const text = renderActivityLine(activity, appName, templates);
   const completed = activity.status === 'completed';

@@ -15,7 +15,7 @@
  *   pause.request          → 'paused' activity, closed by pause.resume
  */
 
-import type { AgentfootprintEvent, ThinkingTemplates } from 'agentfootprint';
+import type { AgentfootprintEvent, StatusTemplates } from 'agentfootprint';
 
 export interface Activity {
   readonly id: string;
@@ -101,7 +101,7 @@ export function buildThinkingActivities(
 
 /**
  * Activity templates merged on top of the library's bundled
- * `defaultThinkingTemplates`. Adds:
+ * `defaultStatusTemplates`. Adds:
  *
  *   • Per-tool labels for HITL-conventional tool names (`askOperator`,
  *     `askHuman`, `requestApproval`) so the chat reads "Waiting for
@@ -156,7 +156,7 @@ export const playgroundActivityTemplates: Record<string, string> = {
 export function renderActivityLine(
   activity: Activity,
   appName: string,
-  templates: ThinkingTemplates,
+  templates: StatusTemplates,
 ): string {
   // Compute base key + per-tool specific key.
   let baseKey: string;
