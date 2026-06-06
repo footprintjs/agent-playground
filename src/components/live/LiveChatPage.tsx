@@ -10,7 +10,8 @@ import type { LiveConfig, ChatMessage } from './types';
 import type { CapturedExecution } from '../../runner/executeCode';
 import { DEFAULT_CONFIG } from './types';
 import { useDragResize } from './useDragResize';
-import { getPatternSpec } from '../../runner/patternSpecs';
+import { buildAgentMergeTreeGraph } from '../../charts/lensRender';
+import type { TraceGraph } from 'footprint-explainable-ui/flowchart';
 import '../../styles/live-chat.css';
 
 const CONFIG_DEFAULT_W = 280;
@@ -284,14 +285,15 @@ export function LiveChatPage() {
   const selectedExecution: CapturedExecution | null =
     messages.find((m) => m.id === selectedBTSId)?.execution ?? null;
 
-  // Show pattern blueprint when no execution is selected.
-  // Uses cached spec generation — no API keys needed, no runner creation.
-  const previewSpec = useMemo(() => {
+  // Pattern blueprint (the "what will run" chart) shown when no execution is
+  // selected — pure STRUCTURE, no API keys, no runner. The agent pattern renders
+  // the real merge-tree via the shared builder; other patterns aren't ported yet
+  // (graceful empty preview, no crash — the old getPatternSpec stub threw here).
+  const previewGraph = useMemo<TraceGraph | null>(() => {
     if (selectedExecution) return null;
-    const spec = getPatternSpec(config.pattern, config.presetId);
-    if (!spec) console.warn('[LiveChat] No spec for pattern:', config.pattern, config.presetId);
-    return spec;
-  }, [selectedExecution, config.pattern, config.presetId]);
+    if (config.pattern === 'agent') return buildAgentMergeTreeGraph();
+    return null;
+  }, [selectedExecution, config.pattern]);
 
   const keys = loadApiKeys();
   const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
@@ -378,7 +380,7 @@ export function LiveChatPage() {
 
         <BTSPanel
           execution={selectedExecution}
-          previewSpec={previewSpec}
+          previewGraph={previewGraph}
           collapsed={btsCollapsed}
           onToggleCollapse={() => { setBtsCollapsed((v) => !v); setTimeout(() => window.dispatchEvent(new Event('resize')), 50); }}
           style={{ width: btsW }}

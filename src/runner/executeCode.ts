@@ -93,6 +93,19 @@ export interface ExecuteOptions {
    *  `onLiveSnapshot`. Consumers merge topology nodes with the spec (for
    *  static structure) to highlight which branches actually ran. */
   readonly onLiveTopology?: (topology: unknown) => void;
+  /** Called during the run with the live `RunStep[]` projected from the
+   *  flowchart handle's BoundaryRecorder via `buildRunSteps`. The slider
+   *  total = `runSteps.length`, with one position per logical arrow on
+   *  the flowchart. Composition-aware (Sequence forwards / Parallel
+   *  fork / Conditional decide / Loop iteration). */
+  readonly onLiveRunSteps?: (runSteps: unknown) => void;
+  /** Called once at the start of the outermost `runner.run()` with the
+   *  outermost Runner instance. Lets the host UI hand the runner to
+   *  `<Lens runner={...} />` so the chart can derive its build-time
+   *  composition graph via `runner.getUIGroupWith(lensGroupTranslator)`.
+   *  Fires before any traversal, after the sandbox finishes wiring
+   *  recorders. */
+  readonly onLiveRunner?: (runner: unknown) => void;
   /** Called for every AgentStreamEvent during AgentRunner.run(). Injected
    *  into the sample code by monkey-patching AgentRunner.prototype.run to
    *  forward events to useLiveTimeline's ingest. Without this callback,
@@ -202,12 +215,16 @@ export async function executeCode(
     // to the example's scripted mock — same behavior as before. When a
     // real provider is injected, the example uses it for every chat call.
     const wrapped = `
-      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology, exampleProvider, __mode, __checkpoint, __resumeInput) {
+      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology, exampleProvider, __mode, __checkpoint, __resumeInput, __onLiveRunSteps, __onLiveRunner) {
         const {
           LLMCall, LLMCallRunner, Agent, AgentRunner, RAG, RAGRunner,
           FlowChart, FlowChartRunner, Swarm, SwarmRunner, Parallel, ParallelRunner,
           mock, mockRetriever, defineTool, ToolRegistry,
           AgentPattern, defineInstruction, quickBind,
+          // Injection factory family — the context-engineering samples
+          // (skills / steering / facts / memory / RAG) reference these; without
+          // them the sandbox throws "defineSteering is not defined" etc.
+          defineSkill, defineSteering, defineFact, defineMemory, defineRAG,
           staticPrompt, templatePrompt, compositePrompt,
           slidingWindow, charBudget, appendMessage,
           userMessage, assistantMessage, systemMessage, toolResultMessage,
@@ -269,34 +286,62 @@ export async function executeCode(
           } catch(e) {}
         }
 
-        // Intercept .build() on builder classes to inject agentObservability recorder
-        let __obs = null;
-        const builderClasses = [LLMCall, Agent, RAG, Swarm, Parallel];
-        const origBuilds = new Map();
-        for (const Cls of builderClasses) {
-          if (Cls && Cls.prototype && Cls.prototype.build) {
-            origBuilds.set(Cls, Cls.prototype.build);
-            Cls.prototype.build = function(...args) {
-              // Inject agentObservability before build
-              if (agentObservability && typeof this.recorder === 'function') {
-                __obs = agentObservability({ id: '__bts-obs' });
-                this.recorder(__obs);
-              }
-              return origBuilds.get(Cls).apply(this, args);
-            };
-          }
+        // Observability accumulator — subscribes to typed events and
+        // folds them into the shape recorderViews.tsx renders (tokens /
+        // tools / cost), keyed by runtimeStageId for slider slicing.
+        const __obs = {
+          tokens: { totalCalls: 0, calls: [] },
+          tools:  { totalCalls: 0, calls: [] },
+          cost:   { totalCost: 0,  calls: [] },
+        };
+        function __attachObsIfNeeded(self) {
+          if (!self || self.__fpPlaygroundObsAttached) return;
+          if (typeof self.on !== 'function') return;
+          self.on('agentfootprint.stream.llm_end', (ev) => {
+            const usage = ev.payload.usage ?? {};
+            const inputTokens = Number(usage.input ?? 0);
+            const outputTokens = Number(usage.output ?? 0);
+            __obs.tokens.totalCalls += 1;
+            __obs.tokens.calls.push({
+              runtimeStageId: ev.meta.runtimeStageId,
+              model: ev.payload.model,
+              inputTokens,
+              outputTokens,
+              totalTokens: inputTokens + outputTokens,
+              ...(ev.payload.content ? { content: ev.payload.content } : {}),
+            });
+          });
+          self.on('agentfootprint.stream.tool_end', (ev) => {
+            __obs.tools.totalCalls += 1;
+            __obs.tools.calls.push({
+              runtimeStageId: ev.meta.runtimeStageId,
+              toolName: ev.payload.toolName,
+              ...(ev.payload.args !== undefined ? { args: ev.payload.args } : {}),
+              ...(ev.payload.result !== undefined ? { result: ev.payload.result } : {}),
+            });
+          });
+          self.on('agentfootprint.cost.tick', (ev) => {
+            const cost = Number(ev.payload.cost ?? 0);
+            if (cost > 0) {
+              __obs.cost.totalCost += cost;
+              __obs.cost.calls.push({
+                runtimeStageId: ev.meta.runtimeStageId,
+                cost,
+                ...(ev.payload.model ? { model: ev.payload.model } : {}),
+              });
+            }
+          });
+          self.__fpPlaygroundObsAttached = true;
         }
 
-        // Snapshot obs state — returns a deep copy of current cumulative data
         function snapshotObs() {
-          if (!__obs) return null;
+          if (__obs.tokens.totalCalls === 0
+              && __obs.tools.totalCalls === 0
+              && __obs.cost.totalCost === 0) {
+            return null;
+          }
           try {
-            return JSON.parse(JSON.stringify({
-              tokens: __obs.tokens(),
-              tools: __obs.tools(),
-              cost: __obs.cost(),
-              explain: __obs.explain(),
-            }));
+            return JSON.parse(JSON.stringify(__obs));
           } catch(e) { return null; }
         }
 
@@ -315,6 +360,14 @@ export async function executeCode(
         ];
         const origRuns = new Map();
         const origResumes = new Map();
+        // Closure-scoped "first runner wins" guard. The sandbox patches
+        // BOTH agentfootprint composition classes (Parallel, Sequence,
+        // etc.) AND footprintjs FlowChartExecutor. The outer composition
+        // .run fires first with the right "this", then internally invokes
+        // FlowChartExecutor.run with a DIFFERENT "this" — without this
+        // guard, the second invocation overwrites liveRunner with the
+        // inner executor (which has no getUIGroupWith).
+        let __liveRunnerEmitted = false;
         // Shared lens-attach helper. Used by both .run() and .resume()
         // so the second phase of a HITL flow (a fresh agent built
         // inside the example's resume() export) gets observed too —
@@ -332,6 +385,10 @@ export async function executeCode(
               self.__fpPlaygroundSubscribed = true;
             } catch (e) {}
           }
+          // Observability accumulator — same per-runner-instance attach
+          // as the Lens recorder so a fresh runner built inside an
+          // example's resume() export still feeds Tokens/Tools/Cost.
+          __attachObsIfNeeded(self);
         }
         for (const Cls of runnerClasses) {
           if (Cls && Cls.prototype && Cls.prototype.run) {
@@ -353,6 +410,21 @@ export async function executeCode(
                 try {
                   __lensRecorder.observe(this);
                   this.__fpPlaygroundLensAttached = true;
+                } catch (e) {}
+              }
+
+              // Observability accumulator — subscribes to typed events
+              // on the outermost runner so the Trace tab's Tokens /
+              // Tools / Cost panels populate. Idempotent.
+              __attachObsIfNeeded(this);
+
+              // L4: expose the outermost runner so Lens can render its
+              // build-time composition graph via getUIGroupWith. See the
+              // closure-scope flag declared above for the why.
+              if (__onLiveRunner && !__liveRunnerEmitted) {
+                try {
+                  __onLiveRunner(this);
+                  __liveRunnerEmitted = true;
                 } catch (e) {}
               }
 
@@ -387,14 +459,34 @@ export async function executeCode(
               let __topo = null;
               if (!this.__fpPlaygroundTopoAttached && this.enable && typeof this.enable.flowchart === 'function') {
                 try {
-                  const handle = this.enable.flowchart({
+                  // Attach a RunStepRecorder once per run. It accumulates
+                  // RunStep entries incrementally as events fire (real-
+                  // time, O(N) total). On each flowchart onUpdate we
+                  // push the recorder already-built step list to Lens
+                  // via getSteps which is O(filter) and never walks.
+                  // Replaces the previous buildRunSteps(boundary) pattern
+                  // that re-walked all events on every update (O(N^2) over
+                  // a streaming run).
+                  let __runStepRec = null;
+                  if (typeof __agentfootprint.runStepRecorder === 'function') {
+                    __runStepRec = __agentfootprint.runStepRecorder();
+                    try { this.attach(__runStepRec); } catch (e) {}
+                    if (this.dispatcher && typeof __runStepRec.subscribe === 'function') {
+                      try { __runStepRec.subscribe(this.dispatcher); } catch (e) {}
+                    }
+                  }
+                  const handleRef = { current: null };
+                  handleRef.current = this.enable.flowchart({
                     onUpdate: (graph) => {
                       if (__onLiveTopology) {
                         try { __onLiveTopology(graph); } catch (e) {}
                       }
+                      if (__runStepRec && __onLiveRunSteps) {
+                        try { __onLiveRunSteps(__runStepRec.getSteps()); } catch (e) {}
+                      }
                     },
                   });
-                  __topo = { getTopology: handle.getSnapshot };
+                  __topo = { getTopology: handleRef.current.getSnapshot };
                   this.__fpPlaygroundTopoAttached = true;
                 } catch (e) { __topo = null; }
               }
@@ -528,11 +620,8 @@ export async function executeCode(
           for (const [Cls, orig] of origResumes) {
             Cls.prototype.resume = orig;
           }
-          for (const [Cls, orig] of origBuilds) {
-            Cls.prototype.build = orig;
-          }
         }
-      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology, __exampleProvider, __mode, __checkpoint, __resumeInput);
+      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology, __exampleProvider, __mode, __checkpoint, __resumeInput, __onLiveRunSteps, __onLiveRunner);
     `;
 
     const mockConsole = {
@@ -549,6 +638,8 @@ export async function executeCode(
       '__lensRecorder', '__onLiveSpec', '__footprintjsTrace', '__onLiveTopology',
       '__exampleProvider',
       '__mode', '__checkpoint', '__resumeInput',
+      '__onLiveRunSteps',
+      '__onLiveRunner',
       wrapped,
     );
     const output = await fn(
@@ -560,6 +651,8 @@ export async function executeCode(
       options?.mode ?? 'run',
       options?.resumeCheckpoint,
       options?.resumeInput,
+      options?.onLiveRunSteps,
+      options?.onLiveRunner,
     );
 
     return {

@@ -3,21 +3,26 @@ import {
   ExplainableShell,
   toVisualizationSnapshots,
 } from 'footprint-explainable-ui';
-import { TracedFlowchartView } from 'footprint-explainable-ui/flowchart';
+// TracedFlowchartView removed in explainable-ui v0.20 — new API is
+// recorder-based. The render callbacks below pass through undefined
+// so ExplainableShell falls back to its default flowchart rendering.
 import type { StageSnapshot, RecorderView } from 'footprint-explainable-ui';
+import type { TraceGraph } from 'footprint-explainable-ui/flowchart';
 import type { CapturedExecution } from '../../runner/executeCode';
 import { createRecorderViews } from './recorderViews';
+import { LensChart } from '../../charts/lensRender';
 
 interface BTSPanelProps {
   execution: CapturedExecution | null;
-  /** Pattern blueprint spec — shown when no execution is selected. */
-  previewSpec?: unknown;
+  /** Pattern blueprint graph — the "what will run" chart, shown when no
+   *  execution is selected. Built from the real chart STRUCTURE (no run). */
+  previewGraph?: TraceGraph | null;
   collapsed: boolean;
   onToggleCollapse: () => void;
   style?: React.CSSProperties;
 }
 
-export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, style }: BTSPanelProps) {
+export function BTSPanel({ execution, previewGraph, collapsed, onToggleCollapse, style }: BTSPanelProps) {
   const snapshots = useMemo<StageSnapshot[]>(() => {
     if (!execution?.snapshot) return [];
     try {
@@ -39,7 +44,7 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
   );
 
   const hasExecution = execution && snapshots.length > 0;
-  const hasPreview = !hasExecution && previewSpec;
+  const hasPreview = !hasExecution && !!previewGraph;
 
   return (
     <div className={`live-bts ${collapsed ? 'live-bts--collapsed' : ''}`} style={style}>
@@ -65,18 +70,8 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
                 size="compact"
                 recorderViews={recorderViews}
                 panelLabels={{ topology: "What Ran", details: "What Happened", timeline: "How Long" }}
-                renderFlowchart={
-                  spec
-                    ? ({ spec: levelSpec, snapshots: snaps, selectedIndex, onNodeClick }) => (
-                        <TracedFlowchartView
-                          spec={levelSpec}
-                          snapshots={snaps}
-                          snapshotIndex={selectedIndex}
-                          onNodeClick={onNodeClick}
-                        />
-                      )
-                    : undefined
-                }
+                /* renderFlowchart prop stubbed pending v0.20 migration —
+                   ExplainableShell falls back to default rendering when omitted. */
                 style={{ flex: 1 }}
               />
               <div className="live-bts-hint">
@@ -90,12 +85,10 @@ export function BTSPanel({ execution, previewSpec, collapsed, onToggleCollapse, 
                 This is what will run when you send a message.
                 Each stage is a step in the flowchart.
               </div>
-              <div className="live-bts-preview-chart">
-                <TracedFlowchartView
-                  spec={previewSpec as any}
-                  snapshots={[]}
-                  snapshotIndex={-1}
-                />
+              <div className="live-bts-preview-chart" style={{ flex: 1, minHeight: 0 }}>
+                {/* Static STRUCTURE rendered with the shared clean-centered-column
+                    strategy (same chart as the collapser demo's agent merge-tree). */}
+                <LensChart graph={previewGraph!} outerKind="Agent" />
               </div>
             </div>
           ) : (

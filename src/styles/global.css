@@ -56,6 +56,32 @@
   --fp-radius: var(--radius);
   --fp-font-sans: var(--font-sans);
   --fp-font-mono: var(--font-mono);
+
+  /*
+   * Lens RICH node renderers (LLMNode, UserNode, ToolNode,
+   * AgentGroupNode, AgentCardNode, ContextBinNode) use a parallel
+   * set of `--lens-*` CSS variables. Lens's `T` theme tokens fall
+   * back through `--fp-*` automatically, but the rich node components
+   * still reference `--lens-*` directly with hardcoded fallbacks like
+   * #fff (white) — which makes nodes look unstyled in a dark theme.
+   *
+   * Map `--lens-*` to the same source-of-truth as `--fp-*` so the
+   * rich nodes pick up the playground's cream/navy theme. Light-theme
+   * override below the parent toggle inherits naturally because each
+   * lens var points at the same playground var that the fp tier uses.
+   */
+  --lens-bg-elevated: var(--bg-secondary);
+  --lens-bg-dim: var(--bg-tertiary);
+  --lens-text: var(--text-primary);
+  --lens-text-muted: var(--text-muted);
+  --lens-stroke-dim: var(--border);
+  --lens-accent: var(--accent);
+  --lens-accent-tool: var(--success);
+  --lens-accent-context: #6366f1;
+  --lens-edge-user: var(--accent);
+  --lens-edge-tool: var(--success);
+  --lens-slot-active: rgba(245, 158, 11, 0.18);
+  --lens-font-sans: var(--font-sans);
 }
 
 /* ── Light theme override ─────────────────────────────── */
@@ -1853,6 +1879,105 @@ body {
   background: var(--bg-secondary);
   border-color: var(--border);
   border-bottom-color: var(--bg-secondary);
+}
+
+/* ── Monitor mode badge (Live / Replay / Idle) ────────────────────────
+ * The Lens panel is a MONITOR; the badge tells you which mode it's in.
+ * Pushed to the right of the Lens/Trace tab strip. */
+.sample-monitor-badge {
+  margin-left: auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+.sample-monitor-badge.is-live {
+  color: #fff;
+  background: var(--accent, #f59e0b);
+  border-color: var(--accent, #f59e0b);
+  animation: sample-monitor-pulse 1.4s ease-in-out infinite;
+}
+.sample-monitor-badge.is-replay {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.sample-monitor-badge.is-error {
+  color: #fff;
+  background: var(--error, #ef4444);
+  border-color: var(--error, #ef4444);
+}
+.sample-monitor-badge.is-idle {
+  opacity: 0.6;
+}
+@keyframes sample-monitor-pulse {
+  50% { opacity: 0.55; }
+}
+
+/* ── Chat panel toolbar — opens the on-demand modal ───────────────── */
+.sample-chat-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.sample-chat-toolbar-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+.sample-chat-toolbar-btn:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* ── Modal tab strip (Code / Explain / Flowchart) ─────────────────── */
+.sample-modal-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sample-modal-tab {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+.sample-modal-tab:hover {
+  color: var(--text-primary, #e2e8f0);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.sample-modal-tab.active {
+  color: var(--text-primary, #e2e8f0);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .sample-observe-trace {
   flex: 1 1 auto;
