@@ -6,6 +6,13 @@ export default defineConfig({
   plugins: [react()],
   base: '/agent-playground/',
   resolve: {
+    // Force a SINGLE copy of React (+ react-dom + @xyflow/react) across the
+    // symlinked workspace packages (lens / explainable-ui each carry their own
+    // node_modules copy). Without this, a fresh dep-optimization can hand
+    // @xyflow/react a second React → "Invalid hook call / useState of null"
+    // and the Lens crashes into its error boundary. dedupe pins them to the
+    // playground's copy.
+    dedupe: ['react', 'react-dom', '@xyflow/react'],
     alias: {
       // Single source of truth: examples live in the agentfootprint library itself.
       // Mirrors footprint-playground's pattern (which symlinks into footPrint/examples).
