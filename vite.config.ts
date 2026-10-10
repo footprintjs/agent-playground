@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { exampleMetadataPlugin } from './scripts/exampleMetadata';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), exampleMetadataPlugin(path.resolve(__dirname, '../agentfootprint/examples'))],
   base: '/agent-playground/',
   resolve: {
     // Force a SINGLE copy of React (+ react-dom + @xyflow/react) across the

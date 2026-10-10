@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { samples } from '../samples/catalog';
+import { getSample } from '../samples/catalog';
 import { CodePanel } from './CodePanel';
 import { ResultPanel } from './ResultPanel';
 import { HitlPauseForm } from './HitlPauseForm';
@@ -103,8 +103,8 @@ interface SamplePageProps {
 export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
   const { sampleId } = useParams<{ sampleId: string }>();
   const [searchParams] = useSearchParams();
-  const sample = samples.find((s) => s.id === sampleId);
   const mode = searchParams.get('mode');
+  const sample = getSample(sampleId, mode);
   const isConceptSample = mode === 'concepts';
 
   const [code, setCode] = useState(sample?.code ?? '');
@@ -226,10 +226,17 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
     // into "already running" state. The Flowchart tab shows an empty
     // state until the first click; the Code + Explain tabs stand alone
     // without a run.
-  }, [sampleId]);
+  }, [sample]);
 
   const handleRun = useCallback(async () => {
     if (!sample || running) return;
+    if (sample.executionUnavailable) {
+      setChatHistory(prev => [...prev, {
+        input,
+        result: { output: null, logs: [], error: sample.executionUnavailable, durationMs: 0 },
+      }]);
+      return;
+    }
     const capturedInput = input;
     setRunning(true);
     try {
@@ -428,13 +435,14 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
   // (node ids = runtime stage ids) — the same single runner→graph path the Lens
   // monitor uses, so the Trace tab and the monitor stay in lock-step.
   const traceGraph = useMemo(() => {
+    if (execution?.traceGraph) return execution.traceGraph;
     if (!liveRunner) return undefined;
     try {
       return structureGraphFromRunner(liveRunner as Parameters<typeof structureGraphFromRunner>[0]);
     } catch {
       return undefined;
     }
-  }, [liveRunner]);
+  }, [execution, liveRunner]);
 
   // Static STRUCTURE blueprint for the Flowchart tab — the agent ReAct
   // merge-tree (Context → slots → messageAPI → CallLLM → Route → loop),
@@ -505,6 +513,11 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
                   ⊞ Flowchart
                 </button>
               </div>
+              {sample.executionUnavailable && (
+                <p role="status" style={{ padding: '8px 12px', margin: 0 }}>
+                  CLI-only example. {sample.executionUnavailable} The source and explanation remain available above.
+                </p>
+              )}
               <ResultPanel
                 history={chatHistory}
                 running={running}
@@ -646,7 +659,6 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
                   {spec && traceSnapshots.length > 0 ? (
                     <ExplainableShell
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      spec={spec as any}
                       snapshots={traceSnapshots}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       narrativeEntries={(execution?.narrativeEntries ?? []) as any}

@@ -8,12 +8,10 @@
  * (snapshot, narrativeEntries, spec) for the explainable UI.
  */
 import { transform } from 'sucrase';
-// agentfootprint root IS v2 — one flat namespace with every primitive,
-// composition, pattern, adapter, and observability helper. v1 subpaths
-// are gone; if anything still needs the legacy API it's at
-// `agentfootprint/v1`.
-import * as agentfootprint from 'agentfootprint';
+import { agentModules, recordModules } from './libraryBindings';
 import * as footprintjs from 'footprintjs';
+import { structureGraphFromRunner } from 'agentfootprint-lens/core';
+import type { TraceGraph } from 'footprint-explainable-ui/flowchart';
 // Example-only helper: lives alongside the example sources, exposes a
 // single `exampleProvider(kind, opts)` factory every example references
 // for its default mock provider. Loaded via Vite's `import.meta.glob`
@@ -26,9 +24,6 @@ const __exampleHelperModule = import.meta.glob(
   { eager: true },
 ) as Record<string, { exampleProvider: (...args: unknown[]) => unknown }>;
 const exampleProviderHelper = Object.values(__exampleHelperModule)[0]?.exampleProvider;
-// trace barrel exposes TopologyRecorder — fallback for anything not
-// exposed through `runner.enable.flowchart()`.
-import * as footprintjsTrace from 'footprintjs/trace';
 
 export interface ExecuteResult {
   output: unknown;
@@ -60,6 +55,8 @@ export interface CapturedExecution {
   snapshot?: unknown;
   narrativeEntries?: unknown[];
   spec?: unknown;
+  /** The real runner graph retained with this turn for the replay panel. */
+  traceGraph?: TraceGraph;
   /** Recorder data from agentObservability (tokens, tools, cost, explain). */
   recorders?: RecorderSnapshot;
 }
@@ -215,7 +212,7 @@ export async function executeCode(
     // to the example's scripted mock — same behavior as before. When a
     // real provider is injected, the example uses it for every chat call.
     const wrapped = `
-      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology, exampleProvider, __mode, __checkpoint, __resumeInput, __onLiveRunSteps, __onLiveRunner) {
+      return (async function(__agentfootprint, input, console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __structureGraphFromRunner, __onLiveTopology, exampleProvider, __mode, __checkpoint, __resumeInput, __onLiveRunSteps, __onLiveRunner) {
         const {
           LLMCall, LLMCallRunner, Agent, AgentRunner, RAG, RAGRunner,
           FlowChart, FlowChartRunner, Swarm, SwarmRunner, Parallel, ParallelRunner,
@@ -270,6 +267,9 @@ export async function executeCode(
           try {
             if (runner.getNarrativeEntries) __captured.narrativeEntries = runner.getNarrativeEntries();
           } catch(e) {}
+          if (typeof runner.getSpec === 'function') {
+            __captured.traceGraph = __structureGraphFromRunner(runner);
+          }
           try {
             // v1 runners expose getSpec() directly. v2 runners expose
             // toFlowChart() whose buildTimeStructure IS the
@@ -621,7 +621,7 @@ export async function executeCode(
             Cls.prototype.resume = orig;
           }
         }
-      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __footprintjsTrace, __onLiveTopology, __exampleProvider, __mode, __checkpoint, __resumeInput, __onLiveRunSteps, __onLiveRunner);
+      })(__agentfootprint, __input, __console, __captured, __apiKeys, __footprintjs, __provider, __onLiveSnapshot, __onAgentEvent, __lensRecorder, __onLiveSpec, __structureGraphFromRunner, __onLiveTopology, __exampleProvider, __mode, __checkpoint, __resumeInput, __onLiveRunSteps, __onLiveRunner);
     `;
 
     const mockConsole = {
@@ -633,9 +633,10 @@ export async function executeCode(
     // Execute
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const fn = new Function(
+      ...Object.keys(recordModules),
       '__agentfootprint', '__input', '__console', '__captured', '__apiKeys',
       '__footprintjs', '__provider', '__onLiveSnapshot', '__onAgentEvent',
-      '__lensRecorder', '__onLiveSpec', '__footprintjsTrace', '__onLiveTopology',
+      '__lensRecorder', '__onLiveSpec', '__structureGraphFromRunner', '__onLiveTopology',
       '__exampleProvider',
       '__mode', '__checkpoint', '__resumeInput',
       '__onLiveRunSteps',
@@ -643,9 +644,10 @@ export async function executeCode(
       wrapped,
     );
     const output = await fn(
-      agentfootprint, input, mockConsole, captured, apiKeys ?? {},
+      ...Object.values(recordModules),
+      agentModules, input, mockConsole, captured, apiKeys ?? {},
       footprintjs, injectedProvider, options?.onLiveSnapshot, options?.onAgentEvent,
-      options?.lensRecorder, options?.onLiveSpec, footprintjsTrace,
+      options?.lensRecorder, options?.onLiveSpec, structureGraphFromRunner,
       options?.onLiveTopology,
       exampleProviderHelper,
       options?.mode ?? 'run',

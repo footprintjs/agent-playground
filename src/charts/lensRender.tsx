@@ -32,7 +32,8 @@ import {
   type TraceGraph,
   type TraceNode,
 } from 'footprint-explainable-ui/flowchart';
-import { buildAgentMessageApiChart, MockProvider } from 'agentfootprint';
+import { buildAgentMessageApiChart } from 'agentfootprint';
+import { MockProvider } from 'agentfootprint/providers';
 
 /** The composition kind that labels a main-chart box. Local to the playground
  *  now that the lens-card collapser (which once owned this union) was removed —

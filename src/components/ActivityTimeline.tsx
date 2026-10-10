@@ -12,7 +12,7 @@ import { type Activity, renderActivityLine } from './buildThinkingActivities';
 import {
   defaultStatusTemplates,
   type StatusTemplates,
-} from 'agentfootprint';
+} from 'agentfootprint/observe';
 
 export interface ActivityTimelineProps {
   readonly activities: readonly Activity[];

@@ -15,7 +15,8 @@
  *   pause.request          → 'paused' activity, closed by pause.resume
  */
 
-import type { AgentfootprintEvent, StatusTemplates } from 'agentfootprint';
+import type { AgentfootprintEvent } from 'agentfootprint/events';
+import type { StatusTemplates } from 'agentfootprint/observe';
 
 export interface Activity {
   readonly id: string;

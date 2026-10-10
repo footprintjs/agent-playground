@@ -10,7 +10,7 @@ const LiveChatPage = React.lazy(() =>
 );
 import { ViewerPage } from './components/viewer/ViewerPage';
 import { SettingsPanel, loadApiKeys } from './components/SettingsPanel';
-import { samples } from './samples/catalog';
+import { getSample } from './samples/catalog';
 import '@xyflow/react/dist/style.css';
 import './styles/global.css';
 
@@ -70,8 +70,9 @@ function SamplesToolbar({ onOpenSettings }: { onOpenSettings: () => void }) {
   // no sample is selected (Welcome page).
   const navigate = useNavigate();
   const sampleMatch = useMatch('/samples/:sampleId');
+  const sampleMode = new URLSearchParams(useLocation().search).get('mode');
   const currentSample = sampleMatch?.params.sampleId
-    ? samples.find((s) => s.id === sampleMatch.params.sampleId)
+    ? getSample(sampleMatch.params.sampleId, sampleMode)
     : undefined;
 
   return (
