@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import type { ExecuteResult } from '../runner/executeCode';
-import type { AgentfootprintEvent } from 'agentfootprint';
+import type { AgentfootprintEvent } from 'agentfootprint/events';
 import { buildThinkingActivities } from './buildThinkingActivities';
 import { ActivityTimeline } from './ActivityTimeline';
 

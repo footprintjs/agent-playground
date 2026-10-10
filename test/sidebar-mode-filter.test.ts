@@ -12,21 +12,30 @@
  *   5. Every FEATURE_CATEGORIES default sample exists in the catalog
  */
 import { describe, expect, it } from 'vitest';
-import { getCategorizedSamples } from '../src/samples/catalog';
+import { getCategorizedSamples, getSample } from '../src/samples/catalog';
+import {
+  PRIMITIVE_CATEGORIES, CONTROL_FLOW_CATEGORIES, PATTERN_CATEGORIES,
+  CONTEXT_CATEGORIES, FEATURE_CATEGORIES,
+} from '../src/components/Welcome';
 
-// Same list as Welcome.tsx — the Home-page chip grid.
-const FEATURE_CATEGORIES = [
-  { mode: 'patterns',          sample: 'regular-vs-dynamic' },
-  { mode: 'providers',         sample: 'prompt' },
-  { mode: 'runtime-features',  sample: 'events' },
-  { mode: 'observability',     sample: 'recorders' },
-  { mode: 'security',          sample: 'gated-tools' },
-  { mode: 'resilience',        sample: 'runner-wrappers' },
-  { mode: 'integrations',      sample: 'full-integration' },
+// Test the real Home-page links, never a second stale navigation catalogue.
+const HOME_LINKS = [
+  ...PRIMITIVE_CATEGORIES, ...CONTROL_FLOW_CATEGORIES, ...PATTERN_CATEGORIES,
+  ...CONTEXT_CATEGORIES, ...FEATURE_CATEGORIES,
 ];
 
 describe('Sidebar folder-mode contract', () => {
   const allCategories = getCategorizedSamples();
+
+  it('resolves duplicate ids by the authored mode, never the promoted category order', () => {
+    const context = getSample('dynamic-react', 'context-engineering');
+    const primitive = getSample('dynamic-react', 'dynamic-react');
+    expect(context?.group).toBe('context-engineering');
+    expect(primitive?.group).toBe('dynamic-react');
+    expect(context?.code).not.toBe(primitive?.code);
+    expect(getSample('dynamic-react')).toBeUndefined();
+    for (const link of HOME_LINKS) expect(getSample(link.sample, link.mode)?.group).toBe(link.mode);
+  });
 
   it('1. Every category carries a `group` derived from its source folder', () => {
     // Every category auto-discovered from `examples/` must have a group.
@@ -42,18 +51,18 @@ describe('Sidebar folder-mode contract', () => {
     const filtered = allCategories.filter((c) => c.group === 'patterns');
     expect(filtered.length).toBe(1);
     const ids = filtered[0].samples.map((s) => s.id);
-    expect(ids).toContain('regular-vs-dynamic');
+    expect(ids).toContain('self-consistency');
   });
 
-  it('3. Concepts folder auto-wires as the curriculum landing', () => {
-    const filtered = allCategories.filter((c) => c.group === 'concepts');
+  it('3. All four control-flow primitives remain discoverable', () => {
+    const filtered = allCategories.filter((c) => c.group === 'core-flow');
     expect(filtered.length).toBe(1);
-    expect(filtered[0].samples.length).toBeGreaterThanOrEqual(6);
+    expect(filtered[0].samples.map(sample => sample.id)).toEqual(expect.arrayContaining(['sequence', 'parallel', 'conditional', 'loop']));
   });
 
   it('4. Every FEATURE_CATEGORIES mode maps to a real category.group', () => {
     const groups = new Set(allCategories.map((c) => c.group));
-    for (const fc of FEATURE_CATEGORIES) {
+    for (const fc of HOME_LINKS) {
       expect(
         groups.has(fc.mode),
         `mode="${fc.mode}" has no matching category.group. Available: ${[...groups].join(', ')}`,
@@ -62,8 +71,8 @@ describe('Sidebar folder-mode contract', () => {
   });
 
   it('5. Every FEATURE_CATEGORIES default sample exists in the catalog', () => {
-    const allSampleIds = new Set(allCategories.flatMap((c) => c.samples.map((s) => s.id)));
-    for (const fc of FEATURE_CATEGORIES) {
+    for (const fc of HOME_LINKS) {
+      const allSampleIds = new Set(allCategories.filter(category => category.group === fc.mode).flatMap(category => category.samples.map(sample => sample.id)));
       expect(
         allSampleIds.has(fc.sample),
         `default sample "${fc.sample}" (mode="${fc.mode}") not in catalog`,

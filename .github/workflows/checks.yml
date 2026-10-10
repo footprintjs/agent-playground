@@ -1,0 +1,47 @@
+name: Playground checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-playground
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: agent-playground
+      # Raw examples and their mock-provider helper remain the library's source
+      # of truth. Runtime modules below are the exact published packages.
+      - uses: actions/checkout@v4
+        with:
+          repository: footprintjs/agentfootprint
+          ref: v10.0.0
+          path: agentfootprint
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: agent-playground/package-lock.json
+      - name: Match the verified strict dependency resolver
+        run: npm install --global npm@11.19.0
+      - name: Prepare reviewed published dependencies in this disposable checkout
+        run: |
+          node scripts/prepare-ci-dependencies.mjs
+          # npm install can retain a same-version local link. Refresh only the
+          # reviewed names so the lock records the actual published boundary.
+          npm update --package-lock-only agentfootprint agentfootprint-lens footprint-explainable-ui footprintjs
+      - run: npm ci
+      - run: npm ls agentfootprint agentfootprint-lens footprintjs foottrace --all
+      # The sibling example helper imports its own source, whose package imports
+      # must resolve to the same installed packages as the playground.
+      - run: ln -s agent-playground/node_modules ../node_modules
+      - run: npm test
+      - run: npm run build

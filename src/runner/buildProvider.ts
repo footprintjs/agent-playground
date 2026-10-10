@@ -16,7 +16,7 @@
  * across every sample.
  */
 
-import { MockProvider, browserAnthropic } from 'agentfootprint';
+import { MockProvider, browserAnthropic } from 'agentfootprint/providers';
 import type { LLMProvider, LLMRequest } from 'agentfootprint';
 
 /** Vendor-native model-id prefix per provider. Anything else → default. */

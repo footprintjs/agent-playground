@@ -27,20 +27,20 @@ function useThemeToggle() {
 // (fixed toolset every iter) and Dynamic (tools/context narrow per iter
 // via autoActivate). Patterns BELOW are compositions on top of these
 // — they are NOT Agent modes.
-const PRIMITIVE_CATEGORIES = [
+export const PRIMITIVE_CATEGORIES = [
   { mode: 'core',          label: 'LLM',             sample: 'llm-call',      desc: 'One-shot LLM primitive' },
   { mode: 'dynamic-react', label: 'Agent · Static',  sample: 'classic-react', desc: 'ReAct — fixed toolset' },
   { mode: 'dynamic-react', label: 'Agent · Dynamic', sample: 'dynamic-react', desc: 'ReAct — tools narrow per iter' },
 ];
 
-const CONTROL_FLOW_CATEGORIES = [
+export const CONTROL_FLOW_CATEGORIES = [
   { mode: 'core-flow', label: 'Sequence',    sample: 'sequence',    desc: 'Linear pipeline' },
   { mode: 'core-flow', label: 'Parallel',    sample: 'parallel',    desc: 'Fan-out + merge' },
   { mode: 'core-flow', label: 'Conditional', sample: 'conditional', desc: 'Predicate routing' },
   { mode: 'core-flow', label: 'Loop',        sample: 'loop',        desc: 'Bounded iteration' },
 ];
 
-const PATTERN_CATEGORIES = [
+export const PATTERN_CATEGORIES = [
   { mode: 'patterns', label: 'Self-Consistency', sample: 'self-consistency', desc: 'Sample N, vote (Wang 2022)' },
   { mode: 'patterns', label: 'Reflection',       sample: 'reflection',       desc: 'Self-Refine (Madaan 2023)' },
   { mode: 'patterns', label: 'Debate',           sample: 'debate',           desc: 'Multi-Agent Debate (Du 2023)' },
@@ -49,7 +49,7 @@ const PATTERN_CATEGORIES = [
   { mode: 'patterns', label: 'Swarm',            sample: 'swarm',            desc: 'Multi-agent handoff' },
 ];
 
-const CONTEXT_CATEGORIES = [
+export const CONTEXT_CATEGORIES = [
   { mode: 'context-engineering', label: 'Skills',       sample: 'skill',         desc: 'Activate → prompt + tools' },
   { mode: 'context-engineering', label: 'RAG',          sample: 'rag',           desc: 'Retrieved chunks → messages' },
   { mode: 'memory',              label: 'Memory',       sample: 'window-strategy', desc: 'Window / budget / summarize / topK' },
@@ -58,7 +58,7 @@ const CONTEXT_CATEGORIES = [
   { mode: 'context-engineering', label: 'Dynamic ReAct', sample: 'dynamic-react', desc: 'Context morphs each iter' },
 ];
 
-const FEATURE_CATEGORIES = [
+export const FEATURE_CATEGORIES = [
   { mode: 'features', label: 'Resilience',       sample: 'reliability',     desc: 'Retry / fallback / circuit breaker' },
   { mode: 'features', label: 'HITL',             sample: 'pause-resume',    desc: 'Pause / resume — human-in-the-loop' },
   { mode: 'features', label: 'Permissions',      sample: 'permissions',     desc: 'Tool-call gating' },

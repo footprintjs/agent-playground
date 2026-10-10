@@ -16,7 +16,7 @@ import React, { useSyncExternalStore } from 'react';
 import {
   defaultStatusTemplates,
   type StatusTemplates,
-} from 'agentfootprint';
+} from 'agentfootprint/observe';
 import type { LensRecorder } from 'agentfootprint-lens';
 import { buildThinkingActivities } from './buildThinkingActivities';
 import { ActivityTimeline } from './ActivityTimeline';

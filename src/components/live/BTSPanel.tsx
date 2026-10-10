@@ -3,9 +3,6 @@ import {
   ExplainableShell,
   toVisualizationSnapshots,
 } from 'footprint-explainable-ui';
-// TracedFlowchartView removed in explainable-ui v0.20 — new API is
-// recorder-based. The render callbacks below pass through undefined
-// so ExplainableShell falls back to its default flowchart rendering.
 import type { StageSnapshot, RecorderView } from 'footprint-explainable-ui';
 import type { TraceGraph } from 'footprint-explainable-ui/flowchart';
 import type { CapturedExecution } from '../../runner/executeCode';
@@ -35,8 +32,6 @@ export function BTSPanel({ execution, previewGraph, collapsed, onToggleCollapse,
     }
   }, [execution]);
 
-  const spec = execution?.spec ?? null;
-
   // Progressive recorder tabs — update with time-travel slider via stageLabel
   const recorderViews = useMemo<RecorderView[]>(
     () => createRecorderViews(execution?.recorders ?? undefined),
@@ -62,7 +57,7 @@ export function BTSPanel({ execution, previewGraph, collapsed, onToggleCollapse,
             <>
               <ExplainableShell
                 snapshots={snapshots}
-                spec={spec as any}
+                traceGraph={execution.traceGraph}
                 narrativeEntries={execution!.narrativeEntries as any[] ?? undefined}
                 tabs={['explainable']}
                 defaultTab="narrative"
@@ -70,8 +65,6 @@ export function BTSPanel({ execution, previewGraph, collapsed, onToggleCollapse,
                 size="compact"
                 recorderViews={recorderViews}
                 panelLabels={{ topology: "What Ran", details: "What Happened", timeline: "How Long" }}
-                /* renderFlowchart prop stubbed pending v0.20 migration —
-                   ExplainableShell falls back to default rendering when omitted. */
                 style={{ flex: 1 }}
               />
               <div className="live-bts-hint">

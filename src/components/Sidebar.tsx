@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { getCategorizedSamples } from '../samples/catalog';
+import { getCategorizedSamples, getSample } from '../samples/catalog';
 import type { SampleCategory } from '../samples/catalog';
 
 const COLLAPSED_KEY = 'agent-playground.sidebar-collapsed';
@@ -120,11 +120,13 @@ export function Sidebar() {
   // Extract sampleId from current path
   const match = location.pathname.match(/\/samples\/([^/]+)/);
   const activeSampleId = match?.[1] ?? null;
+  const activeSample = getSample(activeSampleId ?? undefined, mode);
 
-  const handleNavigate = (sampleId: string) => {
+  const handleNavigate = (sampleId: string, group?: string) => {
     // Preserve the mode param (using the raw URL form, not the aliased
     // internal form) when navigating between samples.
-    const modeParam = rawMode ? `?mode=${rawMode}` : '';
+    const selectedMode = rawMode ?? group;
+    const modeParam = selectedMode ? `?mode=${encodeURIComponent(selectedMode)}` : '';
     navigate(`/samples/${sampleId}${modeParam}`);
     setMobileOpen(false);
   };
@@ -175,8 +177,8 @@ export function Sidebar() {
               {cat.samples.map((sample, idx) => (
                 <button
                   key={sample.id}
-                  className={`sidebar-item ${activeSampleId === sample.id ? 'active' : ''}`}
-                  onClick={() => handleNavigate(sample.id)}
+                  className={`sidebar-item ${activeSample === sample ? 'active' : ''}`}
+                  onClick={() => handleNavigate(sample.id, sample.group)}
                   title={collapsed ? sample.title : undefined}
                   aria-label={sample.title}
                 >

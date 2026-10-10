@@ -4,7 +4,7 @@
  * `import.meta.glob` walks `@samples/**` (resolved via the `@samples`
  * alias to `../agentfootprint/examples/*` — see vite.config.ts) and
  * pulls each example as both:
- *   - the module's exported `meta` object (catalog metadata)
+ *   - inert JSON metadata, parsed at build time without importing the module
  *   - the raw source string (playground sandbox)
  *   - the paired `.md` explainer (rendered in the Explain tab)
  *
@@ -17,18 +17,7 @@
  * counterpart and remain hand-maintained.
  */
 
-// Inline copy of agentfootprint's ExampleMeta type so we don't import from
-// outside this project's rootDir. Keep this in sync with
-// ../../agentfootprint/examples/helpers/cli.ts.
-interface ExampleMeta {
-  readonly id: string;
-  readonly title: string;
-  readonly group: string;
-  readonly description: string;
-  readonly defaultInput: string | null;
-  readonly providerSlots: readonly string[];
-  readonly tags: readonly string[];
-}
+import type { SampleDiscovery } from './metadataTypes';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -45,6 +34,8 @@ export interface Sample {
   code: string;
   /** Markdown explainer (paired `.md`). Optional — inline samples don't have one. */
   explainer?: string;
+  /** Source remains readable; non-browser entry points are never auto-executed. */
+  executionUnavailable?: string;
 }
 
 export interface SampleCategory {
@@ -66,7 +57,7 @@ export interface SampleCategory {
  * falls in alphabetically. Add groups here ONLY if you want them ahead
  * of the default sort — otherwise new folders auto-slot in.
  */
-const GROUP_PROMOTE_ORDER = ['concepts', 'patterns'];
+const GROUP_PROMOTE_ORDER = ['core', 'dynamic-react', 'core-flow', 'patterns'];
 
 /** kebab-case folder name → Title Case display label.
  *  `runtime-features` → `Runtime Features`. Stable, invertible, no map. */
@@ -82,9 +73,9 @@ function prettifyGroup(group: string): string {
 // Glob patterns must be literal strings/array literals — Vite's transform
 // can't resolve them through variables. Exclude helpers/ (imports Node's
 // `url` module, breaks browser bundle) and DESIGN/README (not example md).
-const exampleModules = import.meta.glob(
+const exampleMetadata = import.meta.glob<SampleDiscovery>(
   ['@samples/**/*.ts', '!@samples/helpers/**'],
-  { eager: true },
+  { eager: true, query: '?sample-meta', import: 'default' },
 );
 const exampleRaw = import.meta.glob(
   ['@samples/**/*.ts', '!@samples/helpers/**'],
@@ -221,14 +212,18 @@ function deriveNumber(path: string): number {
   return match ? parseInt(match[1], 10) : 99;
 }
 
-const fileBased: Sample[] = Object.entries(exampleModules)
+/** Explicit discovery diagnostics: CLI examples remain in source, not runnable browser entries. */
+export const catalogDiagnostics = Object.entries(exampleMetadata)
+  .flatMap(([path, discovery]) => discovery.kind === 'runnable' ? [] : [{ path, ...discovery }]);
+for (const diagnostic of catalogDiagnostics) {
+  console.warn(`[catalog] ${diagnostic.path}: ${diagnostic.kind}: ${diagnostic.reason}`);
+}
+
+const fileBased: Sample[] = Object.entries(exampleMetadata)
   .filter(([path]) => !path.includes('/helpers/'))
-  .map(([path, mod]): Sample | null => {
-    const meta = (mod as { meta?: ExampleMeta }).meta;
-    if (!meta) {
-      console.warn(`[catalog] ${path} missing 'meta' export — skipping`);
-      return null;
-    }
+  .map(([path, discovery]): Sample | null => {
+    if (!discovery.meta) return null;
+    const { meta } = discovery;
     const raw = exampleRaw[path];
     const mdPath = path.replace(/\.ts$/, '.md');
     const explainer = explainerRaw[mdPath];
@@ -241,7 +236,8 @@ const fileBased: Sample[] = Object.entries(exampleModules)
       // is the URL-mode key. `getCategorizedSamples()` groups by label.
       category: prettifyGroup(meta.group),
       group: meta.group,
-      code: fromSample(raw),
+      code: discovery.kind === 'runnable' ? fromSample(raw) : raw,
+      ...(discovery.kind === 'runnable' ? {} : { executionUnavailable: discovery.reason }),
       ...(explainer ? { explainer } : {}),
     };
   })
@@ -264,6 +260,12 @@ const fileBased: Sample[] = Object.entries(exampleModules)
 // ── Final catalog ────────────────────────────────────────────
 
 export const samples: Sample[] = fileBased;
+
+/** A source folder plus id identifies a sample; ids alone need not be unique. */
+export function getSample(id: string | undefined, mode?: string | null): Sample | undefined {
+  const matches = samples.filter(sample => sample.id === id);
+  return matches.find(sample => sample.group === mode) ?? (matches.length === 1 ? matches[0] : undefined);
+}
 
 export function getCategorizedSamples(): SampleCategory[] {
   const map = new Map<string, Sample[]>();
