@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 export const replacements = {
   "agentfootprint": {
     "from": "file:../agentfootprint",
-    "to": "10.0.0"
+    "to": "10.1.0"
   },
   "agentfootprint-lens": {
     "from": "file:../agentfootprint-lens",
@@ -18,7 +18,7 @@ export const replacements = {
   },
   "footprintjs": {
     "from": "file:../footPrint",
-    "to": "9.48.3"
+    "to": "10.0.0"
   }
 };
 const sections = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
