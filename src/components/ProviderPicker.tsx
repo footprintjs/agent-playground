@@ -9,51 +9,8 @@
  * paste a key without hunting for the gear icon.
  */
 
-import { useState, useEffect } from 'react';
 import { PROVIDER_OPTIONS, type ProviderKind } from '../runner/buildProvider';
-import { loadApiKeys } from './SettingsPanel';
-
-const STORAGE_KEY = 'agent-playground.provider';
-
-function readStored(): ProviderKind {
-  if (typeof window === 'undefined') return 'mock';
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (
-    raw === 'anthropic' ||
-    raw === 'openai' ||
-    raw === 'openrouter' ||
-    raw === 'ollama' ||
-    raw === 'mock'
-  ) {
-    return raw;
-  }
-  return 'mock';
-}
-
-/** Map a provider kind to the API-key field it consumes (or null when
- *  the provider doesn't need a key — Mock + Ollama). */
-function keyFieldFor(kind: ProviderKind): 'anthropic' | 'openai' | 'openrouter' | null {
-  switch (kind) {
-    case 'anthropic':
-      return 'anthropic';
-    case 'openai':
-      return 'openai';
-    case 'openrouter':
-      return 'openrouter';
-    case 'mock':
-    case 'ollama':
-      return null;
-  }
-}
-
-/** True when the chosen provider requires a key AND that key is not in
- *  localStorage yet. Cheap — reads localStorage every call. */
-export function providerNeedsKey(kind: ProviderKind): boolean {
-  const field = keyFieldFor(kind);
-  if (!field) return false;
-  const keys = loadApiKeys();
-  return !keys[field] || keys[field].length === 0;
-}
+import { providerNeedsKey } from '../utils/apiKeys';
 
 interface Props {
   value: ProviderKind;
@@ -91,13 +48,4 @@ export function ProviderPicker({ value, onChange, onNeedsKey }: Props) {
       ))}
     </select>
   );
-}
-
-/** Hook — wires the picker state to localStorage so it persists. */
-export function useProviderPicker(): [ProviderKind, (kind: ProviderKind) => void] {
-  const [kind, setKind] = useState<ProviderKind>(readStored);
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, kind);
-  }, [kind]);
-  return [kind, setKind];
 }

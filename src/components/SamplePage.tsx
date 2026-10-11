@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { getSample } from '../samples/catalog';
+import { getSample, type Sample } from '../samples/catalog';
 import { CodePanel } from './CodePanel';
 import { ResultPanel } from './ResultPanel';
 import { HitlPauseForm } from './HitlPauseForm';
@@ -15,16 +15,16 @@ import {
   toVisualizationSnapshots,
 } from 'footprint-explainable-ui';
 import type {
-  ThemeTokens,
   StageSnapshot,
   RecorderView,
 } from 'footprint-explainable-ui';
 import { createRecorderViews } from './live/recorderViews';
 import { Lens, LensRecorder, structureGraphFromRunner } from 'agentfootprint-lens';
-import { ThreeRenderersDemo } from './ThreeRenderersDemo';
 // Shared "clean centered column" render strategy — the agent merge-tree
 // blueprint (same chart as the collapser demo + live blueprint).
-import { LensChart, buildAgentMergeTreeGraph, mergeTreeLayout, MAIN_CHART_NODE_TYPES } from '../charts/lensRender';
+import { LensChart } from '../charts/lensRender';
+import { buildAgentMergeTreeGraph } from '../charts/agentBlueprintGraph';
+import { mergeTreeLayout, MAIN_CHART_NODE_TYPES } from '../charts/lensLayout';
 
 /**
  * Defensive error boundary around the Lens panel. If any internal Lens
@@ -39,7 +39,6 @@ class LensErrorBoundary extends React.Component<
   state = { error: null as Error | null };
   static getDerivedStateFromError(error: Error) { return { error }; }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // eslint-disable-next-line no-console
     console.error('Lens threw:', error, info);
   }
   render() {
@@ -56,35 +55,11 @@ class LensErrorBoundary extends React.Component<
   }
 }
 
-// Theme tokens built from the playground's own CSS vars so Lens renders
-// on the same cream/navy palette as the rest of the app (not the default
-// pure-white coolLight / slate coolDark). CSS-var strings flow through
-// React inline styles cleanly; the `:root.light` override automatically
-// flips every surface when the user toggles the theme.
-const playgroundTheme: ThemeTokens = {
-  colors: {
-    primary: 'var(--accent)',
-    success: 'var(--success)',
-    error: 'var(--error)',
-    warning: 'var(--warning)',
-    bgPrimary: 'var(--bg-primary)',
-    bgSecondary: 'var(--bg-secondary)',
-    bgTertiary: 'var(--bg-tertiary)',
-    textPrimary: 'var(--text-primary)',
-    textSecondary: 'var(--text-secondary)',
-    textMuted: 'var(--text-muted)',
-    border: 'var(--border)',
-  },
-  radius: 'var(--radius)',
-  fontFamily: {
-    sans: 'var(--font-sans)',
-    mono: 'var(--font-mono)',
-  },
-};
 import { Panel, Group, Separator } from 'react-resizable-panels';
-import { executeCode } from '../runner/executeCode';
-import { loadApiKeys } from './SettingsPanel';
-import { ProviderPicker, useProviderPicker } from './ProviderPicker';
+import { executeCode, type CapturedExecution } from '../runner/executeCode';
+import { loadApiKeys } from '../utils/apiKeys';
+import { ProviderPicker } from './ProviderPicker';
+import { useProviderPicker } from '../hooks/useProviderPicker';
 import { buildProvider } from '../runner/buildProvider';
 import type { ChatTurn } from './ResultPanel';
 
@@ -105,29 +80,54 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode');
   const sample = getSample(sampleId, mode);
-  const isConceptSample = mode === 'concepts';
+  // Preferences survive sample changes; execution state belongs to one sample.
+  const [input, setInput] = useState('Hello, how can you help me?');
+  const [observeTab, setObserveTab] = useState<'lens' | 'trace'>('lens');
+  const [showStageIds, setShowStageIds] = useState(false);
+  const providerPicker = useProviderPicker();
+  if (!sample) {
+    return <div className="welcome"><h2>Sample not found</h2>
+      <p>No sample with id "{sampleId}". Pick one from the sidebar.</p></div>;
+  }
+  return <SampleSession key={JSON.stringify([sample.group, sample.id])}
+    sample={sample} isConceptSample={mode === 'concepts'} onOpenSettings={onOpenSettings}
+    input={input} setInput={setInput} observeTab={observeTab} setObserveTab={setObserveTab}
+    showStageIds={showStageIds} setShowStageIds={setShowStageIds} providerPicker={providerPicker} />;
+}
+
+interface SampleSessionProps extends SamplePageProps {
+  sample: Sample;
+  isConceptSample: boolean;
+  input: string;
+  setInput: React.Dispatch<React.SetStateAction<string>>;
+  observeTab: 'lens' | 'trace';
+  setObserveTab: React.Dispatch<React.SetStateAction<'lens' | 'trace'>>;
+  showStageIds: boolean;
+  setShowStageIds: React.Dispatch<React.SetStateAction<boolean>>;
+  providerPicker: ReturnType<typeof useProviderPicker>;
+}
+
+function SampleSession({ sample, isConceptSample, onOpenSettings, input, setInput,
+  observeTab, setObserveTab, showStageIds, setShowStageIds, providerPicker }: SampleSessionProps) {
 
   const [code, setCode] = useState(sample?.code ?? '');
   const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
   const [running, setRunning] = useState(false);
-  const [input, setInput] = useState('Hello, how can you help me?');
 
   // Active tab inside the Observability column. `lens` shows the
   // agentfootprint-lens RunTree+EventStream+Summary; `trace` renders
   // the same run snapshot through footprint-explainable-ui's
   // TracedFlowchartView so consumers can compare both renderers
   // against the same data.
-  const [observeTab, setObserveTab] = useState<'lens' | 'trace'>('lens');
   // Trace tab — toggle to render each stage's stable `stageId` as a small
   // caption beneath the label. Teaching aid: shows the key recorders use
   // (`runtimeStageId = [subflowPath/]stageId#executionIndex`).
-  const [showStageIds, setShowStageIds] = useState(false);
 
   // On-demand modal: Code / Explain / Flowchart. The steady-state view
   // is just Chat + Lens (live monitor); this heavier content opens in a
   // focused modal via toolbar buttons. `modalTab` is the active tab,
   // `modalOpen` toggles the overlay.
-  const [modalTab, setModalTab] = useState<LeftView>('code');
+  const [modalTab, setModalTab] = useState<LeftView>(sample.explainer ? 'explain' : 'code');
   const [modalOpen, setModalOpen] = useState(false);
   const openModal = (tab: LeftView) => {
     setModalTab(tab);
@@ -141,7 +141,7 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
   // LLM provider selection (Mock / Claude / GPT / Ollama). Persisted
   // across reloads; passed to executeCode so the example's
   // `run(input, provider?)` factory uses the chosen provider.
-  const [providerKind, setProviderKind] = useProviderPicker();
+  const [providerKind, setProviderKind] = providerPicker;
 
   // Progressive streaming bubble — tokens arrive via onStreamToken
   // during a run and accumulate here. Cleared when the run finalizes
@@ -151,25 +151,13 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
   // Live snapshot fed to Lens during a run — polled at ~100ms inside
   // executeCode so the observability panel updates AS the mock streams
   // tokens. Cleared on sample switch.
-  const [liveSnapshot, setLiveSnapshot] = useState<unknown>(null);
+  const [liveSnapshot, setLiveSnapshot] = useState<CapturedExecution['snapshot']>();
 
   // Live flowchart spec fed to the Flowchart panel during a run. Captured
   // from `runner.toFlowChart().buildTimeStructure` at run-start, BEFORE
   // traversal begins, so multi-agent subflow trees (Swarm/Debate/MapReduce/
   // ToT) surface in the UI while execution streams — not only after.
   const [liveSpec, setLiveSpec] = useState<unknown>(null);
-
-  // Live composition graph from footprintjs TopologyRecorder. Polled during
-  // a run alongside the snapshot. Gives { nodes, edges, activeNodeId } —
-  // each entered subflow (Swarm agent, Debate role, MapReduce shard,
-  // ToT branch) appears as a node as execution reaches it, so the UI can
-  // group steps live without waiting for a post-run tree walk.
-  const [liveTopology, setLiveTopology] = useState<unknown>(null);
-
-  // Live RunStep[] projected from the BoundaryRecorder at every flowchart
-  // update. Slider walks one position per logical arrow (asks / forwards /
-  // fork / decide / iteration / answers / react). Lens consumes directly.
-  const [liveRunSteps, setLiveRunSteps] = useState<unknown>(null);
 
   // L4: the outermost Runner instance captured from the sandbox's
   // `__attachLensIfNeeded` hook. Lens needs the live Runner to derive
@@ -183,9 +171,14 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
   // Lens component via state so React re-renders with the populated
   // recorder once events accumulate.
   const [lensRecorder, setLensRecorder] = useState<LensRecorder>(() => new LensRecorder());
-  // Debug: expose recorder for playwright inspection.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (window as any).__lensRecorder = lensRecorder;
+  // Debug inspection is an external subscription, never a render-time write.
+  useEffect(() => {
+    const debugWindow = window as Window & { __lensRecorder?: LensRecorder };
+    debugWindow.__lensRecorder = lensRecorder;
+    return () => {
+      if (debugWindow.__lensRecorder === lensRecorder) delete debugWindow.__lensRecorder;
+    };
+  }, [lensRecorder]);
 
   // ─── Pause/Resume HITL state ──────────────────────────────────
   // When the example's run() returns a `RunnerPauseOutcome`, store the
@@ -199,34 +192,9 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
     readonly originalInput: string;
   } | null>(null);
 
-  // Reset all state when switching samples
-  useEffect(() => {
-    setCode(sample?.code ?? '');
-    setChatHistory([]);
-    setStreamingResponse('');
-    setLiveSnapshot(null);
-    setLiveSpec(null);
-    setLiveTopology(null);
-    setLiveRunner(null);
-    setPausedOutcome(null); // HITL form is sample-scoped — clear on swap
-    // Swap in a fresh LensRecorder so prior-sample events don't leak.
-    setLensRecorder(new LensRecorder());
-    setRunning(false);
-    // Default the modal to Explain when the sample has one — read first,
-    // then code. Falls back to Code for inline samples with no .md. The
-    // modal stays closed on sample switch; the user opens it on demand.
-    setModalTab(sample?.explainer ? 'explain' : 'code');
-    setModalOpen(false);
-    setMobileTab('code');
-
-    // Intentionally NO auto-run. Sample code only executes when the user
-    // clicks Run. Removed because landing on any URL used to silently
-    // execute the sample — wasted LLM calls (when a real provider is
-    // selected), surprise chat bubbles, and mode switches that jumped
-    // into "already running" state. The Flowchart tab shows an empty
-    // state until the first click; the Code + Explain tabs stand alone
-    // without a run.
-  }, [sample]);
+  // The keyed session resets this state atomically on sample selection. A
+  // pending old run can finish, but cannot write into the new sample's UI.
+  // No auto-run: execution still starts only from the user's Run action.
 
   const handleRun = useCallback(async () => {
     if (!sample || running) return;
@@ -279,7 +247,7 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
       // asynchronous and would leave the sandbox holding a stale
       // closure reference.
       setStreamingResponse('');
-      setLiveSnapshot(null);
+      setLiveSnapshot(undefined);
       setLiveRunner(null);
       setPausedOutcome(null); // any prior pause is cleared on a new Run
       const freshRecorder = new LensRecorder();
@@ -288,8 +256,6 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
         onStreamToken: (token) => setStreamingResponse((prev) => prev + token),
         onLiveSnapshot: (snap) => setLiveSnapshot(snap),
         onLiveSpec: (spec) => setLiveSpec(spec),
-        onLiveTopology: (topo) => setLiveTopology(topo),
-        onLiveRunSteps: (steps) => setLiveRunSteps(steps),
         onLiveRunner: (runner) => setLiveRunner(runner),
         // Lens observe()-based attach: the sandbox calls
         // `recorder.observe(runner)` before calling `runner.run()`.
@@ -358,8 +324,6 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
             onStreamToken: (token) => setStreamingResponse((prev) => prev + token),
             onLiveSnapshot: (snap) => setLiveSnapshot(snap),
             onLiveSpec: (spec) => setLiveSpec(spec),
-            onLiveTopology: (topo) => setLiveTopology(topo),
-            onLiveRunSteps: (steps) => setLiveRunSteps(steps),
             onLiveRunner: (runner) => setLiveRunner(runner),
             lensRecorder, // reuse — same recorder observes the resume agent
             mode: 'resume',
@@ -378,15 +342,6 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
     },
     [pausedOutcome, sample, running, providerKind, code, lensRecorder],
   );
-
-  if (!sample) {
-    return (
-      <div className="welcome">
-        <h2>Sample not found</h2>
-        <p>No sample with id "{sampleId}". Pick one from the sidebar.</p>
-      </div>
-    );
-  }
 
   const lastTurn = chatHistory[chatHistory.length - 1];
   const execution = lastTurn?.result?.execution ?? null;
@@ -416,8 +371,8 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
     if (!snap) return [];
     try {
       return toVisualizationSnapshots(
-        snap as any,
-        (execution?.narrativeEntries as any[]) ?? undefined,
+        snap,
+        execution?.narrativeEntries,
       );
     } catch {
       return [];
@@ -658,10 +613,8 @@ export function SamplePage({ onOpenSettings }: SamplePageProps = {}) {
                   </label>
                   {spec && traceSnapshots.length > 0 ? (
                     <ExplainableShell
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       snapshots={traceSnapshots}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      narrativeEntries={(execution?.narrativeEntries ?? []) as any}
+                      narrativeEntries={execution?.narrativeEntries ?? []}
                       recorderViews={traceRecorderViews}
                       showStageId={showStageIds}
                       traceGraph={traceGraph}

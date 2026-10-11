@@ -3,14 +3,15 @@ import { Link } from 'react-router-dom';
 import { ConfigPanel } from './ConfigPanel';
 import { ChatPanel } from './ChatPanel';
 import { BTSPanel } from './BTSPanel';
-import { SettingsPanel, loadApiKeys } from '../SettingsPanel';
+import { SettingsPanel } from '../SettingsPanel';
+import { loadApiKeys } from '../../utils/apiKeys';
 import { buildLiveRunner } from '../../runner/buildLiveRunner';
 import type { LiveRunner } from '../../runner/buildLiveRunner';
 import type { LiveConfig, ChatMessage } from './types';
 import type { CapturedExecution } from '../../runner/executeCode';
 import { DEFAULT_CONFIG } from './types';
 import { useDragResize } from './useDragResize';
-import { buildAgentMergeTreeGraph } from '../../charts/lensRender';
+import { buildAgentMergeTreeGraph } from '../../charts/agentBlueprintGraph';
 import type { TraceGraph } from 'footprint-explainable-ui/flowchart';
 import '../../styles/live-chat.css';
 
@@ -184,7 +185,9 @@ export function LiveChatPage() {
           try {
             const spec = currentRunner.getSpec();
             if (spec) partialExecution = { spec };
-          } catch {}
+          } catch {
+            // Keep the original run error visible even if no preview is available.
+          }
         }
       }
 
@@ -198,7 +201,7 @@ export function LiveChatPage() {
       }]);
       if (partialExecution) {
         setSelectedBTSId(errorMsgId);
-        if (btsCollapsed) setBtsCollapsed(false);
+        setBtsCollapsed(false);
       }
     } finally {
       setRunning(false);

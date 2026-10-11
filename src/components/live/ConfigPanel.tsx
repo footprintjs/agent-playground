@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import type { LiveConfig, PatternType, MemoryStrategyType, ProviderType } from './types';
+import React, { useState, useEffect } from 'react';
+import type { LiveConfig, PatternType } from './types';
 import { PATTERNS, MEMORY_STRATEGIES } from './types';
 import type { Preset } from './presets';
 import { PresetSelector } from './PresetSelector';
-import { loadApiKeys } from '../SettingsPanel';
+import { loadApiKeys } from '../../utils/apiKeys';
 import { fetchAvailableModels, FALLBACK_MODELS, type AvailableModel } from '../../runner/fetchModels';
 
 interface ConfigPanelProps {
@@ -37,17 +37,17 @@ export function ConfigPanel({ config, onChange, onReset, collapsed, onToggleColl
   const [dynamicModels, setDynamicModels] = useState<AvailableModel[] | null>(null);
 
   useEffect(() => {
+    let active = true;
     const keys = loadApiKeys();
-    if (!keys.anthropic && !keys.openai) {
-      setDynamicModels(null); // no keys → use fallback
-      return;
-    }
+    // No keys resolves locally to an empty list; only this selection's latest
+    // request may publish its result after a provider change or unmount.
     fetchAvailableModels({
       anthropic: keys.anthropic || undefined,
       openai: keys.openai || undefined,
     }).then((models) => {
-      setDynamicModels(models.length > 0 ? models : null);
+      if (active) setDynamicModels(models.length > 0 ? models : null);
     });
+    return () => { active = false; };
   }, [config.provider]); // re-fetch when provider changes (settings updated)
 
   const availableModels = dynamicModels ?? FALLBACK_MODELS;

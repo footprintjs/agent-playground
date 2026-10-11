@@ -1,40 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-
-export interface ApiKeys {
-  anthropic: string;
-  openai: string;
-  /** OpenRouter — unified gateway for Claude / GPT / Gemini / Llama / 200+ models.
-   *  One key, one endpoint, OpenAI-compatible API. */
-  openrouter: string;
-}
-
-const STORAGE_KEY = 'agent-playground:api-keys';
-
-/**
- * Read API keys from localStorage. Persists across tab closes and
- * browser restarts so the user doesn't paste the key every visit.
- *
- * Trade-off vs sessionStorage: keys live until the user clicks
- * "Clear all keys" or wipes browser data. The panel surfaces this
- * explicitly so the user can opt out at any time.
- */
-export function loadApiKeys(): ApiKeys {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      // Backfill openrouter for sessions that pre-date the field.
-      return { anthropic: '', openai: '', openrouter: '', ...parsed };
-    }
-  } catch {}
-  return { anthropic: '', openai: '', openrouter: '' };
-}
-
-/** Persist API keys to localStorage. */
-function saveApiKeys(keys: ApiKeys) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
-}
+import { loadApiKeys, saveApiKeys, clearApiKeys, type ApiKeys } from '../utils/apiKeys';
 
 /**
  * `'full'` (default) — behaves as before: status pills, "Try Live Chat",
@@ -206,7 +172,7 @@ export function SettingsPanel({
                 }}
                 onClick={() => {
                   setKeys({ anthropic: '', openai: '', openrouter: '' });
-                  localStorage.removeItem(STORAGE_KEY);
+                  clearApiKeys();
                 }}
               >
                 Clear all keys

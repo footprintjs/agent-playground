@@ -34,7 +34,6 @@ export function SampleExplainer({ markdown }: Props) {
   // and renders correctly even before the global stylesheet evaluates.
   const tableBorder = isLight ? '#e5e7eb' : '#2a2a36';
   const codeBg = isLight ? '#f4f4f6' : '#1e1e2e';
-  const inlineCodeBg = isLight ? '#eef0f3' : '#2a2a36';
   const blockquoteBg = isLight ? '#f8f9fb' : '#1a1b24';
   const textColor = isLight ? '#1a1a1a' : '#e0e0e8';
   const mutedColor = isLight ? '#5a5a64' : '#b0b0b8';
@@ -57,17 +56,17 @@ export function SampleExplainer({ markdown }: Props) {
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
         components={{
-          h1: ({ children }: any) => (
+          h1: ({ children }) => (
             <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 16px', lineHeight: 1.25 }}>
               {children}
             </h1>
           ),
-          h2: ({ children }: any) => (
+          h2: ({ children }) => (
             <h2 style={{ fontSize: 17, fontWeight: 700, margin: '28px 0 10px', lineHeight: 1.3 }}>
               {children}
             </h2>
           ),
-          h3: ({ children }: any) => (
+          h3: ({ children }) => (
             <h3
               style={{
                 fontSize: 14,
@@ -80,12 +79,12 @@ export function SampleExplainer({ markdown }: Props) {
               {children}
             </h3>
           ),
-          p: ({ children }: any) => <p style={{ margin: '0 0 14px' }}>{children}</p>,
-          ul: ({ children }: any) => <ul style={{ margin: '0 0 14px', paddingLeft: 22 }}>{children}</ul>,
-          ol: ({ children }: any) => <ol style={{ margin: '0 0 14px', paddingLeft: 22 }}>{children}</ol>,
-          li: ({ children }: any) => <li style={{ margin: '0 0 4px' }}>{children}</li>,
-          strong: ({ children }: any) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
-          a: ({ href, children }: any) => (
+          p: ({ children }) => <p style={{ margin: '0 0 14px' }}>{children}</p>,
+          ul: ({ children }) => <ul style={{ margin: '0 0 14px', paddingLeft: 22 }}>{children}</ul>,
+          ol: ({ children }) => <ol style={{ margin: '0 0 14px', paddingLeft: 22 }}>{children}</ol>,
+          li: ({ children }) => <li style={{ margin: '0 0 4px' }}>{children}</li>,
+          strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+          a: ({ href, children }) => (
             <a
               href={href}
               target={href?.startsWith('http') ? '_blank' : undefined}
@@ -99,7 +98,7 @@ export function SampleExplainer({ markdown }: Props) {
               {children}
             </a>
           ),
-          blockquote: ({ children }: any) => (
+          blockquote: ({ children }) => (
             <blockquote
               style={{
                 margin: '0 0 14px',
@@ -113,30 +112,7 @@ export function SampleExplainer({ markdown }: Props) {
               {children}
             </blockquote>
           ),
-          code: ({ inline, className, children, ...rest }: any) => {
-            if (inline) {
-              return (
-                <code
-                  {...rest}
-                  style={{
-                    background: inlineCodeBg,
-                    padding: '1px 5px',
-                    borderRadius: 3,
-                    fontSize: '0.9em',
-                    fontFamily: "'JetBrains Mono', monospace",
-                  }}
-                >
-                  {children}
-                </code>
-              );
-            }
-            return (
-              <code className={className} {...rest}>
-                {children}
-              </code>
-            );
-          },
-          pre: ({ children }: any) => (
+          pre: ({ children }) => (
             <pre
               style={{
                 background: codeBg,
@@ -153,14 +129,14 @@ export function SampleExplainer({ markdown }: Props) {
               {children}
             </pre>
           ),
-          table: ({ children }: any) => (
+          table: ({ children }) => (
             <div style={{ overflowX: 'auto', margin: '0 0 14px' }}>
               <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
                 {children}
               </table>
             </div>
           ),
-          th: ({ children }: any) => (
+          th: ({ children }) => (
             <th
               style={{
                 textAlign: 'left',
@@ -172,7 +148,7 @@ export function SampleExplainer({ markdown }: Props) {
               {children}
             </th>
           ),
-          td: ({ children }: any) => (
+          td: ({ children }) => (
             <td style={{ padding: '8px 12px', borderBottom: `1px solid ${tableBorder}` }}>
               {children}
             </td>

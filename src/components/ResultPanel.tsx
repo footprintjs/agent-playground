@@ -167,9 +167,10 @@ function TurnView({ turn }: { turn: ChatTurn }) {
 export function ResultPanel({ history, running, pendingInput, onRun, onInputChange, onClear, providerPicker, streamingResponse, thinkKit, hitlForm }: ResultPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const hasHitlForm = Boolean(hitlForm);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [history.length, running, !!hitlForm]);
+  }, [history.length, running, hasHitlForm]);
 
   const isEmpty = history.length === 0 && !running;
 

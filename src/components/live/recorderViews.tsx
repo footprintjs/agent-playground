@@ -10,6 +10,7 @@
  * Single entry point: createRecorderViews(recorders) → RecorderView[]
  */
 import React from 'react';
+import { EmptyState, Stat } from './RecorderViewPrimitives';
 import type { RecorderView, StageSnapshot } from 'footprint-explainable-ui';
 import { estimateTotalCost, formatCost } from '../../utils/estimateCost';
 import type { RecorderSnapshot } from '../../runner/executeCode';
@@ -21,7 +22,7 @@ function collectKeysUpTo(snapshots: StageSnapshot[], selectedIndex: number): Set
   const keys = new Set<string>();
   const end = Math.min(selectedIndex + 1, snapshots.length);
   for (let i = 0; i < end; i++) {
-    const id = (snapshots[i] as any).runtimeStageId;
+    const id = snapshots[i].runtimeStageId;
     if (id) keys.add(id);
   }
   return keys;
@@ -35,16 +36,6 @@ export function createRecorderViews(final?: RecorderSnapshot): RecorderView[] {
     toolsView(final),
     explainView(final),
   ];
-}
-
-// ── Empty state ───────────────────────────────────────────
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="rv-panel rv-empty">
-      <div className="rv-empty-text">{message}</div>
-    </div>
-  );
 }
 
 // ── Tokens ────────────────────────────────────────────────
@@ -304,15 +295,4 @@ function explainView(final?: RecorderSnapshot): RecorderView {
       );
     },
   };
-}
-
-// ── Shared ────────────────────────────────────────────────
-
-function Stat({ value, label, accent }: { value: string | number; label: string; accent?: 'error' }) {
-  return (
-    <div className={`rv-stat ${accent ? `rv-stat--${accent}` : ''}`}>
-      <span className="rv-stat-value">{value}</span>
-      <span className="rv-stat-label">{label}</span>
-    </div>
-  );
 }

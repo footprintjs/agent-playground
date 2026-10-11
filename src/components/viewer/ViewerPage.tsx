@@ -10,41 +10,41 @@
  * the browser. Trace JSON may contain PII — configure `setRedactionPolicy`
  * upstream so `sharedState` arrives scrubbed before sharing externally.
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TraceViewer } from 'footprint-explainable-ui';
 import type { TraceParseError } from 'footprint-explainable-ui';
+
+interface TraceMetadata {
+  schemaVersion?: number;
+  exportedAt?: string;
+  redacted?: boolean;
+}
+
+// Informational header only. TraceViewer still owns trace validation/errors.
+function traceMetadata(raw: string): TraceMetadata | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return {
+      schemaVersion: 'schemaVersion' in parsed && typeof parsed.schemaVersion === 'number' ? parsed.schemaVersion : undefined,
+      exportedAt: 'exportedAt' in parsed && typeof parsed.exportedAt === 'string' ? parsed.exportedAt : undefined,
+      redacted: 'redacted' in parsed && typeof parsed.redacted === 'boolean' ? parsed.redacted : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function ViewerPage() {
   const [raw, setRaw] = useState('');
   const [error, setError] = useState<TraceParseError | null>(null);
-  const [meta, setMeta] = useState<{ schemaVersion?: number; exportedAt?: string; redacted?: boolean } | null>(null);
+  const meta = useMemo(() => traceMetadata(raw), [raw]);
 
   const onPasteFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setRaw(await file.text());
   };
-
-  // Parse a meta header from the input for the sidebar (purely informational —
-  // TraceViewer does its own validation independently). Best-effort, fail-quiet.
-  React.useEffect(() => {
-    if (!raw.trim()) {
-      setMeta(null);
-      return;
-    }
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') {
-        setMeta({
-          schemaVersion: parsed.schemaVersion,
-          exportedAt: parsed.exportedAt,
-          redacted: parsed.redacted,
-        });
-      }
-    } catch {
-      setMeta(null);
-    }
-  }, [raw]);
 
   const isInvalidPaste = !!error && raw.trim().length > 0;
   const showRedactionWarning = meta?.redacted === false;

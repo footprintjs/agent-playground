@@ -1,8 +1,5 @@
 import React, { useMemo } from 'react';
-import {
-  ExplainableShell,
-  toVisualizationSnapshots,
-} from 'footprint-explainable-ui';
+import { ExplainableShell, toVisualizationSnapshots } from 'footprint-explainable-ui';
 import type { StageSnapshot, RecorderView } from 'footprint-explainable-ui';
 import type { TraceGraph } from 'footprint-explainable-ui/flowchart';
 import type { CapturedExecution } from '../../runner/executeCode';
@@ -23,10 +20,7 @@ export function BTSPanel({ execution, previewGraph, collapsed, onToggleCollapse,
   const snapshots = useMemo<StageSnapshot[]>(() => {
     if (!execution?.snapshot) return [];
     try {
-      return toVisualizationSnapshots(
-        execution.snapshot as any,
-        (execution.narrativeEntries as any[]) ?? undefined,
-      );
+      return toVisualizationSnapshots(execution.snapshot, execution.narrativeEntries ?? undefined);
     } catch {
       return [];
     }
@@ -58,7 +52,7 @@ export function BTSPanel({ execution, previewGraph, collapsed, onToggleCollapse,
               <ExplainableShell
                 snapshots={snapshots}
                 traceGraph={execution.traceGraph}
-                narrativeEntries={execution!.narrativeEntries as any[] ?? undefined}
+                narrativeEntries={execution.narrativeEntries ?? undefined}
                 tabs={['explainable']}
                 defaultTab="narrative"
                 hideTabs={['result']}

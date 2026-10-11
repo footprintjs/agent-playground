@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { Routes, Route, useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { SamplePage } from './components/SamplePage';
 import { Welcome } from './components/Welcome';
@@ -9,7 +9,8 @@ const LiveChatPage = React.lazy(() =>
   import('./components/live/LiveChatPage').then((m) => ({ default: m.LiveChatPage })),
 );
 import { ViewerPage } from './components/viewer/ViewerPage';
-import { SettingsPanel, loadApiKeys } from './components/SettingsPanel';
+import { SettingsPanel } from './components/SettingsPanel';
+import { loadApiKeys } from './utils/apiKeys';
 import { getSample } from './samples/catalog';
 import '@xyflow/react/dist/style.css';
 import './styles/global.css';
@@ -22,7 +23,7 @@ function AutoOpenSettings({ onOpen }: { onOpen: () => void }) {
       const hasKeys = keys.anthropic.length > 0 || keys.openai.length > 0;
       if (!hasKeys) onOpen();
     }
-  }, [location.pathname]);
+  }, [location.pathname, onOpen]);
   return null;
 }
 
@@ -147,14 +148,14 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsVariant, setSettingsVariant] = useState<'full' | 'key-only'>('full');
 
-  const openSettingsFull = () => {
+  const openSettingsFull = useCallback(() => {
     setSettingsVariant('full');
     setShowSettings(true);
-  };
-  const openSettingsKeyOnly = () => {
+  }, []);
+  const openSettingsKeyOnly = useCallback(() => {
     setSettingsVariant('key-only');
     setShowSettings(true);
-  };
+  }, []);
 
   return (
     <>

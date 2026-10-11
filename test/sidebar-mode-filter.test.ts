@@ -16,7 +16,7 @@ import { getCategorizedSamples, getSample } from '../src/samples/catalog';
 import {
   PRIMITIVE_CATEGORIES, CONTROL_FLOW_CATEGORIES, PATTERN_CATEGORIES,
   CONTEXT_CATEGORIES, FEATURE_CATEGORIES,
-} from '../src/components/Welcome';
+} from '../src/samples/welcomeCategories';
 
 // Test the real Home-page links, never a second stale navigation catalogue.
 const HOME_LINKS = [

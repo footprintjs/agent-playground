@@ -10,6 +10,7 @@
 import { transform } from 'sucrase';
 import { agentModules, recordModules } from './libraryBindings';
 import * as footprintjs from 'footprintjs';
+import type { CombinedNarrativeEntry, RuntimeSnapshot } from 'footprintjs';
 import { structureGraphFromRunner } from 'agentfootprint-lens/core';
 import type { TraceGraph } from 'footprint-explainable-ui/flowchart';
 // Example-only helper: lives alongside the example sources, exposes a
@@ -52,8 +53,9 @@ export interface RecorderSnapshot {
 }
 
 export interface CapturedExecution {
-  snapshot?: unknown;
-  narrativeEntries?: unknown[];
+  /** Produced only by the injected runners' public capture methods below. */
+  snapshot?: RuntimeSnapshot;
+  narrativeEntries?: CombinedNarrativeEntry[];
   spec?: unknown;
   /** The real runner graph retained with this turn for the replay panel. */
   traceGraph?: TraceGraph;
@@ -75,7 +77,7 @@ export interface ExecuteOptions {
   /** Called periodically during the run with the latest runner snapshot.
    *  Drives the Lens column — so the observability panel updates as the
    *  mock streams tokens, instead of only at the end of the run. */
-  readonly onLiveSnapshot?: (snapshot: unknown) => void;
+  readonly onLiveSnapshot?: (snapshot: RuntimeSnapshot) => void;
   /** Called once at the very start of the outermost `runner.run()`, before
    *  any traversal, with the flowchart spec derived from
    *  `runner.toFlowChart().buildTimeStructure`. Lets the Flowchart panel
@@ -631,7 +633,6 @@ export async function executeCode(
     };
 
     // Execute
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const fn = new Function(
       ...Object.keys(recordModules),
       '__agentfootprint', '__input', '__console', '__captured', '__apiKeys',
