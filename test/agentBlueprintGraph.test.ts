@@ -13,7 +13,7 @@
  *   5. the redundant Context→slot edge labels are stripped
  */
 import { describe, expect, it } from 'vitest';
-import { buildAgentMergeTreeGraph } from '../src/charts/lensRender';
+import { buildAgentMergeTreeGraph } from '../src/charts/agentBlueprintGraph';
 
 const ids = (g: { nodes: { id: string }[] }) => g.nodes.map((n) => n.id);
 const hasEdge = (g: { edges: { source: string; target: string }[] }, s: string, t: string) =>

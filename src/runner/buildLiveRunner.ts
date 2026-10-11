@@ -49,6 +49,9 @@ export function buildLiveRunner(
   _config: unknown,
   _keys?: BuildLiveRunnerKeys,
 ): LiveRunner {
+  // Preserve the future runner's call contract without invoking a provider.
+  void _config;
+  void _keys;
   const notSupported = (): never => {
     throw new Error(
       'Live chat is being ported to agentfootprint v2 — try Samples for now.',

@@ -9,6 +9,24 @@ export interface AvailableModel {
   provider: 'anthropic' | 'openai';
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Malformed provider responses use the existing whole-provider empty fallback. */
+function modelRows(payload: unknown): unknown[] {
+  if (!isRecord(payload) || !Array.isArray(payload.data)) return [];
+  return payload.data;
+}
+
+interface ModelIdentity {
+  id: string;
+}
+
+function isModelIdentity(value: unknown): value is ModelIdentity {
+  return isRecord(value) && typeof value.id === 'string';
+}
+
 // ── Anthropic ───────────────────────────────────────────────
 
 async function fetchAnthropicModels(apiKey: string): Promise<AvailableModel[]> {
@@ -21,15 +39,24 @@ async function fetchAnthropicModels(apiKey: string): Promise<AvailableModel[]> {
       },
     });
     if (!response.ok) return [];
-    const data = await response.json();
-    return (data.data ?? [])
-      .filter((m: any) => m.id && !m.id.includes('test'))
-      .map((m: any) => ({
-        id: m.id,
-        label: m.display_name ?? m.id,
-        provider: 'anthropic' as const,
-      }))
-      .sort((a: AvailableModel, b: AvailableModel) => a.label.localeCompare(b.label));
+    const data: unknown = await response.json();
+    const rows = modelRows(data);
+    const models: AvailableModel[] = [];
+    for (const row of rows) {
+      // Preserve the original filter: missing/falsy IDs are skipped, while
+      // null rows or truthy non-string IDs fail the whole provider response.
+      if (row == null) return [];
+      if (!isRecord(row) || !row.id) continue;
+      if (typeof row.id !== 'string') return [];
+      if (row.id.includes('test')) continue;
+      models.push({
+        id: row.id,
+        // A malformed display name must not reach React or localeCompare.
+        label: typeof row.display_name === 'string' ? row.display_name : row.id,
+        provider: 'anthropic',
+      });
+    }
+    return models.sort((a, b) => a.label.localeCompare(b.label));
   } catch {
     return [];
   }
@@ -43,10 +70,11 @@ async function fetchOpenAIModels(apiKey: string): Promise<AvailableModel[]> {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
     if (!response.ok) return [];
-    const data = await response.json();
-    return (data.data ?? [])
-      .filter((m: any) => {
-        const id = m.id as string;
+    const data: unknown = await response.json();
+    const rows = modelRows(data);
+    if (!rows.every(isModelIdentity)) return [];
+    return rows
+      .filter(({ id }) => {
         // Only show chat-capable models, not embeddings/whisper/dall-e/etc
         return (
           id.startsWith('gpt-') ||
@@ -56,7 +84,7 @@ async function fetchOpenAIModels(apiKey: string): Promise<AvailableModel[]> {
           id.startsWith('chatgpt')
         ) && !id.includes('realtime') && !id.includes('audio') && !id.includes('tts');
       })
-      .map((m: any) => ({
+      .map(m => ({
         id: m.id,
         label: m.id,
         provider: 'openai' as const,

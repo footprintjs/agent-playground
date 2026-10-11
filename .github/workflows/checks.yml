@@ -44,4 +44,6 @@ jobs:
       # must resolve to the same installed packages as the playground.
       - run: ln -s agent-playground/node_modules ../node_modules
       - run: npm test
+      - run: npm run test:types
+      - run: npm run lint
       - run: npm run build
