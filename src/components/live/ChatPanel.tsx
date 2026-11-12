@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { ChatMessage } from './types';
+import { linkedRunSnapshot } from '../../runner/executionTree';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -89,7 +90,7 @@ export function ChatPanel({ messages, running, input, streamingContent, onInputC
                       // We can't tell from here whether the run had a redaction
                       // policy — assume false to be safe; the viewer will warn.
                       redacted: false,
-                      snapshot: msg.execution!.snapshot,
+                      snapshot: msg.execution!.snapshot && linkedRunSnapshot(msg.execution!.snapshot),
                       narrativeEntries: msg.execution!.narrativeEntries,
                       spec: msg.execution!.spec,
                     };

@@ -5,6 +5,7 @@ import type { TraceGraph } from 'footprint-explainable-ui/flowchart';
 import type { CapturedExecution } from '../../runner/executeCode';
 import { createRecorderViews } from './recorderViews';
 import { LensChart } from '../../charts/lensRender';
+import { linkedRunSnapshot } from '../../runner/executionTree';
 
 interface BTSPanelProps {
   execution: CapturedExecution | null;
@@ -20,7 +21,7 @@ export function BTSPanel({ execution, previewGraph, collapsed, onToggleCollapse,
   const snapshots = useMemo<StageSnapshot[]>(() => {
     if (!execution?.snapshot) return [];
     try {
-      return toVisualizationSnapshots(execution.snapshot, execution.narrativeEntries ?? undefined);
+      return toVisualizationSnapshots(linkedRunSnapshot(execution.snapshot), execution.narrativeEntries ?? undefined);
     } catch {
       return [];
     }

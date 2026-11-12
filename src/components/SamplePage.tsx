@@ -57,6 +57,7 @@ class LensErrorBoundary extends React.Component<
 
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { executeCode, type CapturedExecution } from '../runner/executeCode';
+import { linkedRunSnapshot } from '../runner/executionTree';
 import { loadApiKeys } from '../utils/apiKeys';
 import { ProviderPicker } from './ProviderPicker';
 import { useProviderPicker } from '../hooks/useProviderPicker';
@@ -371,7 +372,7 @@ function SampleSession({ sample, isConceptSample, onOpenSettings, input, setInpu
     if (!snap) return [];
     try {
       return toVisualizationSnapshots(
-        snap,
+        linkedRunSnapshot(snap),
         execution?.narrativeEntries,
       );
     } catch {
