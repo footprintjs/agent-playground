@@ -43,7 +43,8 @@ describe('public capture producer contract', () => {
     expect(capture.narrativeEntries?.length).toBeGreaterThan(0);
     expect(liveSnapshots.length).toBeGreaterThan(0);
     expect(liveSnapshots.at(-1)).toEqual(capture.snapshot);
-    expect(toVisualizationSnapshots(linkedRunSnapshot(capture.snapshot), capture.narrativeEntries).length).toBeGreaterThan(0);
+    expect(toVisualizationSnapshots(linkedRunSnapshot(capture.snapshot), capture.narrativeEntries).map(s => s.stageName))
+      .toEqual(['record']);
   });
 
   it('retains mock-only Agent runner snapshots on the same public contract', async () => {
