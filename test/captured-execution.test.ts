@@ -4,6 +4,7 @@ import { toVisualizationSnapshots } from 'footprint-explainable-ui';
 import type { LiveRunner, LiveTurnResult } from '../src/runner/buildLiveRunner';
 import { buildLiveRunner } from '../src/runner/buildLiveRunner';
 import { executeCode } from '../src/runner/executeCode';
+import { linkedRunSnapshot } from '../src/runner/executionTree';
 import type { CapturedExecution, ExecuteOptions } from '../src/runner/executeCode';
 
 describe('public capture producer contract', () => {
@@ -42,7 +43,8 @@ describe('public capture producer contract', () => {
     expect(capture.narrativeEntries?.length).toBeGreaterThan(0);
     expect(liveSnapshots.length).toBeGreaterThan(0);
     expect(liveSnapshots.at(-1)).toEqual(capture.snapshot);
-    expect(toVisualizationSnapshots(capture.snapshot, capture.narrativeEntries).length).toBeGreaterThan(0);
+    expect(toVisualizationSnapshots(linkedRunSnapshot(capture.snapshot), capture.narrativeEntries).map(s => s.stageName))
+      .toEqual(['record']);
   });
 
   it('retains mock-only Agent runner snapshots on the same public contract', async () => {
@@ -62,6 +64,6 @@ describe('public capture producer contract', () => {
     expect(result.output).toEqual(capture.snapshot);
     expect(liveSnapshots.length).toBeGreaterThan(0);
     expect(liveSnapshots.at(-1)).toEqual(capture.snapshot);
-    expect(toVisualizationSnapshots(capture.snapshot, capture.narrativeEntries).length).toBeGreaterThan(0);
+    expect(toVisualizationSnapshots(linkedRunSnapshot(capture.snapshot), capture.narrativeEntries).length).toBeGreaterThan(0);
   });
 });

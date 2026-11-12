@@ -43,6 +43,16 @@ regression tests retain the ordinary run/replay and import-allowlist paths.
 The obsolete `agent-samples` dependency is removed: commit `3c8c5ae` moved the
 catalogue to `agentfootprint/examples`, but left that unused dependency edge.
 
+## Execution tree shape
+
+footprintjs 12 and older serve a run's `executionTree` (and a subflow's
+`treeContext.stageContexts`) as one stage linked to the next by `next`; footprintjs
+13 serves a list of stages in run order, with a fork's children as `branches`.
+Saved traces and the published visualizers use the linked form, so every
+snapshot handed to `toVisualizationSnapshots` or copied as a trace goes through
+`src/runner/executionTree.ts · linkedRunSnapshot`, the one reader of the shape
+(a linked snapshot passes through unchanged). Tests: `test/executionTree.test.ts`.
+
 ## UI quality checks
 
 The lint configuration shares the FootPrint playground's recommended TypeScript,
