@@ -82,3 +82,28 @@ Fixtures are synthetic, inert local ZIP/tar bytes. Positive cases contain an exe
 postinstall text but assert no package execution, output tree or dependency directory. Hostile cases rebind
 outer/archive pins where necessary so refusal reaches the relevant content boundary. A 10,001-member positive
 guards against accidentally borrowing another package's 10,000-member limit. No dependency install is needed.
+
+## One provisional hosted transport probe
+
+The separate `Native input data (provisional)` CI job is a read-only development probe, not the runtime check.
+It pins the actual earlier producer run, attempt, successful package job, artifact and complete data identity
+in `provisional_af_d3.json`. The whole producer run is explicitly failed; the probe cannot turn that into
+producer acceptance. A successor needs a new reviewed binding, never a moving branch or latest-artifact lookup.
+
+`probe.py` is the sixth cohesive unit: fixed provider metadata admission and one bounded `gh api` read path.
+Its dedicated facade is `scripts/probe_native_input.py`. It runs only in this repository's Actions context,
+requires the step's supplied token, uses an empty temporary gh configuration and does not read a desktop login.
+The token is supplied only to that API step; headers, token values, debug/authentication output and raw provider
+errors are never printed. A 403/404 fails with a fixed reason; no retry or different credential route follows.
+
+The job uses preinstalled Python and GitHub CLI, listed in the official
+[Ubuntu24.04 runner inventory](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md),
+and checks their availability again. There is no dependency installation or producer rebuild. Metadata must
+join the exact source/tree, run/attempt, successful named package/upload steps and artifact name/digest/size
+before the original ZIP is requested once. It stays in a private temporary folder and is deleted after the
+data inspection, even on refusal. Only the small summary is retained; the ZIP is not uploaded again.
+
+Desktop access did not establish that this workflow's token can read another repository's artifact. This job
+measures that capability directly and can fail honestly. The old runtime job and its older package pins remain
+unchanged and unaccepted for the new cohort. A green data observation does not establish installation, runtime,
+native acceptance, registry provenance, producer whole-CI success or target compatibility.
