@@ -49,6 +49,15 @@ is checked, while the hosted run/attempt/artifact/ancestry join remains the coor
 
 ## Responsibilities and bounds
 
+```mermaid
+flowchart LR
+  pins[Closed expected identity] --> zip[ZIP digest and four files]
+  input[Read-only ZIP] --> zip
+  zip --> receipt[Receipt source and archive identities]
+  receipt --> tar[Bounded tar content and ordered census]
+  tar --> result[DATA_ONLY: activation and execution disabled]
+```
+
 - `receipt.py`: closed expectations, strict JSON, source/archive identity, SRI and complete receipt census.
 - `zip_data.py`: bounded regular-file reads and exactly four canonical regular ZIP files; no extraction.
 - `tar_data.py`: one bounded gzip, regular canonical tar members, full content/census comparison and terminal padding.
@@ -60,6 +69,8 @@ at 64 MiB, receipt/lock at 8 MiB each and manifest at 1 MiB. Symlinks/FIFOs/nonr
 duplicate JSON keys, nonfinite numbers, wrong identities/hashes, gzip concatenation, tar links/extensions,
 path/case collisions and inconsistent or hidden member content are refused. This is bounded data validation,
 not a replacement for the producer's native publication/member policy or its build/runtime checks.
+Malformed extension-header numeric overflow and invalid ZIP DEFLATE become fixed `tar-data`/`zip-data`
+refusals, including at the CLI, rather than leaking parser tracebacks.
 
 ## Cheap tests
 

@@ -69,7 +69,7 @@ def validate_tar(raw, members, source_manifest):
                 require(not any(data[end:cursor]), 'tar-padding')
                 if member.name == 'package/package.json':
                     manifest = content
-    except (tarfile.TarError, OSError, EOFError):
+    except (tarfile.TarError, OSError, EOFError, OverflowError):
         raise DataRefused('tar-data') from None
     require(seen == set(expected), 'tar-inventory')
     require(manifest == source_manifest, 'tar-manifest')

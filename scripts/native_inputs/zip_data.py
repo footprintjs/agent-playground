@@ -3,6 +3,7 @@ import io
 import os
 import stat
 import zipfile
+import zlib
 
 from .receipt import DataRefused, FILENAME, MAX_ARCHIVE, digest, require
 
@@ -49,5 +50,6 @@ def read_zip(raw, expected_sha256):
             return result
     except DataRefused:
         raise
-    except (OSError, zipfile.BadZipFile, RuntimeError, NotImplementedError, UnicodeError, ValueError):
+    except (OSError, zipfile.BadZipFile, RuntimeError, NotImplementedError, UnicodeError,
+            ValueError, OverflowError, zlib.error):
         raise DataRefused('zip-data') from None

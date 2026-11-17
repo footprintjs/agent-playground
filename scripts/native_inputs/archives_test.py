@@ -1,6 +1,10 @@
 import copy
 import gzip
+import json
 import stat
+import struct
+import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -19,6 +23,45 @@ class ArchiveTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.fixture = Fixture(self.root)
         self.expected = self.fixture.write()
+
+    def _assert_fixed_refusal(self, expected, reason):
+        try:
+            inspect_artifact(self.fixture.path, expected)
+        except DataRefused as error:
+            self.assertEqual(error.reason, reason)
+        except Exception as error:
+            self.fail('Unnormalized parser exception: ' + type(error).__name__)
+        else:
+            self.fail('Malformed archive was accepted')
+        expected_path = self.root / 'expected.json'
+        expected_path.write_text(json.dumps(expected))
+        facade = Path(__file__).resolve().parents[1] / 'native_inputs.py'
+        result = subprocess.run([sys.executable, '-B', str(facade), str(self.fixture.path),
+                                 str(expected_path)], capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['reason'], reason)
+        self.assertNotIn('Traceback', result.stderr)
+
+    def test_oversized_gnu_and_pax_extension_reads_are_fixed_refusals(self):
+        for kind in [tarfile.GNUTYPE_LONGNAME, tarfile.XHDTYPE]:
+            header = tarfile.TarInfo('././@LongLink')
+            header.type, header.size = kind, sys.maxsize + 1
+            raw = header.tobuf(format=tarfile.GNU_FORMAT) + bytes(1024)
+            self.assertLess(len(raw), 2048)
+            self.fixture.replace_tar(gzip.compress(raw, mtime=0))
+            with self.subTest(kind=kind):
+                self._assert_fixed_refusal(self.fixture.write(), 'tar-data')
+
+    def test_corrupt_zip_deflate_is_a_fixed_refusal(self):
+        with zipfile.ZipFile(self.fixture.path) as archive:
+            member = archive.getinfo('candidate.json')
+        raw = bytearray(self.fixture.path.read_bytes())
+        name_size, extra_size = struct.unpack_from('<HH', raw, member.header_offset + 26)
+        offset = member.header_offset + 30 + name_size + extra_size
+        raw[offset] = 0x07  # DEFLATE reserved block type, before JSON or CRC can be read.
+        self.fixture.path.write_bytes(raw)
+        expected = self.fixture.expected()  # Pin the changed outer ZIP, not the old digest.
+        self._assert_fixed_refusal(expected, 'zip-data')
 
     def test_zip_traversal_duplicates_and_nonregular_files_are_refused(self):
         normal = [(NAME, self.fixture.tgz), ('candidate.json', encoded(self.fixture.record)),
