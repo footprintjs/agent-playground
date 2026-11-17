@@ -1,6 +1,6 @@
 # Native source-artifact data observations
 
-This small library reads one original AF Actions ZIP and a closed expected identity. It returns `DATA_ONLY`,
+The inspector reads one original AF Actions ZIP and a closed expected identity. It returns `DATA_ONLY`,
 `activationAllowed: false` and `packageExecutionAllowed: false`. It cannot download, extract files, install,
 execute or activate a package. Passing data checks does not accept the producer, prove a registry publication,
 establish workflow-token access or establish consumer compatibility.
@@ -91,7 +91,10 @@ in `provisional_af_d3.json`. The whole producer run is explicitly failed; the pr
 producer acceptance. A successor needs a new reviewed binding, never a moving branch or latest-artifact lookup.
 
 `probe.py` is the sixth cohesive unit: fixed provider metadata admission and one bounded `gh api` read path.
-Its dedicated facade is `scripts/probe_native_input.py`. It runs only in this repository's Actions context,
+Its dedicated CLI is `scripts/probe_native_input.py`, which calls the closed `probe_main` entry on the
+package facade. External callers never import the private `probe.py` module. The generic static Python
+script-boundary test derives sealed packages at every depth and checks absolute and relative imports;
+dynamic import expressions are not claimed to be covered. It runs only in this repository's Actions context,
 requires the step's supplied token, uses an empty temporary gh configuration and does not read a desktop login.
 The token is supplied only to that API step; headers, token values, debug/authentication output and raw provider
 errors are never printed. A 403/404 fails with a fixed reason; no retry or different credential route follows.

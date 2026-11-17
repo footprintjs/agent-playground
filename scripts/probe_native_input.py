@@ -1,4 +1,4 @@
-from native_inputs.probe import main
+from native_inputs import probe_main
 
 if __name__ == '__main__':
-    raise SystemExit(main())
+    raise SystemExit(probe_main())
