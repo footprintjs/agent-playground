@@ -5,8 +5,9 @@ The inspector reads one original AF Actions ZIP and a closed expected identity. 
 execute or activate a package. Passing data checks does not accept the producer, prove a registry publication,
 establish workflow-token access or establish consumer compatibility.
 
-The existing app dependency preparation, source links, runtime, tests and workflows are unchanged. In particular,
-the old registry pins in `prepare-ci-dependencies.mjs` do not become a supported new install through this helper.
+The app source links, runtime, tests and workflows are unchanged. The old registry table has separately
+been removed from `prepare-ci-dependencies.mjs`; its replacement is pure planning and refuses direct execution.
+This DATA helper does not turn that incomplete preparation into a supported native install.
 Final producer review/gates, a compatible Lens input and transport admission remain separate prerequisites.
 
 ## Interface

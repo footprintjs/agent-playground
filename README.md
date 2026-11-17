@@ -39,14 +39,14 @@ The agent sandbox retains its explicit approved-name list, supplied from each
 name's official AgentFootprint export. It does not resolve arbitrary imports.
 It is an in-page teaching executor, not an isolation boundary for hostile code.
 
-CI checks the actual published packages, not hidden sibling build output. In its
-disposable checkout, `scripts/prepare-ci-dependencies.mjs` validates and reports
-each known local-link replacement with an exact reviewed release. Unexpected
-file links fail closed; unrelated dependencies and peer declarations stay
-unchanged. CI regenerates the existing lock without deleting it, runs `npm ci`,
-then the tests, capture-contract type check, lint, and the complete TypeScript +
-Vite build. The authored links stay
-unchanged in Git. Raw example sources are checked out at the matching release.
+The runtime CI migration is incomplete. `scripts/prepare-ci-dependencies.mjs`
+now contains only pure, closed native-input planning and refuses direct execution
+before effects; the obsolete published-cohort version table is removed. A qualified
+Lens input and the complete guarded setup remain prerequisites. The existing
+workflow has not yet been migrated or accepted for this cohort. Its tests,
+capture-contract type check, lint and complete TypeScript + Vite build stay required.
+Authored links and the historical public lock remain unchanged; future source-linked
+examples must come from the exact admitted AgentFootprint source.
 
 The E5 migration also repairs pre-existing removed root imports, the obsolete
 `ExplainableShell.spec` prop, eager example execution during catalogue discovery,
