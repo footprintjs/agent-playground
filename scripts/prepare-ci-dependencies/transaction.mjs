@@ -7,9 +7,9 @@ import { dirname, join } from 'node:path';
 import { requireInputs, roles } from './admission.mjs';
 import { clean, documents, exampleSource, hash, jsonBytes, npmEnvironment, originalDocuments,
   regular, replaceDocument, requireAbsent, requireOutside, requireWorkflow, restoreDocuments, sourceIdentity } from './filesystem.mjs';
-import { prepareCiManifest } from './projection.mjs';
+import { prepareCiManifest, refreshRegistryOrigins } from './projection.mjs';
 import { nativeDependencyLayout } from './namespaces.mjs';
-import { inspectInstalled } from './installed.mjs';
+import { inspectInstalled, requireSelectedOrigins } from './installed.mjs';
 import { dataPort, fetchInput, savedInput } from './transport.mjs';
 
 const strictNpm = ['--strict-peer-deps', '--legacy-peer-deps=false', '--force=false', '--no-audit', '--no-fund', '--registry=https://registry.npmjs.org'];
@@ -77,12 +77,17 @@ export function withOriginalDocuments(root, originals, work, report) {
 function install({ root, helper, out, inputs, env, port, originals, projected, admitted, archives }) {
   replaceDocument(join(root, 'package.json'), projected, originals['package.json'].mode);
   const baseline = port.parseStrictJson(originals['package-lock.json'].bytes, { maxBytes: 8 * 1024 * 1024 });
+  const refresh = refreshRegistryOrigins(baseline, port.parseManifest(projected));
+  if (refresh.removed.length) replaceDocument(join(root, 'package-lock.json'), jsonBytes(refresh.lock), originals['package-lock.json'].mode);
+  writeFileSync(join(out, 'origin-refresh.json'), jsonBytes({ removed: refresh.removed,
+    qualification: 'Same-version authored source-link to exact-registry origin refresh; npm authors replacements' }), { flag: 'wx', mode: 0o600 });
   const childEnv = npmEnvironment(out, env);
   npm(root, out, childEnv, 'lock-update', nativeLockArguments(), 90000);
   const nativeLock = regular(join(root, 'package-lock.json'), 8 * 1024 * 1024);
   const updated = port.parseStrictJson(nativeLock, { maxBytes: 8 * 1024 * 1024 });
   assert.deepEqual(updated.packages['node_modules/typescript'], baseline.packages['node_modules/typescript'], 'compiler baseline changed');
   writeFileSync(join(out, 'native-package-lock.json'), nativeLock, { flag: 'wx', mode: 0o600 });
+  requireSelectedOrigins(updated, inputs, archives, admitted, root); // Reject stale/unqualified sources BEFORE install.
   npm(root, out, childEnv, 'strict-ci', ['ci', '--ignore-scripts=false', ...strictNpm], 300000);
   assert.deepEqual(regular(join(root, 'package.json')), projected, 'setup manifest changed');
   assert.deepEqual(regular(join(root, 'package-lock.json')), nativeLock, 'install changed native lock');

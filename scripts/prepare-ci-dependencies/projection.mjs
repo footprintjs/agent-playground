@@ -53,3 +53,23 @@ export function prepareCiManifest(manifest, policy) {
   });
   return result;
 }
+
+/** npm can retain a same-version source link when its request becomes an exact registry origin. */
+export function refreshRegistryOrigins(lock, projected) {
+  assert.equal(lock.lockfileVersion, 3); assert(lock.packages && lock.packages['']);
+  const result = structuredClone(lock), removed = [];
+  for (const [name, authored] of Object.entries(authoredLinks)) {
+    const request = projected.dependencies[name], key = 'node_modules/' + name, row = lock.packages[key];
+    if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(request) || !row?.link) continue;
+    const target = authored.slice('file:'.length), source = lock.packages[target];
+    assert(row.resolved === target && lock.packages[''].dependencies[name] === authored && source,
+      'unrecognized authored source-link origin');
+    if (source.version !== request) continue; // Changed versions are naturally reconciled by npm.
+    for (const [other, value] of Object.entries(lock.packages)) {
+      assert(other === key || !value.link || value.resolved !== target, 'shared source-link origin');
+      assert(!other.startsWith(target + '/'), 'unadmitted source origin descendant');
+    }
+    delete result.packages[key]; delete result.packages[target]; removed.push(key, target);
+  }
+  return { lock: result, removed: removed.sort() }; // Never author replacement identities, URLs or SRIs.
+}

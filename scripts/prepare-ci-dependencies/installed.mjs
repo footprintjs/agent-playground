@@ -8,6 +8,25 @@ import { physicalCensus, requireFamilyOwners } from './namespaces.mjs';
 
 const lockFields = ['version', 'resolved', 'integrity', 'link'];
 const posix = path => path.split('\\').join('/');
+const selectedVersions = inputs => ({ footprintjs: '14.0.0-rc.0', foottrace: '2.1.0',
+  agentfootprint: inputs.producers.agentfootprint.archive.version,
+  'agentfootprint-lens': inputs.producers['agentfootprint-lens'].archive.version,
+  'footprint-explainable-ui': inputs.renderer.version, contextfootprint: inputs.registry.contextfootprint.version });
+
+export function requireSelectedOrigins(lock, inputs, archives, admitted, root) {
+  for (const [name, version] of Object.entries(selectedVersions(inputs))) {
+    const row = lock.packages['node_modules/' + name];
+    assert(row && !row.link && row.version === version, 'selected lock origin/version differs: ' + name);
+    if (Object.hasOwn(archives, name)) {
+      assert.equal(row.integrity, admitted[name].integrity, 'selected source archive SRI differs');
+      assert(row.resolved.startsWith('file:') && resolve(root, row.resolved.slice(5)) === archives[name], 'selected source archive origin differs');
+    } else {
+      assert.equal(row.resolved, `https://registry.npmjs.org/${name}/-/${name}-${version}.tgz`, 'selected registry origin differs: ' + name);
+      const pin = name === 'footprint-explainable-ui' ? inputs.renderer : inputs.registry[name];
+      assert.equal(row.integrity, pin.integrity, 'selected registry SRI differs: ' + name);
+    }
+  }
+}
 
 export function inventory(root, { dependencies = false } = {}) {
   const files = [];
@@ -46,11 +65,9 @@ export function inspectInstalled({ root, helper, originalLock, nativeLock, admit
   const compilerLock = baseline.packages['node_modules/typescript'];
   assert(compilerLock && !compilerLock.link, 'existing compiler lock required');
   assert.deepEqual(lock.packages['node_modules/typescript'], compilerLock, 'compiler lock changed');
+  requireSelectedOrigins(lock, inputs, archives, admitted, root);
   const census = physicalCensus(root, helper, parse);
-  const selected = { footprintjs: '14.0.0-rc.0', foottrace: '2.1.0',
-    agentfootprint: inputs.producers.agentfootprint.archive.version,
-    'agentfootprint-lens': inputs.producers['agentfootprint-lens'].archive.version,
-    'footprint-explainable-ui': inputs.renderer.version, contextfootprint: inputs.registry.contextfootprint.version };
+  const selected = selectedVersions(inputs);
   const owners = requireFamilyOwners(census, selected);
   const hidden = census.hiddenLocks;
   assert(hidden.some(row => row.path === join(root, 'node_modules/.package-lock.json')), 'root hidden lock required');
@@ -60,19 +77,9 @@ export function inspectInstalled({ root, helper, originalLock, nativeLock, admit
     for (const field of lockFields) assert.deepEqual(record[field], expected[field], 'hidden lock differs from native lock');
   }
   for (const [name, owner] of Object.entries(owners)) {
-    const key = posix(relative(root, owner.root)), record = lock.packages[key];
-    assert(record && record.version === selected[name], 'selected owner missing from native lock');
+    const key = posix(relative(root, owner.root));
+    assert.equal(key, 'node_modules/' + name, 'selected package has a different physical origin');
     assert(hidden.some(row => row.packages[posix(relative(row.base, owner.root))]), 'selected owner absent from hidden locks');
-    assert(!record.link, 'selected owner must be physical');
-    if (Object.hasOwn(archives, name)) {
-      assert.equal(record.integrity, admitted[name].integrity, 'source archive SRI differs');
-      assert(record.resolved.startsWith('file:') && resolve(root, record.resolved.slice(5)) === archives[name], 'source locator differs');
-    } else {
-      assert.equal(record.resolved, `https://registry.npmjs.org/${name}/-/${name}-${selected[name]}.tgz`, 'registry package differs');
-      assert(typeof record.integrity === 'string' && record.integrity.startsWith('sha512-'), 'registry SRI required');
-      if (name === 'footprint-explainable-ui') assert.equal(record.integrity, inputs.renderer.integrity);
-      if (Object.hasOwn(inputs.registry, name)) assert.equal(record.integrity, inputs.registry[name].integrity);
-    }
   }
   const ownerRoots = [root, helper, ...Object.values(owners).map(row => row.root)];
   for (const path of ownerRoots) {

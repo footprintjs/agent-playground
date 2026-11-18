@@ -54,7 +54,7 @@ test('context expected version comes from the admitted original, never a self-co
     f.nativeLock = Buffer.from(JSON.stringify(lock));
     f.put(join(f.root, 'node_modules/.package-lock.json'), f.nativeLock);
     f.put(join(f.root, 'node_modules/contextfootprint/package.json'), '{"name":"contextfootprint","version":"0.2.0","main":"index.js"}');
-    assert.throws(() => inspectInstalled(f), /wrong physical contextfootprint version/);
+    assert.throws(() => inspectInstalled(f), /selected lock origin\/version differs: contextfootprint/);
   } finally { f.close(); }
 });
 
