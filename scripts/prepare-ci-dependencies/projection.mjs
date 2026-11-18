@@ -53,3 +53,26 @@ export function prepareCiManifest(manifest, policy) {
   });
   return result;
 }
+
+/** Invalidate obsolete source-link cache metadata; npm alone authors the replacement records. */
+export function prepareCiLockBaseline(lock) {
+  assert.equal(lock.lockfileVersion, 3); assert(lock.packages && typeof lock.packages === 'object');
+  const remove = new Set(['node_modules/foottrace']);
+  for (const [name, request] of Object.entries(authoredLinks)) {
+    const key = 'node_modules/' + name, target = request.slice('file:'.length), row = lock.packages[key];
+    assert(row?.link === true && row.resolved === target, 'expected controlled source-link cache');
+    assert(Object.hasOwn(lock.packages, target), 'controlled source-link target missing');
+    remove.add(key); remove.add(target);
+  }
+  assert(Object.hasOwn(lock.packages, 'node_modules/foottrace'), 'controlled reader cache missing');
+  for (const [key, row] of Object.entries(lock.packages)) {
+    if (remove.has(key)) continue;
+    assert(!row.link || !remove.has(row.resolved), 'unrelated alias shares a controlled cache target');
+    for (const target of Object.values(authoredLinks).map(value => value.slice('file:'.length))) {
+      assert(!key.startsWith(target + '/'), 'unadmitted source-target descendant cache');
+    }
+  }
+  const result = structuredClone(lock);
+  for (const key of remove) delete result.packages[key];
+  return { lock: result, removed: [...remove].sort() };
+}

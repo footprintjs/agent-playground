@@ -90,6 +90,7 @@ jobs:
             ${{ runner.temp }}/app-native-inputs/native-package-lock.json
             ${{ runner.temp }}/app-native-inputs/setup-receipt.json
             ${{ runner.temp }}/app-native-inputs/lock-update.json
+            ${{ runner.temp }}/app-native-inputs/lock-seed.json
             ${{ runner.temp }}/app-native-inputs/lock-update.log
             ${{ runner.temp }}/app-native-inputs/strict-ci.json
             ${{ runner.temp }}/app-native-inputs/strict-ci.log

@@ -12,6 +12,10 @@ archives, and one exact compatible published renderer. Unknown links/roles/works
 source links, historical Foottrace caret, package version, public lock and all app behavior remain unchanged.
 The historical lock is not a fabricated published AF15 lock. The native lock is genuinely regenerated from
 that baseline for only these five requests, then strict npm ci runs the original lifecycle hooks.
+The baseline caches four obsolete source links and an old reader. Before npm resolves the new locators,
+the projection invalidates only those controlled link/target rows and reader cache. Every unrelated and
+compiler seed row remains structurally identical; no replacement version, URL or SRI is authored here.
+The original public lock is restored exactly even if resolution fails.
 
 ```mermaid
 flowchart LR
