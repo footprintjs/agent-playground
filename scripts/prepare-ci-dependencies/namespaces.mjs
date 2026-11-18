@@ -22,12 +22,14 @@ export function nativeDependencyLayout(consumerRoot, exampleSourceRoot) {
   };
 }
 
-function nearestManifest(file, parse) {
+function declaringPackage(file, parse) {
   let root = dirname(file);
   for (;;) {
-    try { return { root, manifest: parse(regular(join(root, 'package.json'), 1024 * 1024)) }; }
-    catch (error) { if (error.code !== 'ENOENT') throw error; }
-    const parent = dirname(root); assert.notEqual(root, parent, 'package owner missing'); root = parent;
+    const parent = dirname(root);
+    if (basename(parent) === 'node_modules' || (basename(parent).startsWith('@') && basename(dirname(parent)) === 'node_modules')) {
+      return { root, manifest: parse(regular(join(root, 'package.json'), 1024 * 1024)) };
+    }
+    assert.notEqual(root, parent, 'installed package owner missing'); root = parent;
   }
 }
 
@@ -50,9 +52,9 @@ export function physicalCensus(consumerRoot, exampleSourceRoot, parse) {
         const target = realpathSync(file), targetStat = lstatSync(target);
         assert(targetStat.isFile() && basename(path) === '.bin' &&
           plan.dependencyNamespaces.some(root => inside(root, target)), 'unadmitted dependency link');
-        const { root, manifest } = nearestManifest(target, parse);
+        const { root, manifest } = declaringPackage(target, parse);
         const bins = typeof manifest.bin === 'string' ? { [manifest.name.split('/').at(-1)]: manifest.bin } : manifest.bin;
-        assert(bins && Object.hasOwn(bins, name) && resolve(root, bins[name]) === target, 'undeclared bin link');
+        assert(inside(root, target) && bins && Object.hasOwn(bins, name) && resolve(root, bins[name]) === target, 'undeclared bin link');
         links.push({ path: file, request: readlinkSync(file), target });
       } else if (stat.isDirectory()) walk(file, depth + 1);
       else if (name === '.package-lock.json') {

@@ -60,7 +60,9 @@ flowchart LR
   token-free npm environment with separate empty user/global configuration files.
 - `namespaces.mjs`: actual App and source-helper namespaces, hidden/nested aliases and locks plus the one
   admitted common-parent dependency link. Directory links inside dependencies refuse; declared bin links
-  are checked. This does not assume a root-only graph.
+  are checked against the actual installed package boundary under node_modules, including scoped and
+  nested packages. An inner module-format or forged manifest grants no bin authority. Targets stay
+  inside both the admitted dependency namespace and that declaring package. This does not assume a root-only graph.
 - `installed.mjs`: original AF/Lens members, one physical engine/reader/context owner, actual renderer SRI,
   resolution from every family/source owner, genuine normal/hidden locks and unchanged compiler image.
   Engine/reader/context members must match the original admitted TAR images before the first gate,
