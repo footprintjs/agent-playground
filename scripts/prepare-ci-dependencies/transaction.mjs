@@ -54,6 +54,19 @@ function npm(root, out, env, step, args, timeout) {
   assert(!result.error && !result.signal && result.status === 0, step + ' failed');
 }
 
+export function verifyNativeGraph(root, out, env) {
+  npm(root, out, env, 'native-graph', ['ls', 'agentfootprint', 'agentfootprint-lens', 'footprint-explainable-ui',
+    'footprintjs', 'foottrace', 'contextfootprint', '--all'], 30000);
+  return nativeGraphProof(out);
+}
+
+export function nativeGraphProof(out, expected) {
+  const proof = { receiptSha256: hash(regular(join(out, 'native-graph.json'))),
+    logSha256: hash(regular(join(out, 'native-graph.log'))) };
+  if (expected) assert.deepEqual(proof, expected, 'mandatory native graph proof changed');
+  return proof;
+}
+
 /** Unconditional byte/mode restoration is also used on partial-lock/install refusal. */
 export function withOriginalDocuments(root, originals, work, report) {
   let value, setupFailure, restorationFailure;
@@ -91,11 +104,12 @@ function install({ root, helper, out, inputs, env, port, originals, projected, a
   npm(root, out, childEnv, 'strict-ci', ['ci', '--ignore-scripts=false', ...strictNpm], 300000);
   assert.deepEqual(regular(join(root, 'package.json')), projected, 'setup manifest changed');
   assert.deepEqual(regular(join(root, 'package-lock.json')), nativeLock, 'install changed native lock');
+  const nativeGraph = verifyNativeGraph(root, out, childEnv); // Same mandatory check, while requests match the native install.
   const plan = nativeDependencyLayout(root, helper);
   symlinkSync(plan.sharedLink.target, plan.sharedLink.path);
   const initial = inspectInstalled({ root, helper, originalLock: originals['package-lock.json'].bytes,
     nativeLock, admitted, archives, inputs, port });
-  return { nativeLock, initial };
+  return { nativeLock, initial, nativeGraph };
 }
 
 export function prepare({ root, helper, out, inspectorRoot, inputs, env = process.env }) {
@@ -125,14 +139,14 @@ export function prepare({ root, helper, out, inspectorRoot, inputs, env = proces
     catch (cleanup) { if (cleanup.code !== 'ENOENT') throw new AggregateError([error, cleanup], 'setup cleanup failed'); }
     throw error;
   }
-  const { nativeLock, initial } = installed;
-  const state = { consumer, inputsSha256: hash(JSON.stringify(inputs)), admitted, archives, initial,
+  const { nativeLock, initial, nativeGraph } = installed;
+  const state = { consumer, inputsSha256: hash(JSON.stringify(inputs)), admitted, archives, initial, nativeGraph,
     originalHashes: Object.fromEntries(documents.map(path => [path, hash(originals[path].bytes)])),
     originalModes: Object.fromEntries(documents.map(path => [path, originals[path].mode])),
     projectedSha256: hash(projected), nativeLockSha256: hash(nativeLock) };
   const checkpointSha256 = hash(jsonBytes(state));
   writeFileSync(join(out, 'native-state.json'), jsonBytes(state), { flag: 'wx', mode: 0o600 });
-  writeFileSync(join(out, 'setup-receipt.json'), jsonBytes({ consumer, checkpointSha256,
+  writeFileSync(join(out, 'setup-receipt.json'), jsonBytes({ consumer, checkpointSha256, nativeGraph,
     originalHashes: state.originalHashes, originalModes: state.originalModes, projectedSha256: state.projectedSha256,
     nativeLockSha256: state.nativeLockSha256, observed: { packages: initial.packages,
       sourceMembers: initial.sourceMembers, originalFamilyImages: initial.originalFamilyImages,
@@ -165,6 +179,7 @@ export function verify({ root, helper, out, inspectorRoot, inputs, expectedCheck
   const nativeLock = regular(join(out, 'native-package-lock.json'), 8 * 1024 * 1024);
   assert.equal(hash(nativeLock), state.nativeLockSha256);
   assert.equal(hash(regular(join(out, 'setup-manifest.json'))), state.projectedSha256);
+  nativeGraphProof(out, state.nativeGraph);
   const current = inspectInstalled({ root, helper, nativeLock, originalLock: originals['package-lock.json'].bytes,
     admitted: fresh.admitted, archives: fresh.archives, inputs, port });
   assert.deepEqual(current, state.initial, 'source/install/compiler/locks changed during consumer gates');

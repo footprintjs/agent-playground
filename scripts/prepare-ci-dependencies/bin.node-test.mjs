@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, symlinkSync } from 'node:fs';
+import { mkdirSync, symlinkSync, unlinkSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import test from 'node:test';
 import { fixture } from './guard-fixtures.mjs';
@@ -70,4 +70,20 @@ test('dangling and foreign bin links retain their refusal boundary', () => {
       assert.throws(() => physicalCensus(f.root, f.helper, JSON.parse));
     } finally { f.close(); }
   }
+});
+
+test('a nested dependency bin cannot gain authority in the root dependency namespace', () => {
+  const f = fixture();
+  try {
+    const ns = join(f.root, 'node_modules/outer/node_modules'), pkg = join(ns, 'inner'), target = join(pkg, 'dist/cli.js');
+    f.put(join(f.root, 'node_modules/outer/package.json'), '{"name":"outer","version":"1.0.0"}');
+    f.put(join(pkg, 'package.json'), '{"name":"inner","version":"1.0.0","bin":{"probe":"dist/cli.js"}}');
+    f.put(target, 'throw new Error("must not execute");');
+    mkdirSync(join(ns, '.bin'), { recursive: true });
+    const original = join(ns, '.bin/probe'); symlinkSync(relative(join(ns, '.bin'), target), original);
+    physicalCensus(f.root, f.helper, JSON.parse); // Legitimate nested owner/namespace.
+    unlinkSync(original); mkdirSync(join(f.root, 'node_modules/.bin'));
+    symlinkSync(relative(join(f.root, 'node_modules/.bin'), target), join(f.root, 'node_modules/.bin/probe'));
+    assert.throws(() => physicalCensus(f.root, f.helper, JSON.parse), /bin namespace differs/);
+  } finally { f.close(); }
 });

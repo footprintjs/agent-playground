@@ -60,8 +60,6 @@ jobs:
       - name: Prepare strict native inputs without an API token
         id: native_setup
         run: node scripts/prepare-ci-dependencies.mjs prepare
-      - name: Verify the installed family graph
-        run: npm ls agentfootprint agentfootprint-lens footprint-explainable-ui footprintjs foottrace contextfootprint --all
       - run: npm test
       - run: npm run test:types
       - run: npm run lint
@@ -94,5 +92,7 @@ jobs:
             ${{ runner.temp }}/app-native-inputs/lock-update.log
             ${{ runner.temp }}/app-native-inputs/strict-ci.json
             ${{ runner.temp }}/app-native-inputs/strict-ci.log
+            ${{ runner.temp }}/app-native-inputs/native-graph.json
+            ${{ runner.temp }}/app-native-inputs/native-graph.log
             ${{ runner.temp }}/app-native-inputs/restoration.json
             ${{ runner.temp }}/app-native-inputs/verify-result.json

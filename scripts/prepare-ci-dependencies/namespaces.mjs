@@ -27,7 +27,8 @@ function declaringPackage(file, parse) {
   for (;;) {
     const parent = dirname(root);
     if (basename(parent) === 'node_modules' || (basename(parent).startsWith('@') && basename(dirname(parent)) === 'node_modules')) {
-      return { root, manifest: parse(regular(join(root, 'package.json'), 1024 * 1024)) };
+      return { root, namespace: basename(parent) === 'node_modules' ? parent : dirname(parent),
+        manifest: parse(regular(join(root, 'package.json'), 1024 * 1024)) };
     }
     assert.notEqual(root, parent, 'installed package owner missing'); root = parent;
   }
@@ -52,7 +53,8 @@ export function physicalCensus(consumerRoot, exampleSourceRoot, parse) {
         const target = realpathSync(file), targetStat = lstatSync(target);
         assert(targetStat.isFile() && basename(path) === '.bin' &&
           plan.dependencyNamespaces.some(root => inside(root, target)), 'unadmitted dependency link');
-        const { root, manifest } = declaringPackage(target, parse);
+        const { root, namespace, manifest } = declaringPackage(target, parse);
+        assert.equal(dirname(path), namespace, 'bin namespace differs from declaring package');
         const bins = typeof manifest.bin === 'string' ? { [manifest.name.split('/').at(-1)]: manifest.bin } : manifest.bin;
         assert(inside(root, target) && bins && Object.hasOwn(bins, name) && resolve(root, bins[name]) === target, 'undeclared bin link');
         links.push({ path: file, request: readlinkSync(file), target });

@@ -62,7 +62,8 @@ flowchart LR
   admitted common-parent dependency link. Directory links inside dependencies refuse; declared bin links
   are checked against the actual installed package boundary under node_modules, including scoped and
   nested packages. An inner module-format or forged manifest grants no bin authority. Targets stay
-  inside both the admitted dependency namespace and that declaring package. This does not assume a root-only graph.
+  inside that package, and its installed namespace must match the link's actual .bin namespace.
+  This does not assume a root-only graph.
 - `installed.mjs`: original AF/Lens members, one physical engine/reader/context owner, actual renderer SRI,
   resolution from every family/source owner, genuine normal/hidden locks and unchanged compiler image.
   Engine/reader/context members must match the original admitted TAR images before the first gate,
@@ -72,6 +73,10 @@ flowchart LR
   restoration. The original document bytes/modes are independently joined to immutable consumer Git HEAD.
   VERIFY checks an immutable prior-step checkpoint digest, re-admits original ZIP/TGZ/receipts against the
   fixed policy and observes all installed/source/compiler/lock images again.
+  The mandatory npm ls argv runs while the temporary native manifest/lock are active. Its exit0,
+  receipt and log hashes join the external checkpoint; then exact public bytes/modes are restored
+  before the four original consumer commands. No wrong-phase graph command checks native images
+  against the restored local-development requests, and no graph failure is ignored.
 
 The AF example checkout is the exact admitted source head. Its helper intentionally imports AF source;
 it is not claimed to come from the packed archive. Its tracked source inventory, manifest/lock hashes,
