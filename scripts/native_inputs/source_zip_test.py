@@ -6,12 +6,46 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
+import stat
 
 from .fixtures import Fixture
-from . import DataRefused, source_members
+from . import DataRefused, source_members, compatibility_members
 
 
 class SourceZipTests(unittest.TestCase):
+    def test_actual_nine_body_lens_shape_is_data_only_and_rejects_wrong_members_or_types(self):
+        names = ['agentfootprint-15.0.0-rc.0.tgz', 'agentfootprint-lens-0.83.0.tgz',
+                 'contextfootprint-0.1.1.tgz', 'agent-source.json', 'contract.json',
+                 'footprint-explainable-ui-1.1.1.tgz', 'footprintjs-14.0.0-rc.0.tgz',
+                 'foottrace-2.1.0.tgz', 'input.json']
+        bodies = {name: ('inert ' + name).encode() for name in names}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            path = root / 'original.zip'
+            def write(entries):
+                with zipfile.ZipFile(path, 'w') as archive:
+                    for name, data in entries:
+                        archive.writestr(name, data)
+                return {'format': 'lens-compatibility-v1', 'size': path.stat().st_size,
+                        'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                        'files': {name: {'size': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+                                  for name, data in bodies.items()}}
+            expected = write(list(bodies.items()))
+            self.assertEqual(compatibility_members(path, expected), bodies)
+            # Rebind the outer digest so these controls reach the real inventory/type/body boundary.
+            for entries in [list(bodies.items())[:-1], list(bodies.items()) + [('outside', b'inert')],
+                            [(name, b'changed' if name == 'input.json' else data) for name, data in bodies.items()]]:
+                with self.subTest(kind='inventory-or-body'), self.assertRaises(DataRefused):
+                    compatibility_members(path, write(entries))
+            link = zipfile.ZipInfo('input.json')
+            link.create_system = 3
+            link.external_attr = (stat.S_IFLNK | 0o777) << 16
+            with self.assertRaises(DataRefused):
+                compatibility_members(path, write([(link if name == 'input.json' else name, data)
+                                                    for name, data in bodies.items()]))
+            self.assertEqual(set(p.name for p in root.iterdir()), {'original.zip'})
+
     def test_bounded_named_bodies_keep_exact_bytes_and_do_not_execute_or_extract_a_package(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()

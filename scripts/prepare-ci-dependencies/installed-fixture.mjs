@@ -9,7 +9,7 @@ export function installedFixture() {
   const inputs = { producers: {}, renderer: { package: 'footprint-explainable-ui', version: f.selected['footprint-explainable-ui'], integrity: 'sha512-fixture-renderer' }, registry: {} };
   for (const [name, version] of Object.entries(f.selected)) {
     packages['node_modules/' + name] = { version, resolved: `https://registry.npmjs.org/${name}/-/${name}-${version}.tgz`, integrity: 'sha512-fixture-' + name };
-    if (['footprintjs', 'foottrace'].includes(name)) inputs.registry[name] = { version, integrity: packages['node_modules/' + name].integrity };
+    if (['footprintjs', 'foottrace', 'contextfootprint'].includes(name)) inputs.registry[name] = { version, integrity: packages['node_modules/' + name].integrity };
   }
   packages['node_modules/footprint-explainable-ui'].integrity = inputs.renderer.integrity;
   for (const name of ['agentfootprint', 'agentfootprint-lens']) {
@@ -20,6 +20,12 @@ export function installedFixture() {
   }
   inputs.producers.agentfootprint.source = { ...sourceIdentity(f.helper),
     manifestSha256: hash(regular(join(f.helper, 'package.json'))), lockSha256: hash(regular(join(f.helper, 'package-lock.json'))) };
+  admitted['agentfootprint-lens'].family = Object.fromEntries(['footprintjs', 'foottrace', 'contextfootprint'].map(name =>
+    [name, { files: inventory(join(f.root, 'node_modules', name)), sha256: 'fixture-' + name,
+      integrity: inputs.registry[name].integrity }]));
+  const renderer = inventory(join(f.root, 'node_modules/footprint-explainable-ui'));
+  inputs.renderer.memberCount = renderer.length;
+  inputs.renderer.memberHashes = Object.fromEntries(renderer.map(row => [row.path.slice(8), row.sha256]));
   const compiler = { name: 'typescript', version: '5.4.5', main: 'index.js', bin: { tsc: 'bin/tsc' } };
   f.put(join(f.root, 'node_modules/typescript/package.json'), JSON.stringify(compiler));
   for (const path of ['index.js', 'bin/tsc']) f.put(join(f.root, 'node_modules/typescript', path), 'throw new Error("compiler must not execute");');

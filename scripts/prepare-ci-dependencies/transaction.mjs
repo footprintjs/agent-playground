@@ -15,7 +15,7 @@ import { dataPort, fetchInput, savedInput } from './transport.mjs';
 function readInputs(root, inputs, out, port) {
   const admitted = {}, archives = {};
   for (const role of roles) {
-    const item = savedInput(root, inputs.producers[role], join(out, role), port);
+    const item = savedInput(root, inputs.producers[role], join(out, role), port, inputs);
     admitted[role] = item.admitted; archives[role] = item.archive;
   }
   return { admitted, archives };
@@ -36,7 +36,7 @@ export function fetchInputs({ root, out, inspectorRoot, inputs, env = process.en
   root = realpathSync(root); clean(root); requireOutside(root, out);
   const port = dataPort(inspectorRoot);
   mkdirSync(out, { mode: 0o700 });
-  for (const role of roles) fetchInput(root, inputs.producers[role], join(out, role), port, env);
+  for (const role of roles) fetchInput(root, inputs.producers[role], join(out, role), port, env, inputs);
   return { status: 'SOURCE_DATA_FETCHED', inputsSha256: hash(JSON.stringify(inputs)),
     qualification: 'DATA transport only; no installation or compatibility claim' };
 }
@@ -129,7 +129,8 @@ export function prepare({ root, helper, out, inspectorRoot, inputs, env = proces
   writeFileSync(join(out, 'setup-receipt.json'), jsonBytes({ consumer, checkpointSha256,
     originalHashes: state.originalHashes, originalModes: state.originalModes, projectedSha256: state.projectedSha256,
     nativeLockSha256: state.nativeLockSha256, observed: { packages: initial.packages,
-      sourceMembers: initial.sourceMembers, exampleSource: initial.exampleSource, compiler: initial.compiler,
+      sourceMembers: initial.sourceMembers, originalFamilyImages: initial.originalFamilyImages,
+      rendererImage: initial.rendererImage, exampleSource: initial.exampleSource, compiler: initial.compiler,
       dependencyNamespaces: initial.dependencyNamespaces, hiddenLocks: initial.hiddenLocks,
       ownerRoots: initial.ownerRoots, linksSha256: hash(JSON.stringify(initial.links)),
       familyImages: initial.familyImages }, qualification: 'Setup only; all four original consumer gates remain required' }), { flag: 'wx', mode: 0o600 });

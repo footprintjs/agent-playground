@@ -1,6 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { verifyProvider } from './admission.mjs';
+import { readFileSync } from 'node:fs';
+import { requireInputs, verifyProvider } from './admission.mjs';
+
+test('fixed admitted policy keeps exact core/context versions and two distinct real producer formats', () => {
+  const input = JSON.parse(readFileSync(new URL('./inputs.json', import.meta.url)));
+  requireInputs(input);
+  assert.equal(input.producers.agentfootprint.strategy, 'af-source-v1');
+  assert.equal(input.producers['agentfootprint-lens'].strategy, 'lens-compatibility-v1');
+  for (const name of ['footprintjs', 'foottrace', 'contextfootprint']) {
+    const bad = structuredClone(input); bad.registry[name].version = '0.0.0';
+    assert.throws(() => requireInputs(bad));
+  }
+  const fake = structuredClone(input); fake.producers['agentfootprint-lens'].strategy = 'af-source-v1';
+  assert.throws(() => requireInputs(fake));
+});
 
 function fixture() {
   const source = { head: '1'.repeat(40), tree: '2'.repeat(40) }, tested = { head: '3'.repeat(40), tree: source.tree };

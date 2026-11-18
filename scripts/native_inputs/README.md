@@ -6,9 +6,8 @@ execute or activate a package. Passing data checks does not accept the producer,
 establish workflow-token access or establish consumer compatibility.
 
 The app source links, runtime and original four consumer gates remain unchanged. The old registry table
-and provisional failed-producer job are removed from the native workflow. Its fixed policy still refuses
-unqualified inputs. Final producer review/gates, a compatible Lens input and renderer identity remain
-separate prerequisites; this DATA helper cannot activate them.
+and provisional failed-producer job are removed from the native workflow. Its fixed policy refuses
+unqualified inputs. Qualified producer and renderer facts remain separate from consumer acceptance; this DATA helper cannot activate them.
 
 ## Interface
 
@@ -91,13 +90,14 @@ outside this source; it cannot be treated as a current compatibility gate. The g
 uses the same DATA library through its public facade and the existing pinned shared-ci archive inspector.
 
 `source_members(zip_path, expected)` returns only the original four named ZIP bodies after bounded outer
-size/digest and canonical-member checks. Its expected object is exactly `filename,size,sha256`; only AF or
-Lens package filenames are admitted. `parse_data` supplies the existing strict duplicate-key JSON reader.
+size/digest and canonical-member checks. Its expected object is exactly `filename,size,sha256`; only the exact AF source filename is admitted. `parse_data` supplies the existing strict duplicate-key JSON reader.
+The separate finite `compatibility_members` DATA operation reads the genuine nine-body Lens original
+with exact outer/body sizes and hashes. It does not fabricate candidate/raw-source-lock bodies.
 The separate `scripts/native_source_zip.py stage|verify` entry saves or verifies these bytes in an exclusive
 owned data directory. It never extracts a tar or executes package code. Original `inspect_artifact` and
 its two-argument CLI remain read-only, DATA_ONLY and activation-disabled.
 
 Only the separate fixed native setup policy can admit an independently qualified producer. Incoming tar
 validation uses the shared-ci DATA port; there is no second tar parser for native setup. Missing Lens or
-renderer identity refuses before transport/installation, and the standard workflow token exists only in
+renderer qualification refuses before transport/installation, and the standard workflow token exists only in
 FETCH. PREPARE/VERIFY re-admit saved originals and carry no API token.

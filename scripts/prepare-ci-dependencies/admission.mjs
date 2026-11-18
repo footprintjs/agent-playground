@@ -1,6 +1,7 @@
 // Closed producer/provider/archive DATA admission. No effects or incoming package imports.
 import assert from 'node:assert/strict';
 import { hash } from './filesystem.mjs';
+import { admitLens } from './lens.mjs';
 
 export const INSPECTOR_HEAD = '1ca5d7de9bde68c205b5d140c94dc475ae3b2520';
 export const roles = ['agentfootprint', 'agentfootprint-lens'];
@@ -10,10 +11,11 @@ export function requireInputs(inputs) {
   assert.equal(inputs?.status, 'NATIVE_SOURCE_READY', 'qualified Lens and renderer inputs not configured');
   assert.deepEqual(Object.keys(inputs).sort(), ['producers', 'registry', 'renderer', 'status']);
   assert.deepEqual(Object.keys(inputs.producers).sort(), [...roles].sort());
-  assert.deepEqual(Object.keys(inputs.registry).sort(), ['footprintjs', 'foottrace']);
-  for (const [name, version] of [['footprintjs', '14.0.0-rc.0'], ['foottrace', '2.1.0']]) {
+  assert.deepEqual(Object.keys(inputs.registry).sort(), ['contextfootprint', 'footprintjs', 'foottrace']);
+  for (const [name, version] of [['footprintjs', '14.0.0-rc.0'], ['foottrace', '2.1.0'], ['contextfootprint', '0.1.1']]) {
     assert.equal(inputs.registry[name].version, version);
     assert.match(inputs.registry[name].integrity, /^sha512-[A-Za-z0-9+/]{86}==$/);
+    assert.equal(inputs.registry[name].inspection, name === 'contextfootprint' ? 'digest-pinned-data' : 'publication-profile');
   }
   assert.equal(inputs.renderer.package, 'footprint-explainable-ui');
   assert.match(inputs.renderer.version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
@@ -37,7 +39,13 @@ export function requireInputs(inputs) {
     for (const object of [input.source, input.tested]) for (const key of ['head', 'tree']) assert(hex(object[key], 40));
     for (const key of ['manifestSha256', 'lockSha256']) assert(hex(input.source[key], 64));
     assert(hex(input.reviewSha256, 64), 'exact producer review required');
-    assert(input.sourceProtocol && typeof input.sourceProtocol === 'string');
+    assert.equal(input.strategy, role === 'agentfootprint' ? 'af-source-v1' : 'lens-compatibility-v1');
+    if (role === 'agentfootprint') assert.equal(input.sourceProtocol, 'agentfootprint.source-candidate.v1');
+    else {
+      assert.equal(input.rawSourceLockQualification, 'COMMITTED_GIT_ANCHOR_ONLY_NATIVE_BUILD_LOCK_DIRTY');
+      assert.equal(input.wireProfile.zipMembers.length, 9);
+      assert.deepEqual(Object.keys(input.zipBodies).sort(), [...input.wireProfile.zipMembers].sort());
+    }
     assert(Array.isArray(input.archiveProfile) && input.archiveProfile.length > 0 && input.archiveProfile.length <= 16);
     assert(input.archiveProfile.every(value => typeof value === 'string' && value.length <= 128));
     assert(Array.isArray(input.qualifyingJobs) && input.qualifyingJobs.length > 0 && input.qualifyingJobs.length <= 100);
@@ -84,7 +92,9 @@ export function verifyProvider(input, provider) {
   }
 }
 
-export function admitArchive(input, files, port) {
+export function admitArchive(input, files, port, sourceDocuments, cohort) {
+  if (input.archive.package === 'agentfootprint-lens') return admitLens(input, files, port, sourceDocuments, cohort);
+  assert.equal(input.archive.package, 'agentfootprint');
   const filename = input.archive.filename;
   assert.deepEqual(Object.keys(files).sort(), [filename, 'candidate.json', 'source-package.json', 'source-package-lock.json'].sort());
   const record = port.parseStrictJson(files['candidate.json'], { maxBytes: 8 * 1024 * 1024 });

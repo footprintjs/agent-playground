@@ -47,12 +47,10 @@ export function inspectInstalled({ root, helper, originalLock, nativeLock, admit
   assert(compilerLock && !compilerLock.link, 'existing compiler lock required');
   assert.deepEqual(lock.packages['node_modules/typescript'], compilerLock, 'compiler lock changed');
   const census = physicalCensus(root, helper, parse);
-  const context = lock.packages['node_modules/contextfootprint'];
-  assert(context?.version && !context.link, 'one locked root context owner required');
   const selected = { footprintjs: '14.0.0-rc.0', foottrace: '2.1.0',
     agentfootprint: inputs.producers.agentfootprint.archive.version,
     'agentfootprint-lens': inputs.producers['agentfootprint-lens'].archive.version,
-    'footprint-explainable-ui': inputs.renderer.version, contextfootprint: context.version };
+    'footprint-explainable-ui': inputs.renderer.version, contextfootprint: inputs.registry.contextfootprint.version };
   const owners = requireFamilyOwners(census, selected);
   const hidden = census.hiddenLocks;
   assert(hidden.some(row => row.path === join(root, 'node_modules/.package-lock.json')), 'root hidden lock required');
@@ -73,7 +71,7 @@ export function inspectInstalled({ root, helper, originalLock, nativeLock, admit
       assert.equal(record.resolved, `https://registry.npmjs.org/${name}/-/${name}-${selected[name]}.tgz`, 'registry package differs');
       assert(typeof record.integrity === 'string' && record.integrity.startsWith('sha512-'), 'registry SRI required');
       if (name === 'footprint-explainable-ui') assert.equal(record.integrity, inputs.renderer.integrity);
-      if (name === 'footprintjs' || name === 'foottrace') assert.equal(record.integrity, inputs.registry[name].integrity);
+      if (Object.hasOwn(inputs.registry, name)) assert.equal(record.integrity, inputs.registry[name].integrity);
     }
   }
   const ownerRoots = [root, helper, ...Object.values(owners).map(row => row.root)];
@@ -89,6 +87,17 @@ export function inspectInstalled({ root, helper, originalLock, nativeLock, admit
     assert.deepEqual(files, [...admitted[name].files].sort((a, b) => a.path.localeCompare(b.path)), 'installed source members differ from original');
     sourceMembers[name] = { count: files.length, censusSha256: hash(JSON.stringify(files)) };
   }
+  const originalFamilyImages = {};
+  for (const name of ['footprintjs', 'foottrace', 'contextfootprint']) {
+    const original = admitted['agentfootprint-lens'].family[name], actual = inventory(owners[name].root, { dependencies: true });
+    assert.deepEqual(actual, [...original.files].sort((a, b) => a.path.localeCompare(b.path)), 'installed family image differs from admitted original');
+    originalFamilyImages[name] = { archiveSha256: original.sha256, integrity: original.integrity,
+      count: actual.length, censusSha256: hash(JSON.stringify(actual)) };
+  }
+  const renderer = inventory(owners['footprint-explainable-ui'].root, { dependencies: true });
+  assert.equal(renderer.length, inputs.renderer.memberCount);
+  assert.deepEqual(Object.fromEntries(renderer.map(row => [row.path.slice(8), row.sha256])), inputs.renderer.memberHashes,
+    'installed published renderer differs from the qualified matrix original');
   const compilerRoot = packageOwner(createRequire(join(root, 'package.json')).resolve('typescript'), 'typescript', parse);
   assert.equal(parse(regular(join(helper, 'package.json'))).version, selected.agentfootprint, 'example source version differs from packed AF');
   const compiler = parse(regular(join(compilerRoot, 'package.json')));
@@ -97,7 +106,8 @@ export function inspectInstalled({ root, helper, originalLock, nativeLock, admit
   assert(entry.startsWith(compilerRoot + '/'), 'compiler entry escapes package');
   return { packages: census.packages, ownerRoots, dependencyNamespaces: census.dependencyNamespaces,
     links: census.links, hiddenLocks: hidden.map(({ path, sha256 }) => ({ path, sha256 })),
-    sourceMembers, exampleSource: exampleSource(helper, inputs.producers.agentfootprint.source, parse),
+    sourceMembers, originalFamilyImages, rendererImage: { count: renderer.length, censusSha256: hash(JSON.stringify(renderer)) },
+    exampleSource: exampleSource(helper, inputs.producers.agentfootprint.source, parse),
     familyImages: Object.values(owners).map(row => ({ name: row.name, root: row.root,
       censusSha256: hash(JSON.stringify(inventory(row.root, { dependencies: true }))) })),
     nativeLockSha256: hash(nativeLock), compiler: { root: compilerRoot, version: compiler.version,

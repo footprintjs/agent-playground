@@ -44,3 +44,26 @@ test('hidden extra images in either source namespace refuse even when the normal
     } finally { f.close(); }
   }
 });
+
+test('context expected version comes from the admitted original, never a self-consistent changed lock', () => {
+  const f = installedFixture();
+  try {
+    const lock = JSON.parse(f.nativeLock);
+    lock.packages['node_modules/contextfootprint'].version = '0.2.0';
+    lock.packages['node_modules/contextfootprint'].resolved = 'https://registry.npmjs.org/contextfootprint/-/contextfootprint-0.2.0.tgz';
+    f.nativeLock = Buffer.from(JSON.stringify(lock));
+    f.put(join(f.root, 'node_modules/.package-lock.json'), f.nativeLock);
+    f.put(join(f.root, 'node_modules/contextfootprint/package.json'), '{"name":"contextfootprint","version":"0.2.0","main":"index.js"}');
+    assert.throws(() => inspectInstalled(f), /wrong physical contextfootprint version/);
+  } finally { f.close(); }
+});
+
+test('engine, reader and context member bytes must equal their originals before the first consumer gate', () => {
+  for (const name of ['footprintjs', 'foottrace', 'contextfootprint']) {
+    const f = installedFixture();
+    try {
+      f.put(join(f.root, 'node_modules', name, 'index.js'), 'changed member with original lock and version');
+      assert.throws(() => inspectInstalled(f), /installed family image differs/);
+    } finally { f.close(); }
+  }
+});

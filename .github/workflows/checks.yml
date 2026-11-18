@@ -83,6 +83,8 @@ jobs:
             ${{ runner.temp }}/app-native-inputs/agentfootprint/admission.json
             ${{ runner.temp }}/app-native-inputs/agentfootprint-lens/provider.json
             ${{ runner.temp }}/app-native-inputs/agentfootprint-lens/admission.json
+            ${{ runner.temp }}/app-native-inputs/agentfootprint-lens/source-git/package.json
+            ${{ runner.temp }}/app-native-inputs/agentfootprint-lens/source-git/package-lock.json
             ${{ runner.temp }}/app-native-inputs/originals.json
             ${{ runner.temp }}/app-native-inputs/setup-manifest.json
             ${{ runner.temp }}/app-native-inputs/native-package-lock.json

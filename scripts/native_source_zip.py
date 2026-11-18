@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 import sys
-from native_inputs import DataRefused, parse_data, source_members
+from native_inputs import DataRefused, parse_data, source_members, compatibility_members
 
 
 def main(args):
@@ -15,7 +15,7 @@ def main(args):
     out = Path(directory)
     if not out.is_absolute() or out.parent.resolve() != out.parent:
         raise DataRefused('source-zip-output')
-    members = source_members(source, expected)
+    members = compatibility_members(source, expected) if expected.get('format') == 'lens-compatibility-v1' else source_members(source, expected)
     if command == 'stage':
         out.mkdir(mode=0o700)  # Never overwrite a consumed stage.
         for name, data in members.items():

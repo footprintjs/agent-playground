@@ -27,8 +27,9 @@ links and historical Foottrace caret remain unchanged until the complete native
 transaction is ready. Use the exact compatible candidate packages together;
 an older engine or agent can otherwise install another Foottrace copy.
 
-The committed lock and published-package CI setup still describe the previous
-cohort. Paired installation, build and test validation remain pending; the
+The committed lock describes the previous cohort. The guarded native workflow
+uses admitted original source packages and a genuine disposable lock; current
+installation, build and test validation remain pending; the
 dependency declaration alone does not establish compatibility. App behavior,
 record readers and saved traces are unchanged.
 
@@ -43,7 +44,8 @@ It is an in-page teaching executor, not an isolation boundary for hostile code.
 The guarded native CI route uses fixed original AF/Lens source artifacts plus the exact compatible
 published renderer. It restores the authored manifest and historical lock before the original test,
 capture-contract type check, lint and complete TypeScript + Vite build. Missing producer qualification
-refuses before setup; the current local policy is still waiting for Lens and renderer facts. A dependency
+refuses in the first shell before any package setup. The fixed current policy binds
+the admitted originals and the exact published renderer tested with them. A dependency
 or data observation is not consumer compatibility. Source-linked examples come from the exact admitted
 AgentFootprint source, and use the same installed engine/reader/context graph as the app.
 

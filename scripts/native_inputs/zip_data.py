@@ -32,7 +32,7 @@ def read_zip(raw, expected_sha256, *, limits=LIMITS):
     try:
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             infos = archive.infolist()
-            require(len(infos) == 4, 'zip-inventory')
+            require(len(infos) == len(limits), 'zip-inventory')
             require({f.filename for f in infos} == set(limits), 'zip-inventory')
             require(sum(f.file_size for f in infos) <= MAX_ZIP, 'zip-size')
             result = {}
