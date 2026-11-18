@@ -53,4 +53,3 @@ export function prepareCiManifest(manifest, policy) {
   });
   return result;
 }
-
