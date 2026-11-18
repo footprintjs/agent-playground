@@ -19,6 +19,20 @@ Examples without an exported browser `run()` entry remain available as source,
 with an explicit CLI-only notice. A sample is identified by its folder/mode and
 id, not by id alone.
 
+## Migration: engine 14 release candidate and Foottrace 2.1
+
+The native preparation targets the published `footprintjs@14.0.0-rc.0` and
+`foottrace@2.1.0` together. The authored local engine, AgentFootprint, Lens and UI
+links and historical Foottrace caret remain unchanged until the complete native
+transaction is ready. Use the exact compatible candidate packages together;
+an older engine or agent can otherwise install another Foottrace copy.
+
+The committed lock describes the previous cohort. The guarded native workflow
+uses admitted original source packages and a genuine disposable lock; current
+installation, build and test validation remain pending; the
+dependency declaration alone does not establish compatibility. App behavior,
+record readers and saved traces are unchanged.
+
 ## Package boundary and CI
 
 The engine stays in `footprintjs`; record readers/writers/path helpers come from
@@ -27,14 +41,17 @@ The agent sandbox retains its explicit approved-name list, supplied from each
 name's official AgentFootprint export. It does not resolve arbitrary imports.
 It is an in-page teaching executor, not an isolation boundary for hostile code.
 
-CI checks the actual published packages, not hidden sibling build output. In its
-disposable checkout, `scripts/prepare-ci-dependencies.mjs` validates and reports
-each known local-link replacement with an exact reviewed release. Unexpected
-file links fail closed; unrelated dependencies and peer declarations stay
-unchanged. CI regenerates the existing lock without deleting it, runs `npm ci`,
-then the tests, capture-contract type check, lint, and the complete TypeScript +
-Vite build. The authored links stay
-unchanged in Git. Raw example sources are checked out at the matching release.
+The guarded native CI route uses fixed original AF/Lens source artifacts plus the exact compatible
+published renderer. It restores the authored manifest and historical lock before the original test,
+capture-contract type check, lint and complete TypeScript + Vite build. Missing producer qualification
+refuses in the first shell before any package setup. The fixed current policy binds
+the admitted originals and the exact published renderer tested with them. A dependency
+or data observation is not consumer compatibility. Source-linked examples come from the exact admitted
+AgentFootprint source, and use the same installed engine/reader/context graph as the app.
+
+Migration: native CI now selects published renderer 2.0.0 with a Lens original that admits its peer.
+The renderer accepts the official full engine narrative, including attempt entries; the capture
+contract and strict compiler check remain unchanged. The authored local-development links stay intact.
 
 The E5 migration also repairs pre-existing removed root imports, the obsolete
 `ExplainableShell.spec` prop, eager example execution during catalogue discovery,

@@ -1,48 +1,34 @@
-import { readFile, writeFile } from 'node:fs/promises';
+// Fixed workflow-only native entry. Missing producer policy refuses before transport/setup effects.
 import { pathToFileURL } from 'node:url';
+import { appendFileSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { requireWorkflow } from './prepare-ci-dependencies/filesystem.mjs';
+import { fetchInputs, preflight, prepare, verify } from './prepare-ci-dependencies/transaction.mjs';
 
-// CI tests the published package boundary; authored local-development links stay
-// in Git. Version changes here must be reviewed with the consumer upgrade.
-export const replacements = {
-  "agentfootprint": {
-    "from": "file:../agentfootprint",
-    "to": "10.1.0"
-  },
-  "agentfootprint-lens": {
-    "from": "file:../agentfootprint-lens",
-    "to": "0.76.0"
-  },
-  "footprint-explainable-ui": {
-    "from": "file:../explainable-ui",
-    "to": "0.38.0"
-  },
-  "footprintjs": {
-    "from": "file:../footPrint",
-    "to": "10.0.0"
-  }
-};
-const sections = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
-
-export function prepareCiManifest(manifest) {
-  const result = structuredClone(manifest);
-  for (const section of sections) {
-    for (const [name, value] of Object.entries(manifest[section] ?? {})) {
-      if (typeof value !== 'string' || !value.startsWith('file:')) continue;
-      const rule = section === 'dependencies' ? replacements[name] : undefined;
-      if (!rule || rule.from !== value) throw new Error(`Unexpected local dependency: ${section}.${name}=${value}`);
-      result[section][name] = rule.to;
-    }
-  }
-  for (const [name, rule] of Object.entries(replacements)) {
-    if (manifest.dependencies?.[name] !== rule.from) throw new Error(`Expected authored link: dependencies.${name}=${rule.from}`);
-  }
-  return result;
-}
+export { prepareCiManifest, authoredLinks } from './prepare-ci-dependencies/projection.mjs';
+export { nativeDependencyLayout } from './prepare-ci-dependencies/namespaces.mjs';
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const filename = new URL('../package.json', import.meta.url);
-  const original = JSON.parse(await readFile(filename, 'utf8'));
-  const prepared = prepareCiManifest(original);
-  for (const [name, rule] of Object.entries(replacements)) console.log(`${name}: ${rule.from} -> ${rule.to}`);
-  await writeFile(filename, JSON.stringify(prepared, null, 2) + '\n');
+  try {
+    const command = process.argv[2];
+    if (process.argv.length !== 3 || !['preflight', 'fetch', 'prepare', 'verify'].includes(command)) throw new Error('arguments');
+    requireWorkflow(process.env, { token: command === 'fetch' });
+    if (!process.env.RUNNER_TEMP || !process.env.GITHUB_WORKSPACE) throw new Error('workflow paths missing');
+    const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+    const inputs = JSON.parse(readFileSync(new URL('./prepare-ci-dependencies/inputs.json', import.meta.url)));
+    const args = { root, helper: resolve(root, '../agentfootprint'),
+      out: resolve(process.env.RUNNER_TEMP, 'app-native-inputs'),
+      inspectorRoot: resolve(process.env.GITHUB_WORKSPACE, '.ci-tools'), inputs,
+      expectedCheckpoint: process.env.EXPECTED_NATIVE_CHECKPOINT };
+    if (command === 'prepare' && !process.env.GITHUB_OUTPUT) throw new Error('step output missing');
+    const result = command === 'preflight' ? preflight(args) : command === 'fetch' ? fetchInputs(args)
+      : command === 'prepare' ? prepare(args) : verify(args);
+    if (command === 'prepare') appendFileSync(process.env.GITHUB_OUTPUT, `checkpoint_sha256=${result.checkpointSha256}\n`);
+    console.log(JSON.stringify(result));
+  } catch (error) {
+    const reason = ['producer-read-403', 'producer-read-404', 'producer-read-failed'].includes(error?.message)
+      ? error.message : 'native-inputs-not-configured-or-refused';
+    console.error(JSON.stringify({ status: 'REFUSED', reason })); process.exitCode = 2;
+  }
 }

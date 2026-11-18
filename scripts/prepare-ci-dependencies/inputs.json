@@ -1,0 +1,717 @@
+{
+  "status": "NATIVE_SOURCE_READY",
+  "producers": {
+    "agentfootprint": {
+      "status": "NATIVE_SOURCE_READY",
+      "repository": "footprintjs/agentfootprint",
+      "repositoryId": 1183666171,
+      "source": {
+        "head": "37985a9c4a998a52838905322040a34a63229de8",
+        "tree": "fd33fcad63edc9a9ea750e02feef65355e225832",
+        "manifestSha256": "d6dc726430a4e8e890daf1bc9f513db9ac1aa23f89556b443c51303632bf7c0b",
+        "lockSha256": "c7e65f46a13b92c8417ec27570ae4b64f2a001eb817bff323c00fc4cf324c166"
+      },
+      "tested": {
+        "head": "64eba8e10d28f21424985116257484970cc7bdc3",
+        "tree": "fd33fcad63edc9a9ea750e02feef65355e225832"
+      },
+      "expectedTestedParents": [
+        "34e7a95763370c4fa5bbf376e8afaedf142b583d",
+        "37985a9c4a998a52838905322040a34a63229de8"
+      ],
+      "run": {
+        "id": 44215477577,
+        "name": "CI",
+        "head_sha": "37985a9c4a998a52838905322040a34a63229de8",
+        "event": "pull_request",
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/footprintjs/agentfootprint/actions/runs/44215477577",
+        "workflow_id": 247073236,
+        "head_branch": "codex/af-next-major-cohort-preparation-20261116"
+      },
+      "sourceJob": {
+        "id": 134504312868,
+        "name": "test-package (24)",
+        "status": "completed",
+        "conclusion": "success",
+        "actualSourceArtifactIdPresentInCanonicalLog": true
+      },
+      "sourceArtifact": {
+        "id": 14387843673,
+        "name": "agentfootprint-source-37985a9c4a998a52838905322040a34a63229de8",
+        "size_in_bytes": 10463750,
+        "digest": "sha256:fe47d31a88a9f540abef6c896ca5aa6f9d996cdbd1879dc2690e594b20ccc297",
+        "expired": false
+      },
+      "archive": {
+        "filename": "agentfootprint-15.0.0-rc.0.tgz",
+        "package": "agentfootprint",
+        "version": "15.0.0-rc.0",
+        "sha256": "c540187d33440c796c34624d117d026f11921a2c27a7bbda1dd2723128e57cc6",
+        "shasum": "e319da3fd5cf16201c1db1e7cfdcd5b5b356654a",
+        "integrity": "sha512-j1X9y0y4T6u8Gqps3mTl73N6qkbxCe0CB5hjAlOd0fAtQygXIAL3OoEF+ihBZFEcwnpRQ6WfNNgXLrvQsh98+w==",
+        "bytes": 9887236,
+        "memberCount": 11434,
+        "memberBytes": 52835290,
+        "expandedTarBytes": 61640192,
+        "memberCensusSha256": "0f57950538f47be2109c29db06c3192e8a8a83cb26879bc1c825da39794d007e"
+      },
+      "strategy": "af-source-v1",
+      "sourceProtocol": "agentfootprint.source-candidate.v1",
+      "archiveProfile": [
+        "dist/",
+        "bin/",
+        "ai-instructions/",
+        "AGENTS.md",
+        "CAPABILITIES.md",
+        "canonical-notes.json"
+      ],
+      "outerSha256": "fe47d31a88a9f540abef6c896ca5aa6f9d996cdbd1879dc2690e594b20ccc297",
+      "reviewSha256": "3e4a951e6833b2629661d708d6ac65881f7e379f8d88e08515e12d0a3e253ef6",
+      "qualifyingJobs": [
+        {
+          "id": 134504312530,
+          "name": "test-examples",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312624,
+          "name": "test-shard (22, 4)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312655,
+          "name": "test-shard (24, 1)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312696,
+          "name": "test-shard (24, 2)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312705,
+          "name": "lint",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312753,
+          "name": "test-shard (24, 4)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312782,
+          "name": "docs",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "id": 134504312797,
+          "name": "coverage-shard (3)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312800,
+          "name": "test-shard (24, 3)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312808,
+          "name": "coverage-shard (2)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312813,
+          "name": "file-size / file-size",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312828,
+          "name": "test-shard (22, 1)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312837,
+          "name": "coverage-shard (1)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312847,
+          "name": "changes",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312852,
+          "name": "generated",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312868,
+          "name": "test-package (24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312873,
+          "name": "coverage-shard (4)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312911,
+          "name": "tested-tree",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312936,
+          "name": "test-shard (22, 2)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312963,
+          "name": "test-shard (22, 3)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312989,
+          "name": "hold / hold",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504312994,
+          "name": "test-package (22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504313079,
+          "name": "docs-truth",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134504313228,
+          "name": "docs-links",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134507106956,
+          "name": "test (22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134507107024,
+          "name": "test (24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134507912946,
+          "name": "coverage",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "allowedDocsFailure": {
+        "id": 134504312782,
+        "name": "docs",
+        "conclusion": "failure"
+      }
+    },
+    "agentfootprint-lens": {
+      "status": "NATIVE_SOURCE_READY",
+      "repository": "footprintjs/agentfootprint-lens",
+      "repositoryId": 1215514815,
+      "source": {
+        "head": "a37c7e63ee84bfe37dcbc80cfe8266896705b2d6",
+        "tree": "8bcd3fbd8012c2b13674d5cda185f950af65a7f9",
+        "manifestSha256": "f3428de50ee50194214e9b1859f6e5364881298944cf9362455f8b277bff5c17",
+        "lockSha256": "0156f319ac82e794c04043ecd0259918828d1aa2599a7b4ccb14ab7ac6daeb95"
+      },
+      "tested": {
+        "head": "cf270f8e6e31eeb9b01682af85103e7589417607",
+        "tree": "8bcd3fbd8012c2b13674d5cda185f950af65a7f9"
+      },
+      "expectedTestedParents": [
+        "46dbeaf1cea0f38bd0a8913e1644c6e4aa18c5a6",
+        "a37c7e63ee84bfe37dcbc80cfe8266896705b2d6"
+      ],
+      "run": {
+        "id": 44242737338,
+        "run_attempt": 1,
+        "workflow_id": 300397327,
+        "name": "CI",
+        "event": "pull_request",
+        "head_branch": "codex/lens-engine13-ft2-af15-preparation-20261116",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      "sourceJob": {
+        "id": 134594266496,
+        "name": "test",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      "sourceArtifact": {
+        "id": 14400007902,
+        "name": "compatibility-archives",
+        "size_in_bytes": 23335382,
+        "digest": "sha256:1eb1f98abd0b57a958dd0c39b4557d9db2f5d0d859dee397369ee00c7688a671",
+        "expired": false
+      },
+      "archive": {
+        "filename": "agentfootprint-lens-0.83.0.tgz",
+        "package": "agentfootprint-lens",
+        "version": "0.83.0",
+        "bytes": 3671407,
+        "sha256": "08315dd1e3aa98b2e7b5c9742c0778767584c4249f57462aa4022f16872d7022",
+        "shasum": "c642bcb303da539c6463fb5741224fe8e34d83af",
+        "integrity": "sha512-hXRSxirfUZk0a4tdIomUwYwY4ddIkNqhDuDGGuSpl45YOwikJkC1c0l1M9MHXsZD7g9WLkbJmgfVJAlKkO2JBw==",
+        "memberCount": 115,
+        "memberBytes": 13933474,
+        "memberHashes": {
+          "LICENSE": "48fe7dbc22aeb00419b9c5d7ed60619a2f11259c0049bfbaf733a07fd62d4d9d",
+          "README.md": "16e3686fb1f22ca8ffb9ec387350ece73544ed81517e0d9f41694280c25e261c",
+          "dist/Lens-BkW7oyCA.d.ts": "cedceb63c8c99a5b2c131e453b399b9342a1b90945bd6ea44bde658982ccc0ac",
+          "dist/Lens-NfOseLyG.d.cts": "ff8e0ce25afc7238186d241aa199673450f8ef11b650f336fb6452f8611c634d",
+          "dist/LensRecorder-ow9Yj8zF.d.cts": "cc6ebacc56db17854004713f2c22d7d589d516351b4ea7c23c70904ad70f4bfd",
+          "dist/LensRecorder-ow9Yj8zF.d.ts": "cc6ebacc56db17854004713f2c22d7d589d516351b4ea7c23c70904ad70f4bfd",
+          "dist/chunk-45BOUZIP.js": "dfe74625c961733e4503d4a15e1d5358815be7b4ca00cf2b909bab169e60a5da",
+          "dist/chunk-45BOUZIP.js.map": "e4d7d86cfa107ee14802a88e9a67dad94e4fe37d33c95725df1ab39243ba579a",
+          "dist/chunk-4DORVL5M.js": "1c0486b4d13e7a8b99d87f0f8f07e777a7b8f1e7e9b662a86959e6940e181711",
+          "dist/chunk-4DORVL5M.js.map": "91ba212418a36d018e5df8653ea2319d97c1bd59627f1cb293bd021874fddbc6",
+          "dist/chunk-6QBJARLE.js": "d648dddc386cc9f78963361a310f4dde1ecbef45f36feb982400a40ea5e284df",
+          "dist/chunk-6QBJARLE.js.map": "bf745d8802664c2db248ffee77b71e20cf7228504467468ad2a89f59d75511c1",
+          "dist/chunk-AUY2DXMW.js": "71fcf2a8ba628da743e5e93283f441f3765a30daab7fabea6d9ea9244070233c",
+          "dist/chunk-AUY2DXMW.js.map": "eec3971cc31ebb5799ab354385565f143ba31a1e88a788a21460650e2d5d5557",
+          "dist/chunk-D2AZDXP3.js": "e73d036d085b49d1db56573255e3b67e17e2f4fa41ca9ceb892fdb348fa72672",
+          "dist/chunk-D2AZDXP3.js.map": "c950794d8d61c4b2fc54df132702a6c4cc224eae22ad4ce3642b45a51ff576d1",
+          "dist/chunk-DBOIGVE3.js": "6079048a346f95e5a23ed8d7fea22403f36504511e4249af3596851fd87f6b98",
+          "dist/chunk-DBOIGVE3.js.map": "4e471c8c0a0b01e691518c53678903327543d1e5bdacda3ee2bc3103243e0403",
+          "dist/chunk-GZFYNYKB.js": "563b6846c8cac1cbad31941d01984bb033dbd26e93f0fd026e3a1cdde9e66ba4",
+          "dist/chunk-GZFYNYKB.js.map": "4329d136a4d448d273394113e2670101a752e34dd021eef1387990c6a6ce845b",
+          "dist/chunk-I4BQASJ3.js": "b559f4079a1bfca6ac07574eb11ede02220361b82558933bfbbd342e3295063b",
+          "dist/chunk-I4BQASJ3.js.map": "ba4c1afd6b97bcc53cc769dbef02baa11c6cf0bcbe065c45bf7ebf3547495b29",
+          "dist/chunk-JITPFNCE.js": "97ab8a57d263d8f54fbe1f1b6adf0963f149a731161000d2e3a4d7783263b30f",
+          "dist/chunk-JITPFNCE.js.map": "f1ce5075504ee27bc18ecc60b32939f52499750fea0907d2a0107baff1c0c027",
+          "dist/chunk-KHZNITI2.js": "7617c595168681399f6632ae303d2049980f40520ebab354dac75367a8ce7dd6",
+          "dist/chunk-KHZNITI2.js.map": "ce94b70bb243fd2edbcf50ee72a3b9ac4c625fdee56395789693c461cf4e9f7a",
+          "dist/chunk-LXHLSFWP.js": "8770a3afa3c617466b6f1fce84512b599f7e566ea83b14eebb56acf8e2c71d17",
+          "dist/chunk-LXHLSFWP.js.map": "48f9b030de4a226e33047d01284db140c2814084ad8fb761d4fe3acf4c2c3845",
+          "dist/chunk-MUFCHHDJ.js": "ac4ef1b87a6de94132eca1cc61fe0eae5635bffa5314b0b1c36d4068ae89abcb",
+          "dist/chunk-MUFCHHDJ.js.map": "eadede0bc33444c1fae79c03c85d8dbd100acb14bdda79a6837fd5e6aab78f0a",
+          "dist/chunk-NZQWYUAZ.js": "c632530aff0e3cb0cdd1b21303d0c1e53b2bbf8797be1f55027bafef975d5ae0",
+          "dist/chunk-NZQWYUAZ.js.map": "fd722334cd2264a0bccd55a04fc5219411b0ee10917c0d2a90945e78898b0448",
+          "dist/chunk-OBMDM5F6.js": "491bb3c273279c0e1c518de43f37af05cb7b2bbf7e420c7210abb3c3fc16fdd4",
+          "dist/chunk-OBMDM5F6.js.map": "a10cf0a7469cc3dfa3780b65b69b1207fa1ba72b83532c3911eb61b18407783e",
+          "dist/chunk-OXUJSEEX.js": "c780ac4d75f1f3f0330dc430c01acff96a3120da964e6ddc47895db35bc28ced",
+          "dist/chunk-OXUJSEEX.js.map": "12ef80c453a6d8fff4c741d7d5e587290a36dc04968deb2cc7c76cb6ff5a8bc5",
+          "dist/chunk-PARLHDRU.js": "b70e6ff8c09c8003edacfed148ddb5ded81687d9210c48a84d9a060e47f75bb0",
+          "dist/chunk-PARLHDRU.js.map": "593a69be22f771a1962312d9b9a895f4f166ac37b8b366534e8ce6060001e730",
+          "dist/chunk-QSRZAV7Q.js": "da9ce4e84dc401b17f2173d7d10ed22596a2a35af99f936ca87dea7480f574bd",
+          "dist/chunk-QSRZAV7Q.js.map": "104fd3562670943bf38b2739ee3747d5a9ae19dccaf1089bb56afb25a5c3edc6",
+          "dist/chunk-T72KRYNQ.js": "b73a2ad1f463ca44f093701f9d19706043ce19382564a358c99144d3748997de",
+          "dist/chunk-T72KRYNQ.js.map": "e935e85c6ce99d22f63a1661444e6c7ec62a696dd69c9654356acb34716f1f8b",
+          "dist/chunk-TO7NCCY6.js": "bef607e326283f90e60455dc1e501767ada6092392139e0ab34d85afca77fc8a",
+          "dist/chunk-TO7NCCY6.js.map": "0053d9fba9e0df09dbd615c1a24849a977bc6bde3c8d54fe553f2dd2c929b576",
+          "dist/chunk-V4TYQMLK.js": "ab9c0dd4c91dbadce0b54ab0e88bb97489fe385065d4a1bd20b40666077db81b",
+          "dist/chunk-V4TYQMLK.js.map": "525ee065598453511a6043071974c7de5ee55dc896a1232f5c354c454f017549",
+          "dist/chunk-ZPF2FRVL.js": "32c5b019a4b2954c1d3b91d7bed0a2d99abfc13e4a76f764d55ed2ec159d9357",
+          "dist/chunk-ZPF2FRVL.js.map": "b3f44cfdff76718b926b7371648bae1ee21ae2159fa973abe98ee20b5d2c5cac",
+          "dist/context.cjs": "151682840a01f8ffcc6151631ffa0e77caf36cf6c8493a187eb539e82b593700",
+          "dist/context.cjs.map": "f81204d37d9c69be60ba73717f10f39286a37b1e37209777cbdb61257d8b6cff",
+          "dist/context.d.cts": "092d6abe8faac195140b43b5466a9a1e34abb22fc019276a95276074f54a4630",
+          "dist/context.d.ts": "548781ca9dee7f3772a548f2c11fff9ca0a7f1a2d0a742baf14a3421b86fbb7c",
+          "dist/context.js": "1db08e03d7fcfa10af6794bd40d0cd96d39060690cd9c601dec83bd6d2cb423d",
+          "dist/context.js.map": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3",
+          "dist/contextAt-CASAJWRl.d.cts": "91128cff0af15138abc0a5baea1d3649b3b1efdae2be489a5c391f174e86202f",
+          "dist/contextAt-DD5WZ-oh.d.ts": "5531b95c42a2a361866392c250a882dad9aae1a5dae53a7911a6212bdf0b43f4",
+          "dist/copyForLLM-P3SIECOR.js": "2a02b37a2665d143ac0b12114c4304bc082a82d491c9dc64fdd708187e724d6b",
+          "dist/copyForLLM-P3SIECOR.js.map": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3",
+          "dist/core.cjs": "532a8a1a57c5e2f70835bf3fe04f77989887f4b68fb611e745d43397f8deb1c4",
+          "dist/core.cjs.map": "f2935667a8f2aebc1bb3e733272d8da6a07740fd5f8ac014cb5331d62fad4c2b",
+          "dist/core.d.cts": "f5661c38c73bdedfb50678499cdbcf8d4dc886334629f895645a8ded6b86e12d",
+          "dist/core.d.ts": "5b046567937825840584d17142201c7cd6ccc2be45d93ae76490214d30663d33",
+          "dist/core.js": "ad68bcd4e49788b0d37e0e86fb53fac9c391d668bdba6d67bb3f521681c78cbf",
+          "dist/core.js.map": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3",
+          "dist/index-B7qaBVmT.d.ts": "26c1ba5576e2c304abecd6fef7b9044f0be526ad3d74616a852921352d5de581",
+          "dist/index-BY11JaBl.d.cts": "0213f6808564bbed56ec05aedcf22d59d0986c6178f95f5bc11541048d45d219",
+          "dist/index.cjs": "e8403183739c473d1834d8a84095e58263784a9cbd4ea95b7b6c09b4f2891dc2",
+          "dist/index.cjs.map": "791109fd600034c0eb5849f4abc846c487ed58063f5060299953acfa80282e46",
+          "dist/index.d.cts": "7f97ff07a6632cacfbccc3a33ea12473996fbdc8ec099011335043435162a53f",
+          "dist/index.d.ts": "1f3e0dd6253427d4d3a940c32ee0c18fec6fbb8a62957f365da7203338bab4c7",
+          "dist/index.js": "69e53b6970eba2e5028dbd5d3a65ff532e9016fe3837c44f6a0b2f8ef0177852",
+          "dist/index.js.map": "45639c7c21e12f9a383f293e79d8c53374d61b466b77ab83103213039a998269",
+          "dist/lensCursorPort-CzSW9y8A.d.ts": "585f02bcdc303c2df4a34d67508a8e71efd6a15ce7d039a4b3f05e7ddb21ff3b",
+          "dist/lensCursorPort-Dp7XPVfj.d.cts": "24b87b30b6c39fae9fac583739636c272b58322a4b47b0af8c644c797b93e2a4",
+          "dist/observeRecording-CfyTXUTI.d.cts": "c6c03f32aeb9d44d9c55766cf727a106f4001f922dc23cc4963fdd42f7135559",
+          "dist/observeRecording-CwFF5iHB.d.ts": "762df59afa996ffb6604e38601b8ae6f21d2541aea7023d9fa96efc4fd0b548f",
+          "dist/recording-react.cjs": "3fdbbbcc32df026bd116477423ae548f2cb6b6631296ed08bf92ffb0ccb855e0",
+          "dist/recording-react.cjs.map": "ba4f0a1f49bfd60231e3116a1c7d5f631728e9e6e26fb257a694ae101fb574e4",
+          "dist/recording-react.d.cts": "635bcfe5c8e0f77ccab9807e97845c412b2ac3ba8728fb6e5ba47e5f19348e30",
+          "dist/recording-react.d.ts": "6aabc91a633147f59e9ae0177106d1722bfd014f4c00d100fe4b9f7f290018a8",
+          "dist/recording-react.js": "90f9914b5e74dcb3dc27984d56d27c5baa7fdec16843f96147525fc1fcba316e",
+          "dist/recording-react.js.map": "31bb2453a242bc9d0330cb7c0025fb949becb54eef7281ca68be85ce56dfa728",
+          "dist/recording.cjs": "0a476dbf6fb161952682207479bca9b92c6ace78986afd1bce6f81047be01990",
+          "dist/recording.cjs.map": "e0ece323daf716dc2659f11ffa061e25518725a81e9449dc3ab335359078ff94",
+          "dist/recording.d.cts": "4fb3e0a59deb71c06ddbdedb9dd4052960a8f16642ecc4178825fca9bd4e88ad",
+          "dist/recording.d.ts": "1c64760c15f274e9167eeb8bd604bcd75a538fb71ec71827d964296d7975e357",
+          "dist/recording.js": "b8edfa08a409403c814913d1e3c33fbedbdf61cbe486ba6349e9a0899acefa3f",
+          "dist/recording.js.map": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3",
+          "dist/selectSkillFrameContext-CE879UZO.d.ts": "3c20508bfce9480b4aff72e7c36e426a91736506fc61b68f753bbdde5c9c2d81",
+          "dist/selectSkillFrameContext-ZhoFD-JV.d.cts": "1c3ed5ab765542ad5790a30c81d68099373e16b449da991c7de8212eaf4224b9",
+          "dist/sharedCursor-BfnkIoOX.d.cts": "127299daa72b946a5ba3cf042ec37fc87673872b46c22ffb21583bd6621f5c56",
+          "dist/sharedCursor-DqRpN0RU.d.ts": "e96b9f9bc353ac2f8c0b8f74d1b7edb23430ca2f5480cbc7d1362c65daf4afbb",
+          "dist/skillgraph.cjs": "01576aaa649ef7632a2205277b4ba737873aa84b22a18e8f77497ffdde5973ee",
+          "dist/skillgraph.cjs.map": "88c99b35313da3b53e11f7e00f198eb1b7499c19b0dc38b594c8b9f6215bf11e",
+          "dist/skillgraph.d.cts": "f5302ce11c0a0c60669dd9bb36a752a0278a0f4261a8e79daf9326346ec650d6",
+          "dist/skillgraph.d.ts": "21f2357d7605e92bdee2ca7073b02088a267e7ae6bf2b578c518712de13f8862",
+          "dist/skillgraph.js": "94404cd753129f906795c013552f02962c0559ddc8d7df803ee14fcf491b1ec0",
+          "dist/skillgraph.js.map": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3",
+          "dist/stepForRuntimeStageId-gnGCVbW0.d.cts": "66facc66b727dfbb10634ae1c33dcb9871787377e5fc86b90a1da411c46ffd22",
+          "dist/stepForRuntimeStageId-mWTzjLT5.d.ts": "dfc0b1fe74f0181fb1f0330a5ea76696dd9e9a735667c2b2a019c8a3d27fc09e",
+          "dist/tagAxis-BPnHt7rO.d.ts": "3bc5086dab6497f6a599552a8aff6067833e5892d27d4f1217baae47ec2808c1",
+          "dist/tagAxis-lKVCmlnT.d.cts": "2bc455a75de6cc31bc50490f29a9faf0e753827f28dada0bde48e79b6a6b6abd",
+          "dist/types-Bfp9hsbS.d.ts": "782af9a233ffb062275a2bf9ec19fc4800a2507353eaa72d0bd96d383de55709",
+          "dist/types-D0PFi8_j.d.cts": "6e252b60e3a6df7abe93081a9fb0a037ab56653c7078ecf8e9b5a397b090b7a0",
+          "dist/types-IY_cRAmy.d.cts": "bfd74c7d3b336fb6307816118cd93d334f3048aa49bd7a2134644cd00361584d",
+          "dist/types-jUtsu8Ts.d.ts": "1f89f3630601c47484532847e0bb15f7362172057fce15f6f7ba1e90e0ddcd2f",
+          "dist/useSharedCursor-D3pbY38O.d.cts": "701b1eaadd0108899427a64489fe999a1d35c2f441c9d643363b2d3919b3d2d6",
+          "dist/useSharedCursor-DdEpqCwK.d.ts": "f9294b19a7aa3cc4be4273a03f8e1204001bd99533e139fa09509cb1532db714",
+          "dist/why.cjs": "c43dce168e58d46d701abd82fff734eea8dee195c3847fa14c8c2e6db865eb48",
+          "dist/why.cjs.map": "061c13d952dc5ba16e1d365ac2afed62fc6b1c6bf95322151ba88032ec437f3c",
+          "dist/why.d.cts": "68280cc27804dc772c448fa25a32b0aafd343099e33a1cae47f411e2eec1bd68",
+          "dist/why.d.ts": "ed1c01742feeca898bfff1263e809edc8653b466e0c89e8b9412d124dc336514",
+          "dist/why.js": "4b314d5e474cc59c3828ea4b6fc261fd3085b2e5683e551ffa6037cd6f5565b1",
+          "dist/why.js.map": "0e4f749246e1df78c7231dbe2ee821d32128e4f5307e7625ab70961f6cab491c",
+          "package.json": "f3428de50ee50194214e9b1859f6e5364881298944cf9362455f8b277bff5c17"
+        }
+      },
+      "strategy": "lens-compatibility-v1",
+      "archiveProfile": [
+        "dist/"
+      ],
+      "outerSha256": "1eb1f98abd0b57a958dd0c39b4557d9db2f5d0d859dee397369ee00c7688a671",
+      "reviewSha256": "73fcd316e4d8af7dd8ad5ae317e827b7c3ce3762a45f01bb729b8edcf25987cf",
+      "qualifyingJobs": [
+        {
+          "id": 134594266496,
+          "name": "test",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134594266892,
+          "name": "published-commentary-control",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596184970,
+          "name": "test-24",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185070,
+          "name": "peer-matrix (candidate, 18, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185072,
+          "name": "peer-matrix (0.38.0, 18, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185082,
+          "name": "peer-matrix (2.0.0, 18, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185085,
+          "name": "peer-matrix (0.34.0, 19, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185100,
+          "name": "peer-matrix (0.38.0, 18, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185103,
+          "name": "peer-matrix (2.0.0, 18, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185109,
+          "name": "peer-matrix (candidate, 19, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185112,
+          "name": "peer-matrix (1.0.1, 18, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185126,
+          "name": "peer-matrix (1.0.1, 18, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185138,
+          "name": "peer-matrix (0.34.0, 18, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185145,
+          "name": "peer-matrix (1.0.1, 19, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185146,
+          "name": "peer-matrix (1.0.1, 19, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185151,
+          "name": "peer-matrix (2.0.0, 19, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185152,
+          "name": "peer-matrix (candidate, 18, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185165,
+          "name": "peer-matrix (candidate, 19, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185182,
+          "name": "peer-matrix (0.38.0, 19, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185193,
+          "name": "peer-matrix (0.34.0, 19, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185201,
+          "name": "peer-matrix (0.38.0, 19, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185213,
+          "name": "peer-matrix (2.0.0, 19, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185263,
+          "name": "peer-matrix (0.34.0, 18, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "wireProfile": {
+        "zipMembers": [
+          "agentfootprint-15.0.0-rc.0.tgz",
+          "agentfootprint-lens-0.83.0.tgz",
+          "contextfootprint-0.1.1.tgz",
+          "agent-source.json",
+          "contract.json",
+          "footprint-explainable-ui-1.1.1.tgz",
+          "footprintjs-14.0.0-rc.0.tgz",
+          "foottrace-2.1.0.tgz",
+          "input.json"
+        ],
+        "expandedZipBytes": 29444012,
+        "contractSchema": 1,
+        "cohortKind": "lens.native-source-input.v2",
+        "contractSha256": "edecdc8eab3219f481bd8a3c716bf8235adf62e0cd64c220902a9c9fec1417ef",
+        "inputSha256": "d7bfe7a5ea4a78f66891140d144ad9fa893a6166ee711631b11e2714790519bc",
+        "agentSourceSha256": "0a02e35c5077debb4d76d6c0f618daeb63584e2bec8104cd462c56dc3bb6b850"
+      },
+      "buildSource": {
+        "whyCommit": "cf270f8e6e31eeb9b01682af85103e7589417607",
+        "whyTree": "8bcd3fbd8012c2b13674d5cda185f950af65a7f9",
+        "dirtyTracked": "M package-lock.json",
+        "workflowRun": "44242737338",
+        "workflowAttempt": "1"
+      },
+      "rawSourceLockQualification": "COMMITTED_GIT_ANCHOR_ONLY_NATIVE_BUILD_LOCK_DIRTY",
+      "embeddedSha256": {
+        "agentfootprint-15.0.0-rc.0.tgz": "c540187d33440c796c34624d117d026f11921a2c27a7bbda1dd2723128e57cc6",
+        "footprint-explainable-ui-1.1.1.tgz": "6871c2c24d992133173e5328d64c2f4a38dd93cf994bcd828195ee5971cbfea5",
+        "footprintjs-14.0.0-rc.0.tgz": "c9f73ddada14a36c277cbceab6b8b8946710e63493ace1da59e457c36f4e7128",
+        "foottrace-2.1.0.tgz": "300022ebdc7a401871a90d8da3db2739632b4e70012b1ac4e55fabc5fe2dbc68",
+        "contextfootprint-0.1.1.tgz": "6a7f2be20707c8d4ab0c67845bed02a583f215fa37050ca83e49fd9216740827"
+      },
+      "zipBodies": {
+        "agentfootprint-15.0.0-rc.0.tgz": {
+          "size": 9887236,
+          "sha256": "c540187d33440c796c34624d117d026f11921a2c27a7bbda1dd2723128e57cc6"
+        },
+        "agentfootprint-lens-0.83.0.tgz": {
+          "size": 3671407,
+          "sha256": "08315dd1e3aa98b2e7b5c9742c0778767584c4249f57462aa4022f16872d7022"
+        },
+        "contextfootprint-0.1.1.tgz": {
+          "size": 11500,
+          "sha256": "6a7f2be20707c8d4ab0c67845bed02a583f215fa37050ca83e49fd9216740827"
+        },
+        "agent-source.json": {
+          "size": 576,
+          "sha256": "0a02e35c5077debb4d76d6c0f618daeb63584e2bec8104cd462c56dc3bb6b850"
+        },
+        "contract.json": {
+          "size": 1421775,
+          "sha256": "edecdc8eab3219f481bd8a3c716bf8235adf62e0cd64c220902a9c9fec1417ef"
+        },
+        "footprint-explainable-ui-1.1.1.tgz": {
+          "size": 2572357,
+          "sha256": "6871c2c24d992133173e5328d64c2f4a38dd93cf994bcd828195ee5971cbfea5"
+        },
+        "footprintjs-14.0.0-rc.0.tgz": {
+          "size": 4282582,
+          "sha256": "c9f73ddada14a36c277cbceab6b8b8946710e63493ace1da59e457c36f4e7128"
+        },
+        "foottrace-2.1.0.tgz": {
+          "size": 621311,
+          "sha256": "300022ebdc7a401871a90d8da3db2739632b4e70012b1ac4e55fabc5fe2dbc68"
+        },
+        "input.json": {
+          "size": 6975268,
+          "sha256": "d7bfe7a5ea4a78f66891140d144ad9fa893a6166ee711631b11e2714790519bc"
+        }
+      }
+    }
+  },
+  "registry": {
+    "footprintjs": {
+      "version": "14.0.0-rc.0",
+      "sha256": "c9f73ddada14a36c277cbceab6b8b8946710e63493ace1da59e457c36f4e7128",
+      "integrity": "sha512-oBaE4kZFgLso4DzntWDgTJ03WVdcjMxBmyMa0mqt6XzcIEkBMuOe2P9TKTJSL4L5ZyxjHPutUbPRpYu+APcfDA==",
+      "bytes": 4282582,
+      "memberCount": 1289,
+      "archiveProfile": [
+        "dist/",
+        "AGENTS.md"
+      ],
+      "inspection": "publication-profile"
+    },
+    "foottrace": {
+      "version": "2.1.0",
+      "sha256": "300022ebdc7a401871a90d8da3db2739632b4e70012b1ac4e55fabc5fe2dbc68",
+      "integrity": "sha512-FaFqEPRvawnfy1AA9mNQ8DqKBlAXNAcM9tLnz7ZDTyYHebQRCawIHI6z4hFl0GOaMokWbIwp8E2jp0naUXNfgQ==",
+      "bytes": 621311,
+      "memberCount": 724,
+      "archiveProfile": [
+        "dist/"
+      ],
+      "inspection": "publication-profile"
+    },
+    "contextfootprint": {
+      "version": "0.1.1",
+      "sha256": "6a7f2be20707c8d4ab0c67845bed02a583f215fa37050ca83e49fd9216740827",
+      "integrity": "sha512-svx/T10drbS9/PHdYL9vFsLBjkyTi/80TS83xvC/jc58ILXYGOTuOxAajDQYUDK7wGWsuN824YXE+jJ2IQe5Jg==",
+      "bytes": 11500,
+      "memberCount": 20,
+      "archiveProfile": [
+        "dist/",
+        "examples/",
+        "CHANGELOG.md",
+        "NOTICE"
+      ],
+      "inspection": "digest-pinned-data"
+    }
+  },
+  "renderer": {
+    "package": "footprint-explainable-ui",
+    "version": "2.0.0",
+    "integrity": "sha512-8pn4qmvXe3AHiKIcyOUYsEwd/mB1c0k0TJq4/O07kuA95udby0dYqElkN2Gxs1AIyLmZaXHcCwkqW8iGZIUK6A==",
+    "sha256": "964d9b917cbbf1f4f9d278c63dbe4f105c776cc997638d70206197f2433c3831",
+    "shasum": "f02fa7e4ead7423e3695726665cc445a47502a04",
+    "bytes": 2655498,
+    "memberCount": 20,
+    "memberHashes": {
+      "dist/flowchart.cjs": "f9011edba8ae877500f6298e7e9c6b5d3b1e834659e02f1b3dce436a000b9d4d",
+      "dist/index.cjs": "1362b636386b4e6ab20c5e9bb19a2cc05a0c501788c3df4ad34218ef908e8df4",
+      "dist/record.cjs": "86dc9ee1c78941ddf5c41c2953746fe98e535efaf76868ef1351e0b02ea4db17",
+      "dist/flowchart.d.cts": "fe40d9f5d499b5b7c6b58a02624563e94ef90836b4bde0ef1a0a2e8d373c7711",
+      "dist/index.d.cts": "a7385cdcdb28749c149586e3a8a1ed1c57050eb2fc6fb6da7d03e226b1f3ab43",
+      "dist/record.d.cts": "e69e8b0b11578f0e493586ce4f6341562fc9032c5bda02844bfd225911c6a732",
+      "dist/flowchart.js": "ff100dc3827e6273f577b774de0971774f13a28dabff86c6335156a28264b6c8",
+      "dist/index.js": "15508fb4d835da25bc85d310f491bbe7327f304d002419e0800bef84e67f10ac",
+      "dist/record.js": "00bdefc9f0adc0cd06f26f69085ed97b9c22c89c83354eba548852fa61233e2f",
+      "package.json": "0b6d63ead5a17700e89679c5095ee6f20162b9140d7f533ca4035bc0715804b8",
+      "dist/flowchart.cjs.map": "d65a5f2fb10407435feefe3fda42b8266b802ba365a8144a923843f128660572",
+      "dist/flowchart.js.map": "1ecc36be0b5627af9b5cc0f07938317e0b6a751325d06c54ab94cfd0517c2de3",
+      "dist/index.cjs.map": "c893f5d6622bf6ed0e80ad8d6f91b734a80d303621d5417d1eaaec0617648a08",
+      "dist/index.js.map": "008e74b43b749f54bc289792e48c1b03de96e7e8c8f34b593ddad9cd4ff230bd",
+      "dist/record.cjs.map": "e52086c8121d0522c6b72fcc60b768380b82b69232de1c8cb2302bba356a2913",
+      "dist/record.js.map": "161ed5e04cbd04d0358813f77a12df092950f6584873468f788011544c0f6dea",
+      "README.md": "54aa157b7bc705680efcf333d3b25823d1333f971a84c647493fc271174ccfaf",
+      "dist/flowchart.d.ts": "fe40d9f5d499b5b7c6b58a02624563e94ef90836b4bde0ef1a0a2e8d373c7711",
+      "dist/index.d.ts": "a7385cdcdb28749c149586e3a8a1ed1c57050eb2fc6fb6da7d03e226b1f3ab43",
+      "dist/record.d.ts": "e69e8b0b11578f0e493586ce4f6341562fc9032c5bda02844bfd225911c6a732"
+    },
+    "reviewSha256": "73fcd316e4d8af7dd8ad5ae317e827b7c3ce3762a45f01bb729b8edcf25987cf",
+    "matrix": {
+      "repository": "footprintjs/agentfootprint-lens",
+      "head": "a37c7e63ee84bfe37dcbc80cfe8266896705b2d6",
+      "run": 44242737338,
+      "job": 134596185213,
+      "status": "passed",
+      "sameLensOriginal": "08315dd1e3aa98b2e7b5c9742c0778767584c4249f57462aa4022f16872d7022",
+      "selection": {
+        "renderer": "2.0.0",
+        "react": 19,
+        "node": 22
+      },
+      "narrativeFixtureSha256": "eb179045c0e64ad14edd7c5c8f4bba4201e50e963219ac77f34ce3b4b9079fad"
+    }
+  }
+}
