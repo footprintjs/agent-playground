@@ -1,8 +1,12 @@
 # Closed native dependency setup
 
-`prepare-ci-dependencies.mjs` is the workflow-only facade for FETCH → PREPARE → VERIFY.
+`prepare-ci-dependencies.mjs` is the workflow-only facade for PREFLIGHT → FETCH → PREPARE → VERIFY.
 The fixed input policy currently refuses: the independently qualified Lens image and its published-renderer
 contract are not configured. This local source is not an activated or accepted runtime route.
+PREFLIGHT is the first shell after checkout/Node setup, before even the global resolver install.
+It cannot be skipped or ignored; each later stage still checks qualification independently.
+The current four-body archive branch is AF-specific. The observed Lens nine-body compatibility
+strategy still needs its own source/provider/member binding before any input policy is enabled.
 
 The five temporary requests are exact published engine14.0.0-rc.0/Foottrace2.1.0, original accepted AF/Lens
 archives, and one exact compatible published renderer. Unknown links/roles/workspaces refuse. The authored
@@ -12,7 +16,8 @@ that baseline for only these five requests, then strict npm ci runs the original
 
 ```mermaid
 flowchart LR
-  fixed[Closed accepted source and registry facts] --> fetch[FETCH: read-only token/API]
+  fixed[Closed accepted source and registry facts] --> preflight[PREFLIGHT: metadata and immutable source]
+  preflight --> fetch[FETCH: read-only token/API]
   fetch --> data[Original ZIP and provider receipts]
   data --> prepare[PREPARE: no token]
   prepare --> admit[Re-admit outer digest, source and original members]

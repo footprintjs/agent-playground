@@ -40,6 +40,8 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
+      - name: Qualify fixed source policy before any package effect
+        run: node scripts/prepare-ci-dependencies.mjs preflight
       - name: Match the verified strict dependency resolver
         run: npm install --global npm@11.19.0
       - name: Test inert native input boundaries without dependencies

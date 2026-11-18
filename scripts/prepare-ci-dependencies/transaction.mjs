@@ -21,6 +21,16 @@ function readInputs(root, inputs, out, port) {
   return { admitted, archives };
 }
 
+export function preflight({ root, helper, inspectorRoot, inputs, env = process.env }) {
+  requireWorkflow(env); requireInputs(inputs); // No API, npm, output directory or archive staging.
+  root = realpathSync(root); helper = realpathSync(helper);
+  const port = dataPort(inspectorRoot), consumer = sourceIdentity(root);
+  originalDocuments(root);
+  const examples = exampleSource(helper, inputs.producers.agentfootprint.source, port.parseStrictJson);
+  return { status: 'FIXED_SOURCE_POLICY_QUALIFIED', consumer, inputsSha256: hash(JSON.stringify(inputs)),
+    exampleSource: examples, qualification: 'Metadata/source preflight only; provider/data/setup/consumer checks remain required' };
+}
+
 export function fetchInputs({ root, out, inspectorRoot, inputs, env = process.env }) {
   requireWorkflow(env, { token: true }); requireInputs(inputs); // Before filesystem/API effects.
   root = realpathSync(root); clean(root); requireOutside(root, out);
