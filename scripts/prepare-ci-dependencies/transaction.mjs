@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { requireInputs, roles } from './admission.mjs';
 import { clean, documents, exampleSource, hash, jsonBytes, npmEnvironment, originalDocuments,
   regular, replaceDocument, requireAbsent, requireOutside, requireWorkflow, restoreDocuments, sourceIdentity } from './filesystem.mjs';
-import { prepareCiManifest, prepareCiLockBaseline } from './projection.mjs';
+import { prepareCiManifest } from './projection.mjs';
 import { nativeDependencyLayout } from './namespaces.mjs';
 import { inspectInstalled } from './installed.mjs';
 import { dataPort, fetchInput, savedInput } from './transport.mjs';
@@ -77,11 +77,6 @@ export function withOriginalDocuments(root, originals, work, report) {
 function install({ root, helper, out, inputs, env, port, originals, projected, admitted, archives }) {
   replaceDocument(join(root, 'package.json'), projected, originals['package.json'].mode);
   const baseline = port.parseStrictJson(originals['package-lock.json'].bytes, { maxBytes: 8 * 1024 * 1024 });
-  const seed = prepareCiLockBaseline(baseline);
-  replaceDocument(join(root, 'package-lock.json'), jsonBytes(seed.lock), originals['package-lock.json'].mode);
-  writeFileSync(join(out, 'lock-seed.json'), jsonBytes({ removed: seed.removed,
-    retainedRows: Object.keys(seed.lock.packages).length, originalLockSha256: hash(originals['package-lock.json'].bytes),
-    qualification: 'Obsolete controlled cache invalidation only; npm authors every replacement identity' }), { flag: 'wx', mode: 0o600 });
   const childEnv = npmEnvironment(out, env);
   npm(root, out, childEnv, 'lock-update', nativeLockArguments(), 90000);
   const nativeLock = regular(join(root, 'package-lock.json'), 8 * 1024 * 1024);

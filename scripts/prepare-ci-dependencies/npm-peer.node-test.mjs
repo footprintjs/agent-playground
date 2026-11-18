@@ -8,7 +8,7 @@ import test from 'node:test';
 import { npmEnvironment } from './filesystem.mjs';
 import { nativeLockArguments } from './transaction.mjs';
 
-test('metadata recipe respects original local archive peers without looking for an unpublished registry version', () => {
+test('metadata recipe replaces stale source links with original local archives without unpublished registry peers', () => {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'app-inert-npm-peer-')));
   try {
     const project = join(base, 'project'), proof = join(base, 'proof'); mkdirSync(project); mkdirSync(proof);
@@ -18,6 +18,14 @@ test('metadata recipe respects original local archive peers without looking for 
     writeFileSync(join(project, 'package.json'), JSON.stringify({ name: 'inert-peer-fixture', private: true,
       dependencies: { agentfootprint: 'file:' + join(base, 'agentfootprint.tgz'),
         'agentfootprint-lens': 'file:' + join(base, 'agentfootprint-lens.tgz') } }));
+    const old = { '': { dependencies: { agentfootprint: 'file:../old-agentfootprint', 'agentfootprint-lens': 'file:../old-agentfootprint-lens' } } };
+    for (const [name, version] of [['agentfootprint', '10.1.0'], ['agentfootprint-lens', '0.76.0']]) {
+      const target = '../old-' + name, folder = join(base, 'old-' + name); mkdirSync(folder);
+      writeFileSync(join(folder, 'package.json'), JSON.stringify({ name, version }));
+      old[target] = { version };
+      old['node_modules/' + name] = { resolved: target, link: true };
+    }
+    writeFileSync(join(project, 'package-lock.json'), JSON.stringify({ name: 'inert-peer-fixture', lockfileVersion: 3, packages: old }));
     const env = npmEnvironment(proof, { ...process.env,
       PATH: dirname(process.execPath) + delimiter + process.env.PATH });
     const result = spawnSync('npm', [...nativeLockArguments(), '--offline'],
@@ -30,6 +38,7 @@ test('metadata recipe respects original local archive peers without looking for 
     for (const name of ['agentfootprint', 'agentfootprint-lens']) {
       assert(lock.packages['node_modules/' + name].resolved.startsWith('file:'));
       assert(lock.packages['node_modules/' + name].integrity.startsWith('sha512-'));
+      assert(!lock.packages['node_modules/' + name].link);
     }
   } finally { rmSync(base, { recursive: true }); }
 });

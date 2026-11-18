@@ -12,10 +12,9 @@ archives, and one exact compatible published renderer. Unknown links/roles/works
 source links, historical Foottrace caret, package version, public lock and all app behavior remain unchanged.
 The historical lock is not a fabricated published AF15 lock. The native lock is genuinely regenerated from
 that baseline for only these five requests, then strict npm ci runs the original lifecycle hooks.
-The baseline caches four obsolete source links and an old reader. Before npm resolves the new locators,
-the projection invalidates only those controlled link/target rows and reader cache. Every unrelated and
-compiler seed row remains structurally identical; no replacement version, URL or SRI is authored here.
-The original public lock is restored exactly even if resolution fails.
+The baseline contains obsolete source links. npm naturally reconciles them with the five projected
+requests; this adapter does not prune or author package version/URL/SRI records. The compiler baseline
+stays fixed, and the original public lock is restored exactly even if resolution fails.
 Metadata generation uses no-argument `npm install --package-lock-only --ignore-scripts` against the five
 projected requests. Named `npm update` can seek an unpublished registry peer despite a valid local TAR.
 An offline inert local-TAR peer regression runs the actual recipe without creating node_modules or
