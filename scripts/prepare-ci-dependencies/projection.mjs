@@ -49,7 +49,7 @@ export function prepareCiManifest(manifest, policy) {
   Object.assign(result.dependencies, {
     agentfootprint: 'file:' + archives.agentfootprint,
     'agentfootprint-lens': 'file:' + archives['agentfootprint-lens'],
-    'footprint-explainable-ui': policy.renderer.version, footprintjs: '13.0.0', foottrace: '2.0.0',
+    'footprint-explainable-ui': policy.renderer.version, footprintjs: '14.0.0-rc.0', foottrace: '2.1.0',
   });
   return result;
 }

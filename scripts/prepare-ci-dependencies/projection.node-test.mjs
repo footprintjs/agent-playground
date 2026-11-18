@@ -31,7 +31,7 @@ test('only five closed requests project, preserving every authored original and 
   const input=manifest(),before=structuredClone(input),expected=structuredClone(input);
   expected.dependencies={...expected.dependencies,agentfootprint:'file:/fixture/af-original.tgz',
     'agentfootprint-lens':'file:/fixture/lens-original.tgz','footprint-explainable-ui':'9.8.7',
-    footprintjs:'13.0.0',foottrace:'2.0.0'};
+    footprintjs:'14.0.0-rc.0',foottrace:'2.1.0'};
   assert.deepEqual(prepareCiManifest(input,policy()),expected);
   assert.deepEqual(input,before);
 });

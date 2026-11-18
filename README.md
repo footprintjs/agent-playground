@@ -19,12 +19,13 @@ Examples without an exported browser `run()` entry remain available as source,
 with an explicit CLI-only notice. A sample is identified by its folder/mode and
 id, not by id alone.
 
-## Migration: Foottrace 2 release candidate
+## Migration: engine 14 release candidate and Foottrace 2.1
 
-This preparation branch requests `foottrace@^2.0.0-rc.0` for the engine 13
-cohort. The local engine, AgentFootprint, Lens and UI links remain unchanged.
-Use the exact compatible candidate packages together; an older engine or agent
-can otherwise install another Foottrace copy.
+The native preparation targets the published `footprintjs@14.0.0-rc.0` and
+`foottrace@2.1.0` together. The authored local engine, AgentFootprint, Lens and UI
+links and historical Foottrace caret remain unchanged until the complete native
+transaction is ready. Use the exact compatible candidate packages together;
+an older engine or agent can otherwise install another Foottrace copy.
 
 The committed lock and published-package CI setup still describe the previous
 cohort. Paired installation, build and test validation remain pending; the

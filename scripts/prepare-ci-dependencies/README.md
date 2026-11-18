@@ -6,7 +6,7 @@ the complete native runtime integration and qualified Lens source input are not 
 This partial source is not a working CI route or a consumer compatibility claim.
 
 `prepare-ci-dependencies.mjs` is the facade. `projection.mjs` owns the five CLOSED temporary requests:
-exact engine13.0.0/Foottrace2.0.0, two original AF/Lens archive locators, and an exact published-renderer
+exact published engine14.0.0-rc.0/Foottrace2.1.0, two original AF/Lens archive locators, and an exact published-renderer
 policy. The four authored source links and Foottrace caret are validated; unknown file links in any
 dependency section, added workspaces and unknown policy roles refuse. The input and all unrelated
 manifest fields remain unchanged. The future transaction must restore the exact original bytes/modes.

@@ -20,7 +20,7 @@ describe('disposable CI dependency boundary', () => {
     const expected = structuredClone(input);
     Object.assign(expected.dependencies, { agentfootprint: 'file:/fixture/af.tgz',
       'agentfootprint-lens': 'file:/fixture/lens.tgz', 'footprint-explainable-ui': '9.8.7',
-      footprintjs: '13.0.0', foottrace: '2.0.0' });
+      footprintjs: '14.0.0-rc.0', foottrace: '2.1.0' });
     expect(result).toEqual(expected);
     expect(input).toEqual(before);
   });
