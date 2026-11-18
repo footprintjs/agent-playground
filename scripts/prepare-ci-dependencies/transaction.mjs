@@ -12,6 +12,9 @@ import { nativeDependencyLayout } from './namespaces.mjs';
 import { inspectInstalled } from './installed.mjs';
 import { dataPort, fetchInput, savedInput } from './transport.mjs';
 
+const strictNpm = ['--strict-peer-deps', '--legacy-peer-deps=false', '--force=false', '--no-audit', '--no-fund', '--registry=https://registry.npmjs.org'];
+export const nativeLockArguments = () => ['install', '--package-lock-only', '--ignore-scripts', ...strictNpm];
+
 function readInputs(root, inputs, out, port) {
   const admitted = {}, archives = {};
   for (const role of roles) {
@@ -80,14 +83,12 @@ function install({ root, helper, out, inputs, env, port, originals, projected, a
     retainedRows: Object.keys(seed.lock.packages).length, originalLockSha256: hash(originals['package-lock.json'].bytes),
     qualification: 'Obsolete controlled cache invalidation only; npm authors every replacement identity' }), { flag: 'wx', mode: 0o600 });
   const childEnv = npmEnvironment(out, env);
-  const strict = ['--strict-peer-deps', '--legacy-peer-deps=false', '--force=false', '--no-audit', '--no-fund', '--registry=https://registry.npmjs.org'];
-  npm(root, out, childEnv, 'lock-update', ['update', '--package-lock-only', '--ignore-scripts', ...strict,
-    'agentfootprint', 'agentfootprint-lens', 'footprint-explainable-ui', 'footprintjs', 'foottrace'], 90000);
+  npm(root, out, childEnv, 'lock-update', nativeLockArguments(), 90000);
   const nativeLock = regular(join(root, 'package-lock.json'), 8 * 1024 * 1024);
   const updated = port.parseStrictJson(nativeLock, { maxBytes: 8 * 1024 * 1024 });
   assert.deepEqual(updated.packages['node_modules/typescript'], baseline.packages['node_modules/typescript'], 'compiler baseline changed');
   writeFileSync(join(out, 'native-package-lock.json'), nativeLock, { flag: 'wx', mode: 0o600 });
-  npm(root, out, childEnv, 'strict-ci', ['ci', '--ignore-scripts=false', ...strict], 300000);
+  npm(root, out, childEnv, 'strict-ci', ['ci', '--ignore-scripts=false', ...strictNpm], 300000);
   assert.deepEqual(regular(join(root, 'package.json')), projected, 'setup manifest changed');
   assert.deepEqual(regular(join(root, 'package-lock.json')), nativeLock, 'install changed native lock');
   const plan = nativeDependencyLayout(root, helper);

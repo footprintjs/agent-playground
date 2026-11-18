@@ -16,6 +16,10 @@ The baseline caches four obsolete source links and an old reader. Before npm res
 the projection invalidates only those controlled link/target rows and reader cache. Every unrelated and
 compiler seed row remains structurally identical; no replacement version, URL or SRI is authored here.
 The original public lock is restored exactly even if resolution fails.
+Metadata generation uses no-argument `npm install --package-lock-only --ignore-scripts` against the five
+projected requests. Named `npm update` can seek an unpublished registry peer despite a valid local TAR.
+An offline inert local-TAR peer regression runs the actual recipe without creating node_modules or
+executing lifecycle scripts; strict peer/force-false policy is retained.
 
 ```mermaid
 flowchart LR
@@ -43,8 +47,9 @@ flowchart LR
   The real Lens/context manifests have publishConfig, which the shared publication-route inspector
   rejects. Only those admitted digest/SRI-pinned images use its public readArchiveMembers DATA port
   plus exact manifest/member/root checks. No config is stripped, package rebuilt or publication rule
-  changed. Engine/reader/renderer retain the applicable strict shared inspector. This is nonpublishing
-  input observation.
+  changed. Engine/reader retain the strict shared inspector. The retained renderer TAR passed that
+  inspector as DATA proof; production uses its qualified npm SRI and all14 installed member hashes,
+  without another renderer TAR fetch. This is nonpublishing input observation.
 - `transport.mjs`: one-attempt workflow-token GETs, strict metadata joins and saved-original re-admission.
   A403/404 is a failure with no credential fallback. Only FETCH has the standard workflow token.
   The CLI working directory and its config/state/cache/data directories are all inside the intake.
