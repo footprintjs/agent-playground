@@ -49,6 +49,10 @@ the admitted originals and the exact published renderer tested with them. A depe
 or data observation is not consumer compatibility. Source-linked examples come from the exact admitted
 AgentFootprint source, and use the same installed engine/reader/context graph as the app.
 
+Migration: native CI now selects published renderer 2.0.0 with a Lens original that admits its peer.
+The renderer accepts the official full engine narrative, including attempt entries; the capture
+contract and strict compiler check remain unchanged. The authored local-development links stay intact.
+
 The E5 migration also repairs pre-existing removed root imports, the obsolete
 `ExplainableShell.spec` prop, eager example execution during catalogue discovery,
 and duplicate sample-id selection. The chart comes from the real runner, and

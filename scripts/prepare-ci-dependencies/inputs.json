@@ -245,21 +245,21 @@
       "repository": "footprintjs/agentfootprint-lens",
       "repositoryId": 1215514815,
       "source": {
-        "head": "fcd9fbc383b249a5ac6d9c166f5f6c9b7f6854b2",
-        "tree": "3bff30a5913a0a6892c3690065b02ffce29a3776",
-        "manifestSha256": "c6dda0473e9ba27299e9267406f12b6b6ee0f36b931c7ced9fe86be6def12aec",
+        "head": "a37c7e63ee84bfe37dcbc80cfe8266896705b2d6",
+        "tree": "8bcd3fbd8012c2b13674d5cda185f950af65a7f9",
+        "manifestSha256": "f3428de50ee50194214e9b1859f6e5364881298944cf9362455f8b277bff5c17",
         "lockSha256": "0156f319ac82e794c04043ecd0259918828d1aa2599a7b4ccb14ab7ac6daeb95"
       },
       "tested": {
-        "head": "d51e88761d1d95411347cb50906495def0f8ac89",
-        "tree": "3bff30a5913a0a6892c3690065b02ffce29a3776"
+        "head": "cf270f8e6e31eeb9b01682af85103e7589417607",
+        "tree": "8bcd3fbd8012c2b13674d5cda185f950af65a7f9"
       },
       "expectedTestedParents": [
         "46dbeaf1cea0f38bd0a8913e1644c6e4aa18c5a6",
-        "fcd9fbc383b249a5ac6d9c166f5f6c9b7f6854b2"
+        "a37c7e63ee84bfe37dcbc80cfe8266896705b2d6"
       ],
       "run": {
-        "id": 44222037631,
+        "id": 44242737338,
         "run_attempt": 1,
         "workflow_id": 300397327,
         "name": "CI",
@@ -269,31 +269,31 @@
         "conclusion": "success"
       },
       "sourceJob": {
-        "id": 134526001655,
+        "id": 134594266496,
         "name": "test",
         "status": "completed",
         "conclusion": "success"
       },
       "sourceArtifact": {
-        "id": 14390369166,
+        "id": 14400007902,
         "name": "compatibility-archives",
-        "size_in_bytes": 23335427,
-        "digest": "sha256:23a56f78593374b99a2a0b077521a58957639418c8867a994bcab0048ef5a959",
+        "size_in_bytes": 23335382,
+        "digest": "sha256:1eb1f98abd0b57a958dd0c39b4557d9db2f5d0d859dee397369ee00c7688a671",
         "expired": false
       },
       "archive": {
         "filename": "agentfootprint-lens-0.83.0.tgz",
         "package": "agentfootprint-lens",
         "version": "0.83.0",
-        "bytes": 3671364,
-        "sha256": "7ad8c7df3701e4f6a3cb30a0f09bb9f533d1e2dd985b10ec3b675489b65b4c03",
-        "shasum": "bd03e2e39ac77b954c915299f6fd04d7e5a6b2e7",
-        "integrity": "sha512-JX67QllnqG4KHEmrO1fHsXHcUXPvIoLLrM2jBcotzqg4HQJk4vqw9vcKqfUfThDimUSV5kKYByG754M0RJGqbg==",
+        "bytes": 3671407,
+        "sha256": "08315dd1e3aa98b2e7b5c9742c0778767584c4249f57462aa4022f16872d7022",
+        "shasum": "c642bcb303da539c6463fb5741224fe8e34d83af",
+        "integrity": "sha512-hXRSxirfUZk0a4tdIomUwYwY4ddIkNqhDuDGGuSpl45YOwikJkC1c0l1M9MHXsZD7g9WLkbJmgfVJAlKkO2JBw==",
         "memberCount": 115,
-        "memberBytes": 13933306,
+        "memberBytes": 13933474,
         "memberHashes": {
           "LICENSE": "48fe7dbc22aeb00419b9c5d7ed60619a2f11259c0049bfbaf733a07fd62d4d9d",
-          "README.md": "b232cef3d8b6dbbb1e83687799fd325258b34637cec92600c6e5af773f101b51",
+          "README.md": "16e3686fb1f22ca8ffb9ec387350ece73544ed81517e0d9f41694280c25e261c",
           "dist/Lens-BkW7oyCA.d.ts": "cedceb63c8c99a5b2c131e453b399b9342a1b90945bd6ea44bde658982ccc0ac",
           "dist/Lens-NfOseLyG.d.cts": "ff8e0ce25afc7238186d241aa199673450f8ef11b650f336fb6452f8611c634d",
           "dist/LensRecorder-ow9Yj8zF.d.cts": "cc6ebacc56db17854004713f2c22d7d589d516351b4ea7c23c70904ad70f4bfd",
@@ -406,127 +406,151 @@
           "dist/why.d.ts": "ed1c01742feeca898bfff1263e809edc8653b466e0c89e8b9412d124dc336514",
           "dist/why.js": "4b314d5e474cc59c3828ea4b6fc261fd3085b2e5683e551ffa6037cd6f5565b1",
           "dist/why.js.map": "0e4f749246e1df78c7231dbe2ee821d32128e4f5307e7625ab70961f6cab491c",
-          "package.json": "c6dda0473e9ba27299e9267406f12b6b6ee0f36b931c7ced9fe86be6def12aec"
+          "package.json": "f3428de50ee50194214e9b1859f6e5364881298944cf9362455f8b277bff5c17"
         }
       },
       "strategy": "lens-compatibility-v1",
       "archiveProfile": [
         "dist/"
       ],
-      "outerSha256": "23a56f78593374b99a2a0b077521a58957639418c8867a994bcab0048ef5a959",
-      "reviewSha256": "24d11dc700cd1abc04639e07e2a508028f29c7f72a9456a09f18f23467deb9b5",
+      "outerSha256": "1eb1f98abd0b57a958dd0c39b4557d9db2f5d0d859dee397369ee00c7688a671",
+      "reviewSha256": "73fcd316e4d8af7dd8ad5ae317e827b7c3ce3762a45f01bb729b8edcf25987cf",
       "qualifyingJobs": [
         {
-          "id": 134526001539,
-          "name": "published-commentary-control",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134526001655,
+          "id": 134594266496,
           "name": "test",
           "status": "completed",
           "conclusion": "success"
         },
         {
-          "id": 134528018893,
+          "id": 134594266892,
+          "name": "published-commentary-control",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596184970,
           "name": "test-24",
           "status": "completed",
           "conclusion": "success"
         },
         {
-          "id": 134528019060,
-          "name": "peer-matrix (1.0.1, 18, 22)",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134528019069,
-          "name": "peer-matrix (0.34.0, 18, 24)",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134528019083,
-          "name": "peer-matrix (0.38.0, 19, 24)",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134528019084,
-          "name": "peer-matrix (candidate, 19, 24)",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134528019091,
-          "name": "peer-matrix (0.34.0, 18, 22)",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134528019100,
-          "name": "peer-matrix (0.38.0, 18, 22)",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134528019142,
-          "name": "peer-matrix (0.34.0, 19, 22)",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134528019154,
+          "id": 134596185070,
           "name": "peer-matrix (candidate, 18, 22)",
           "status": "completed",
           "conclusion": "success"
         },
         {
-          "id": 134528019156,
+          "id": 134596185072,
+          "name": "peer-matrix (0.38.0, 18, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185082,
+          "name": "peer-matrix (2.0.0, 18, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185085,
           "name": "peer-matrix (0.34.0, 19, 24)",
           "status": "completed",
           "conclusion": "success"
         },
         {
-          "id": 134528019173,
-          "name": "peer-matrix (1.0.1, 19, 22)",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134528019175,
-          "name": "peer-matrix (1.0.1, 18, 24)",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134528019186,
-          "name": "peer-matrix (candidate, 19, 22)",
-          "status": "completed",
-          "conclusion": "success"
-        },
-        {
-          "id": 134528019272,
+          "id": 134596185100,
           "name": "peer-matrix (0.38.0, 18, 24)",
           "status": "completed",
           "conclusion": "success"
         },
         {
-          "id": 134528019318,
+          "id": 134596185103,
+          "name": "peer-matrix (2.0.0, 18, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185109,
+          "name": "peer-matrix (candidate, 19, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185112,
+          "name": "peer-matrix (1.0.1, 18, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185126,
+          "name": "peer-matrix (1.0.1, 18, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185138,
+          "name": "peer-matrix (0.34.0, 18, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185145,
+          "name": "peer-matrix (1.0.1, 19, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185146,
           "name": "peer-matrix (1.0.1, 19, 24)",
           "status": "completed",
           "conclusion": "success"
         },
         {
-          "id": 134528019331,
+          "id": 134596185151,
+          "name": "peer-matrix (2.0.0, 19, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185152,
+          "name": "peer-matrix (candidate, 18, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185165,
+          "name": "peer-matrix (candidate, 19, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185182,
+          "name": "peer-matrix (0.38.0, 19, 24)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185193,
+          "name": "peer-matrix (0.34.0, 19, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185201,
           "name": "peer-matrix (0.38.0, 19, 22)",
           "status": "completed",
           "conclusion": "success"
         },
         {
-          "id": 134528019361,
-          "name": "peer-matrix (candidate, 18, 24)",
+          "id": 134596185213,
+          "name": "peer-matrix (2.0.0, 19, 22)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 134596185263,
+          "name": "peer-matrix (0.34.0, 18, 24)",
           "status": "completed",
           "conclusion": "success"
         }
@@ -543,18 +567,18 @@
           "foottrace-2.1.0.tgz",
           "input.json"
         ],
-        "expandedZipBytes": 29444816,
+        "expandedZipBytes": 29444012,
         "contractSchema": 1,
         "cohortKind": "lens.native-source-input.v2",
-        "contractSha256": "da9a991e7bdf0c9051ff8b0eb0d9f77b8f9f9ec48e90ac3a2fd9ba94902aa9c9",
-        "inputSha256": "cfa5cee4bd0970b63dad664c643a1e3dd82f05817f3f6f9e8bea8a530cf04db7",
+        "contractSha256": "edecdc8eab3219f481bd8a3c716bf8235adf62e0cd64c220902a9c9fec1417ef",
+        "inputSha256": "d7bfe7a5ea4a78f66891140d144ad9fa893a6166ee711631b11e2714790519bc",
         "agentSourceSha256": "0a02e35c5077debb4d76d6c0f618daeb63584e2bec8104cd462c56dc3bb6b850"
       },
       "buildSource": {
-        "whyCommit": "d51e88761d1d95411347cb50906495def0f8ac89",
-        "whyTree": "3bff30a5913a0a6892c3690065b02ffce29a3776",
+        "whyCommit": "cf270f8e6e31eeb9b01682af85103e7589417607",
+        "whyTree": "8bcd3fbd8012c2b13674d5cda185f950af65a7f9",
         "dirtyTracked": "M package-lock.json",
-        "workflowRun": "44222037631",
+        "workflowRun": "44242737338",
         "workflowAttempt": "1"
       },
       "rawSourceLockQualification": "COMMITTED_GIT_ANCHOR_ONLY_NATIVE_BUILD_LOCK_DIRTY",
@@ -571,8 +595,8 @@
           "sha256": "c540187d33440c796c34624d117d026f11921a2c27a7bbda1dd2723128e57cc6"
         },
         "agentfootprint-lens-0.83.0.tgz": {
-          "size": 3671364,
-          "sha256": "7ad8c7df3701e4f6a3cb30a0f09bb9f533d1e2dd985b10ec3b675489b65b4c03"
+          "size": 3671407,
+          "sha256": "08315dd1e3aa98b2e7b5c9742c0778767584c4249f57462aa4022f16872d7022"
         },
         "contextfootprint-0.1.1.tgz": {
           "size": 11500,
@@ -583,8 +607,8 @@
           "sha256": "0a02e35c5077debb4d76d6c0f618daeb63584e2bec8104cd462c56dc3bb6b850"
         },
         "contract.json": {
-          "size": 1421765,
-          "sha256": "da9a991e7bdf0c9051ff8b0eb0d9f77b8f9f9ec48e90ac3a2fd9ba94902aa9c9"
+          "size": 1421775,
+          "sha256": "edecdc8eab3219f481bd8a3c716bf8235adf62e0cd64c220902a9c9fec1417ef"
         },
         "footprint-explainable-ui-1.1.1.tgz": {
           "size": 2572357,
@@ -599,8 +623,8 @@
           "sha256": "300022ebdc7a401871a90d8da3db2739632b4e70012b1ac4e55fabc5fe2dbc68"
         },
         "input.json": {
-          "size": 6976125,
-          "sha256": "cfa5cee4bd0970b63dad664c643a1e3dd82f05817f3f6f9e8bea8a530cf04db7"
+          "size": 6975268,
+          "sha256": "d7bfe7a5ea4a78f66891140d144ad9fa893a6166ee711631b11e2714790519bc"
         }
       }
     }
@@ -646,37 +670,48 @@
   },
   "renderer": {
     "package": "footprint-explainable-ui",
-    "version": "0.38.0",
-    "integrity": "sha512-Lh4FQtfq6mCCoDS2YpKdg0aLI8MENUiFGVwPGwxKf7kJ1Fh2Uiax+nlJyExfBpUnB/uez42C4A4t7TTIgYWFhw==",
-    "sha256": "18abd83ec0ba0fa77eec58a815d31110c1daba48829f0adc742ee359adac6b76",
-    "shasum": "a22126919b980a00d0650683d2748d371940c72c",
-    "bytes": 1220527,
-    "memberCount": 14,
+    "version": "2.0.0",
+    "integrity": "sha512-8pn4qmvXe3AHiKIcyOUYsEwd/mB1c0k0TJq4/O07kuA95udby0dYqElkN2Gxs1AIyLmZaXHcCwkqW8iGZIUK6A==",
+    "sha256": "964d9b917cbbf1f4f9d278c63dbe4f105c776cc997638d70206197f2433c3831",
+    "shasum": "f02fa7e4ead7423e3695726665cc445a47502a04",
+    "bytes": 2655498,
+    "memberCount": 20,
     "memberHashes": {
-      "dist/flowchart.cjs": "2c17b425b4de7981ef248ab737a1d9bfd4613db765796745b85818fff1ffddfd",
-      "dist/index.cjs": "8f62adb5a3421faffd032e84952b34eea31ac81b9c9c8d0b929d42e3e5896943",
-      "dist/flowchart.d.cts": "c495e103d2b95ea6abd7b04a9893f782a962dd35de1bc6675fd4f8649e2d8f95",
-      "dist/index.d.cts": "ddbe78b5da84f4a1aaa68b88b43ba0e9c1dfb8739647b7d0154f86f719c36dcb",
-      "dist/flowchart.js": "7c51eae1b9d390a1cf510164a938a8c663d8db3e56d2f6b7a5e2e7b441aaa7cf",
-      "dist/index.js": "8a0bf9652f19bd762d3a68699c226aeebc7c81063815acca28c72aa092d875a8",
-      "package.json": "aa0692d805efad86a45101306d41f6c2d26fbcd27573b41895d0b536df324b63",
-      "dist/flowchart.cjs.map": "ec86617489dd54420fc5a5d91a0adc5922c7dd3cb585d8e670571f1a250fbd23",
-      "dist/flowchart.js.map": "49965c17d53b2b793563721ef0a792ebf5979d5285b21ab013c1b3691c017d83",
-      "dist/index.cjs.map": "fa3f172d067d60e4de730844bf27c3be71dee0e7f72e1aec60b6ec3c7c3e3bd1",
-      "dist/index.js.map": "781a31e4a46dade3babc9fa4774b15b68d64b14dceb55488ffdca39c94634919",
-      "README.md": "e892d8b21f9d9f3a769ce9e52b478d0396a0bc1796de6c9fe67570b02192202e",
-      "dist/flowchart.d.ts": "c495e103d2b95ea6abd7b04a9893f782a962dd35de1bc6675fd4f8649e2d8f95",
-      "dist/index.d.ts": "ddbe78b5da84f4a1aaa68b88b43ba0e9c1dfb8739647b7d0154f86f719c36dcb"
+      "dist/flowchart.cjs": "f9011edba8ae877500f6298e7e9c6b5d3b1e834659e02f1b3dce436a000b9d4d",
+      "dist/index.cjs": "1362b636386b4e6ab20c5e9bb19a2cc05a0c501788c3df4ad34218ef908e8df4",
+      "dist/record.cjs": "86dc9ee1c78941ddf5c41c2953746fe98e535efaf76868ef1351e0b02ea4db17",
+      "dist/flowchart.d.cts": "fe40d9f5d499b5b7c6b58a02624563e94ef90836b4bde0ef1a0a2e8d373c7711",
+      "dist/index.d.cts": "a7385cdcdb28749c149586e3a8a1ed1c57050eb2fc6fb6da7d03e226b1f3ab43",
+      "dist/record.d.cts": "e69e8b0b11578f0e493586ce4f6341562fc9032c5bda02844bfd225911c6a732",
+      "dist/flowchart.js": "ff100dc3827e6273f577b774de0971774f13a28dabff86c6335156a28264b6c8",
+      "dist/index.js": "15508fb4d835da25bc85d310f491bbe7327f304d002419e0800bef84e67f10ac",
+      "dist/record.js": "00bdefc9f0adc0cd06f26f69085ed97b9c22c89c83354eba548852fa61233e2f",
+      "package.json": "0b6d63ead5a17700e89679c5095ee6f20162b9140d7f533ca4035bc0715804b8",
+      "dist/flowchart.cjs.map": "d65a5f2fb10407435feefe3fda42b8266b802ba365a8144a923843f128660572",
+      "dist/flowchart.js.map": "1ecc36be0b5627af9b5cc0f07938317e0b6a751325d06c54ab94cfd0517c2de3",
+      "dist/index.cjs.map": "c893f5d6622bf6ed0e80ad8d6f91b734a80d303621d5417d1eaaec0617648a08",
+      "dist/index.js.map": "008e74b43b749f54bc289792e48c1b03de96e7e8c8f34b593ddad9cd4ff230bd",
+      "dist/record.cjs.map": "e52086c8121d0522c6b72fcc60b768380b82b69232de1c8cb2302bba356a2913",
+      "dist/record.js.map": "161ed5e04cbd04d0358813f77a12df092950f6584873468f788011544c0f6dea",
+      "README.md": "54aa157b7bc705680efcf333d3b25823d1333f971a84c647493fc271174ccfaf",
+      "dist/flowchart.d.ts": "fe40d9f5d499b5b7c6b58a02624563e94ef90836b4bde0ef1a0a2e8d373c7711",
+      "dist/index.d.ts": "a7385cdcdb28749c149586e3a8a1ed1c57050eb2fc6fb6da7d03e226b1f3ab43",
+      "dist/record.d.ts": "e69e8b0b11578f0e493586ce4f6341562fc9032c5bda02844bfd225911c6a732"
     },
-    "reviewSha256": "24d11dc700cd1abc04639e07e2a508028f29c7f72a9456a09f18f23467deb9b5",
+    "reviewSha256": "73fcd316e4d8af7dd8ad5ae317e827b7c3ce3762a45f01bb729b8edcf25987cf",
     "matrix": {
       "repository": "footprintjs/agentfootprint-lens",
-      "head": "fcd9fbc383b249a5ac6d9c166f5f6c9b7f6854b2",
-      "run": 44222037631,
-      "job": 134528019331,
+      "head": "a37c7e63ee84bfe37dcbc80cfe8266896705b2d6",
+      "run": 44242737338,
+      "job": 134596185213,
       "status": "passed",
-      "sameLensOriginal": "7ad8c7df3701e4f6a3cb30a0f09bb9f533d1e2dd985b10ec3b675489b65b4c03",
-      "laneId": "native-flow-0.38.0-react-19-node-22"
+      "sameLensOriginal": "08315dd1e3aa98b2e7b5c9742c0778767584c4249f57462aa4022f16872d7022",
+      "selection": {
+        "renderer": "2.0.0",
+        "react": 19,
+        "node": 22
+      },
+      "narrativeFixtureSha256": "eb179045c0e64ad14edd7c5c8f4bba4201e50e963219ac77f34ce3b4b9079fad"
     }
   }
 }

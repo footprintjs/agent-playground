@@ -2,7 +2,7 @@
 
 `prepare-ci-dependencies.mjs` is the workflow-only facade for PREFLIGHT → FETCH → PREPARE → VERIFY.
 The fixed source policy binds independently admitted AgentFootprint and Lens originals, published engine14RC,
-Foottrace2.1, context0.1.1, and the exact published renderer0.38 image tested with the current Lens original.
+Foottrace2.1, context0.1.1, and the exact published renderer 2.0.0 image tested with the current Lens original.
 These are source/registry input facts, not an App compatibility verdict. PREFLIGHT is the first shell after
 checkout/Node setup, before even the global resolver install. It cannot be skipped or ignored; every
 later stage checks qualification independently.
