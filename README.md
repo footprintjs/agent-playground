@@ -40,14 +40,12 @@ The agent sandbox retains its explicit approved-name list, supplied from each
 name's official AgentFootprint export. It does not resolve arbitrary imports.
 It is an in-page teaching executor, not an isolation boundary for hostile code.
 
-The runtime CI migration is incomplete. `scripts/prepare-ci-dependencies.mjs`
-now contains only pure, closed native-input planning and refuses direct execution
-before effects; the obsolete published-cohort version table is removed. A qualified
-Lens input and the complete guarded setup remain prerequisites. The existing
-workflow has not yet been migrated or accepted for this cohort. Its tests,
-capture-contract type check, lint and complete TypeScript + Vite build stay required.
-Authored links and the historical public lock remain unchanged; future source-linked
-examples must come from the exact admitted AgentFootprint source.
+The guarded native CI route uses fixed original AF/Lens source artifacts plus the exact compatible
+published renderer. It restores the authored manifest and historical lock before the original test,
+capture-contract type check, lint and complete TypeScript + Vite build. Missing producer qualification
+refuses before setup; the current local policy is still waiting for Lens and renderer facts. A dependency
+or data observation is not consumer compatibility. Source-linked examples come from the exact admitted
+AgentFootprint source, and use the same installed engine/reader/context graph as the app.
 
 The E5 migration also repairs pre-existing removed root imports, the obsolete
 `ExplainableShell.spec` prop, eager example execution during catalogue discovery,

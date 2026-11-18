@@ -1,5 +1,5 @@
 from .inspect import inspect_artifact
-from .receipt import DataRefused
-from .probe import main as probe_main
+from .receipt import DataRefused, parse_json as parse_data
+from .source_zip import source_members
 
-__all__ = ['inspect_artifact', 'DataRefused', 'probe_main']
+__all__ = ['inspect_artifact', 'DataRefused', 'parse_data', 'source_members']

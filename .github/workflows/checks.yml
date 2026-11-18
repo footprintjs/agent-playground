@@ -9,72 +9,85 @@ permissions:
   contents: read
 
 jobs:
-  native-input-data:
-    name: Native input data (provisional)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - name: Verify the runner's existing data tools
-        run: |
-          python3 --version
-          gh --version
-      - name: Run the standard-library data controls
-        run: python3 -B -m unittest discover -s scripts/native_inputs -t scripts -p '*_test.py' -v
-      - name: Observe the fixed provisional producer artifact as data
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 -B scripts/probe_native_input.py > "$RUNNER_TEMP/native-input-data-summary.json"
-      - name: Retain only the small data observation
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: native-input-data-observation
-          path: ${{ runner.temp }}/native-input-data-summary.json
-          if-no-files-found: warn
-          retention-days: 3
-          overwrite: true
-
-  check:
-    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: agent-playground
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           path: agent-playground
-      # Raw examples and their mock-provider helper remain the library's source
-      # of truth. Runtime modules below are the exact published packages.
-      - uses: actions/checkout@v4
+          persist-credentials: false
+      # Existing source-linked examples use the SAME source as the admitted AF image.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: footprintjs/agentfootprint
-          ref: v10.1.0
+          ref: 37985a9c4a998a52838905322040a34a63229de8
           path: agentfootprint
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: footprintjs/ci
+          ref: 1ca5d7de9bde68c205b5d140c94dc475ae3b2520
+          path: .ci-tools
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: agent-playground/package-lock.json
+          package-manager-cache: false
       - name: Match the verified strict dependency resolver
         run: npm install --global npm@11.19.0
-      - name: Prepare reviewed published dependencies in this disposable checkout
+      - name: Test inert native input boundaries without dependencies
+        env:
+          NATIVE_ARCHIVE_PORT: ${{ github.workspace }}/.ci-tools/src/release-route/archive
         run: |
-          node scripts/prepare-ci-dependencies.mjs
-          # npm install can retain a same-version local link. Refresh only the
-          # reviewed names so the lock records the actual published boundary.
-          npm update --package-lock-only agentfootprint agentfootprint-lens footprint-explainable-ui footprintjs
-      - run: npm ci
-      - run: npm ls agentfootprint agentfootprint-lens footprintjs foottrace --all
-      # The sibling example helper imports its own source, whose package imports
-      # must resolve to the same installed packages as the playground.
-      - run: ln -s agent-playground/node_modules ../node_modules
+          node --test scripts/prepare-ci-dependencies/*.node-test.mjs
+          python3 -B -m unittest discover -s scripts/native_inputs -t scripts -p '*_test.py' -v
+      - name: Fetch the fixed accepted original source data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          command -v gh >/dev/null
+          command -v python3 >/dev/null
+          node scripts/prepare-ci-dependencies.mjs fetch
+      - name: Prepare strict native inputs without an API token
+        id: native_setup
+        run: node scripts/prepare-ci-dependencies.mjs prepare
+      - name: Verify the installed family graph
+        run: npm ls agentfootprint agentfootprint-lens footprint-explainable-ui footprintjs foottrace contextfootprint --all
       - run: npm test
       - run: npm run test:types
       - run: npm run lint
       - run: npm run build
+      - name: Verify immutable inputs after the original gates
+        if: ${{ always() && steps.native_setup.outputs.checkpoint_sha256 != '' }}
+        env:
+          EXPECTED_NATIVE_CHECKPOINT: ${{ steps.native_setup.outputs.checkpoint_sha256 }}
+        run: node scripts/prepare-ci-dependencies.mjs verify > "$RUNNER_TEMP/app-native-inputs/verify-result.json"
+      - name: Retain only compact native proof
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: app-native-proof-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/app-native-inputs/agentfootprint/provider.json
+            ${{ runner.temp }}/app-native-inputs/agentfootprint/admission.json
+            ${{ runner.temp }}/app-native-inputs/agentfootprint-lens/provider.json
+            ${{ runner.temp }}/app-native-inputs/agentfootprint-lens/admission.json
+            ${{ runner.temp }}/app-native-inputs/originals.json
+            ${{ runner.temp }}/app-native-inputs/setup-manifest.json
+            ${{ runner.temp }}/app-native-inputs/native-package-lock.json
+            ${{ runner.temp }}/app-native-inputs/setup-receipt.json
+            ${{ runner.temp }}/app-native-inputs/lock-update.json
+            ${{ runner.temp }}/app-native-inputs/lock-update.log
+            ${{ runner.temp }}/app-native-inputs/strict-ci.json
+            ${{ runner.temp }}/app-native-inputs/strict-ci.log
+            ${{ runner.temp }}/app-native-inputs/restoration.json
+            ${{ runner.temp }}/app-native-inputs/verify-result.json

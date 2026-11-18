@@ -56,12 +56,13 @@ test('only the two distinct original archives and an exact renderer policy are a
   }
 });
 
-test('the incomplete direct CLI refuses before filesystem or install effects',()=>{
+test('a direct CLI without an explicit workflow command refuses before filesystem or install effects',()=>{
   const cwd=mkdtempSync(join(tmpdir(),'app-native-cli-'));
   try {
     const result=spawnSync(process.execPath,[new URL('../prepare-ci-dependencies.mjs',import.meta.url).pathname],
       {cwd,encoding:'utf8',timeout:5000});
-    assert.equal(result.status,2);assert.match(result.stderr,/not configured/);
+    assert.equal(result.status,2);assert.equal(JSON.parse(result.stderr).status,'REFUSED');
+    assert.equal(JSON.parse(result.stderr).reason,'native-inputs-not-configured-or-refused');
     assert.deepEqual(readdirSync(cwd),[]);assert.equal(result.stdout,'');
   } finally {rmSync(cwd,{recursive:true});}
 });

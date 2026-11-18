@@ -5,10 +5,10 @@ The inspector reads one original AF Actions ZIP and a closed expected identity. 
 execute or activate a package. Passing data checks does not accept the producer, prove a registry publication,
 establish workflow-token access or establish consumer compatibility.
 
-The app source links, runtime, tests and workflows are unchanged. The old registry table has separately
-been removed from `prepare-ci-dependencies.mjs`; its replacement is pure planning and refuses direct execution.
-This DATA helper does not turn that incomplete preparation into a supported native install.
-Final producer review/gates, a compatible Lens input and transport admission remain separate prerequisites.
+The app source links, runtime and original four consumer gates remain unchanged. The old registry table
+and provisional failed-producer job are removed from the native workflow. Its fixed policy still refuses
+unqualified inputs. Final producer review/gates, a compatible Lens input and renderer identity remain
+separate prerequisites; this DATA helper cannot activate them.
 
 ## Interface
 
@@ -19,7 +19,7 @@ python3 -B scripts/native_inputs.py ORIGINAL.zip EXPECTED.json
 ```
 
 Success prints a bounded identity/census summary and exits 0; refused data prints a fixed reason and exits 2.
-There is no output-directory, install or activation option. The expected JSON has exactly these fields:
+This original inspector command has no output-directory, install or activation option. Its expected JSON has exactly these fields:
 
 ```json
 {
@@ -84,30 +84,20 @@ postinstall text but assert no package execution, output tree or dependency dire
 outer/archive pins where necessary so refusal reaches the relevant content boundary. A 10,001-member positive
 guards against accidentally borrowing another package's 10,000-member limit. No dependency install is needed.
 
-## One provisional hosted transport probe
+## Native setup DATA seam
 
-The separate `Native input data (provisional)` CI job is a read-only development probe, not the runtime check.
-It pins the actual earlier producer run, attempt, successful package job, artifact and complete data identity
-in `provisional_af_d3.json`. The whole producer run is explicitly failed; the probe cannot turn that into
-producer acceptance. A successor needs a new reviewed binding, never a moving branch or latest-artifact lookup.
+The earlier fixed failed-producer transport experiment has been removed. Its historical evidence remains
+outside this source; it cannot be treated as a current compatibility gate. The guarded native transaction
+uses the same DATA library through its public facade and the existing pinned shared-ci archive inspector.
 
-`probe.py` is the sixth cohesive unit: fixed provider metadata admission and one bounded `gh api` read path.
-Its dedicated CLI is `scripts/probe_native_input.py`, which calls the closed `probe_main` entry on the
-package facade. External callers never import the private `probe.py` module. The generic static Python
-script-boundary test derives sealed packages at every depth and checks absolute and relative imports;
-dynamic import expressions are not claimed to be covered. It runs only in this repository's Actions context,
-requires the step's supplied token, uses an empty temporary gh configuration and does not read a desktop login.
-The token is supplied only to that API step; headers, token values, debug/authentication output and raw provider
-errors are never printed. A 403/404 fails with a fixed reason; no retry or different credential route follows.
+`source_members(zip_path, expected)` returns only the original four named ZIP bodies after bounded outer
+size/digest and canonical-member checks. Its expected object is exactly `filename,size,sha256`; only AF or
+Lens package filenames are admitted. `parse_data` supplies the existing strict duplicate-key JSON reader.
+The separate `scripts/native_source_zip.py stage|verify` entry saves or verifies these bytes in an exclusive
+owned data directory. It never extracts a tar or executes package code. Original `inspect_artifact` and
+its two-argument CLI remain read-only, DATA_ONLY and activation-disabled.
 
-The job uses preinstalled Python and GitHub CLI, listed in the official
-[Ubuntu24.04 runner inventory](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md),
-and checks their availability again. There is no dependency installation or producer rebuild. Metadata must
-join the exact source/tree, run/attempt, successful named package/upload steps and artifact name/digest/size
-before the original ZIP is requested once. It stays in a private temporary folder and is deleted after the
-data inspection, even on refusal. Only the small summary is retained; the ZIP is not uploaded again.
-
-Desktop access did not establish that this workflow's token can read another repository's artifact. This job
-measures that capability directly and can fail honestly. The old runtime job and its older package pins remain
-unchanged and unaccepted for the new cohort. A green data observation does not establish installation, runtime,
-native acceptance, registry provenance, producer whole-CI success or target compatibility.
+Only the separate fixed native setup policy can admit an independently qualified producer. Incoming tar
+validation uses the shared-ci DATA port; there is no second tar parser for native setup. Missing Lens or
+renderer identity refuses before transport/installation, and the standard workflow token exists only in
+FETCH. PREPARE/VERIFY re-admit saved originals and carry no API token.
